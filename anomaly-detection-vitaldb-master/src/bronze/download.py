@@ -62,7 +62,7 @@ def download_all_cases(tracks, interval, output_dir, max_cases=None):
 def download_clinical_data(output_dir):
     """Scarica i dati clinici e di laboratorio e li salva come Parquet."""
     try:
-        df_clinical = vitaldb.load_clinical_data()
+        df_clinical = vitaldb.load_clinical()
         output_file = output_dir / "clinical_data.parquet"
         df_clinical.to_parquet(output_file, index=False)
         print("Dati clinici scaricati correttamente.")
