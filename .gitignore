@@ -29,3 +29,8 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Zip ed estrazioni temporanee
+*.zip
+*-master/
+
