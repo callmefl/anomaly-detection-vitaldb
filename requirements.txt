@@ -23,3 +23,7 @@ ipykernel                  # Kernel Python per Jupyter
 # === Utilità ===
 python-dotenv>=1.0         # Gestione variabili ambiente (.env)
 tqdm>=4.66                 # Progress bar per download/processing
+
+# === REST API ===
+fastapi[standard]>=0.128.1 # Framework REST API (api/main.py)
+uvicorn>=0.30               # Server ASGI per eseguire l'API in locale

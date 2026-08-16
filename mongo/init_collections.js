@@ -33,3 +33,13 @@ if (!db.getCollectionNames().includes("registry")) {
 }
 db.registry.createIndex({ "case_id": 1 }, { unique: true });
 print("✓ Indice univoco su 'registry.case_id' creato.");
+
+// Creazione collezione per i risultati dell'Anomaly Detection
+if (!db.getCollectionNames().includes("anomalies_detected")) {
+    db.createCollection("anomalies_detected");
+    print("✓ Collezione 'anomalies_detected' creata.");
+} else {
+    print("ℹ Collezione 'anomalies_detected' già esistente.");
+}
+db.anomalies_detected.createIndex({ "case_id": 1, "timestamp": 1 });
+print("✓ Indici su 'anomalies_detected' creati.");

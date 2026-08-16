@@ -33,7 +33,12 @@ VITAL_TRACKS = [
 
 # === Parametri pipeline ===
 SAMPLING_INTERVAL = 1.0  # Intervallo di campionamento in secondi
-MAX_CASES = None          # Numero massimo di casi da scaricare (None = tutti)
+
+# Numero massimo di casi da scaricare (None = tutti). Può essere impostato
+# tramite la variabile d'ambiente MAX_CASES, oppure sovrascritto a runtime
+# con l'argomento --cases di src/bronze/download.py.
+_max_cases_env = os.getenv("MAX_CASES")
+MAX_CASES = int(_max_cases_env) if _max_cases_env else None
 
 # Crea le directory dati se non esistono
 for d in [BRONZE_DIR, SILVER_DIR, RAW_DIR]:
