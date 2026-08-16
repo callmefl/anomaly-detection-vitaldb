@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VitalDB — Anomaly Detection Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg-primary:   #080c14;
+      --bg-secondary: #0d1320;
+      --bg-card:      #111827;
+      --bg-card-hover:#151e2e;
+      --border:       #1e2d42;
+      --accent:       #3b82f6;
+      --accent-glow:  rgba(59,130,246,0.25);
+      --danger:       #ef4444;
+      --danger-glow:  rgba(239,68,68,0.2);
+      --warning:      #f59e0b;
+      --success:      #10b981;
+      --text-primary: #f0f4ff;
+      --text-secondary:#8899b4;
+      --text-dim:     #4b5e7a;
+      --hr-color:     #ef4444;
+      --spo2-color:   #3b82f6;
+      --sbp-color:    #f59e0b;
+      --dbp-color:    #10b981;
+      --mbp-color:    #a78bfa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* === HEADER === */
+    header {
+      background: linear-gradient(135deg, #0d1320 0%, #111827 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .logo-text { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .logo-text span { color: var(--accent); }
+
+    .header-status {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.8rem; color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+
+    /* === LAYOUT === */
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - 64px);
+    }
+
+    /* === SIDEBAR === */
+    .sidebar {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      overflow-y: auto;
+    }
+
+    .sidebar-title {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 0 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .case-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 4px;
+      border: 1px solid transparent;
+    }
+
+    .case-item:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border);
+    }
+
+    .case-item.active {
+      background: rgba(59,130,246,0.1);
+      border-color: rgba(59,130,246,0.4);
+    }
+
+    .case-avatar {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: linear-gradient(135deg, #1e3a5f, #2d5490);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 600; color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .case-item.active .case-avatar {
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      color: white;
+    }
+
+    .case-info { flex: 1; min-width: 0; }
+    .case-id { font-size: 0.85rem; font-weight: 600; }
+    .case-meta { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
+
+    .case-badge {
+      font-size: 0.6rem; font-weight: 600;
+      padding: 2px 6px; border-radius: 4px;
+      background: rgba(239,68,68,0.15);
+      color: var(--danger);
+    }
+
+    .sidebar-loader {
+      text-align: center; padding: 2rem 1rem;
+      color: var(--text-dim); font-size: 0.8rem;
+    }
+
+    .spinner {
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 0.75rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* === MAIN === */
+    .main { padding: 1.5rem 2rem; overflow-y: auto; }
+
+    /* === API STATUS BAR === */
+    .api-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.75rem 1.25rem;
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.8rem;
+    }
+
+    .api-url {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+      flex: 1;
+    }
+
+    .api-bar-actions { display: flex; gap: 0.5rem; }
+
+    /* === EMPTY STATE === */
+    .empty-state {
+      text-align: center; padding: 5rem 2rem;
+    }
+
+    .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.3; }
+    .empty-title { font-size: 1.25rem; font-weight: 600; color: var(--text-secondary); }
+    .empty-desc { font-size: 0.875rem; color: var(--text-dim); margin-top: 0.5rem; }
+
+    /* === CASE HEADER === */
+    .case-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .case-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .case-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+    .case-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    /* === BUTTONS === */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1rem; border-radius: 8px;
+      font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; border: none; outline: none;
+      transition: all 0.2s; font-family: 'Inter', sans-serif;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-ghost {
+      background: var(--bg-card); color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+    .btn-danger {
+      background: rgba(239,68,68,0.15); color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.3);
+    }
+
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+    /* === STAT CARDS === */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.25rem;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card:hover { border-color: rgba(59,130,246,0.4); }
+
+    .stat-label {
+      font-size: 0.65rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 0.4rem;
+    }
+
+    .stat-value {
+      font-size: 1.5rem; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.2rem; }
+
+    .stat-card.danger .stat-value { color: var(--danger); }
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.success .stat-value { color: var(--success); }
+
+    /* === CHART CARD === */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;
+    }
+
+    .chart-title { font-size: 0.9rem; font-weight: 600; }
+    .chart-subtitle { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+
+    .legend {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.72rem; color: var(--text-secondary);
+    }
+
+    .legend-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+
+    .chart-container { position: relative; }
+
+    canvas { max-height: 240px; }
+
+    .window-select {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 7px; padding: 4px 8px;
+      font-size: 0.75rem; font-family: 'Inter', sans-serif;
+      cursor: pointer; outline: none;
+    }
+
+    /* === ANOMALY TABLE === */
+    .anomaly-section { margin-bottom: 1.5rem; }
+
+    .section-title {
+      font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-dim); margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    .anomaly-table-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+
+    th {
+      background: var(--bg-secondary);
+      color: var(--text-dim); font-size: 0.65rem;
+      font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 0.65rem 1rem;
+      text-align: left; border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.65rem 1rem; color: var(--text-secondary);
+      border-bottom: 1px solid rgba(30,45,66,0.5);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg-card-hover); }
+
+    .method-pill {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 4px;
+      font-size: 0.65rem; font-weight: 600;
+      margin-right: 4px; font-family: 'Inter', sans-serif;
+    }
+
+    .pill-shock { background: rgba(239,68,68,0.15); color: var(--danger); }
+    .pill-stat { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .pill-iso { background: rgba(59,130,246,0.15); color: var(--accent); }
+    .pill-ae { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .pill-hyp { background: rgba(239,68,68,0.15); color: #fc8181; }
+
+    /* === DETECTION RESULT BANNER === */
+    .detection-result {
+      background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.03));
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 12px; padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+    }
+
+    .detection-result .icon { font-size: 1.5rem; }
+    .detection-result .count { font-size: 1.25rem; font-weight: 700; color: var(--danger); }
+    .detection-result .label { font-size: 0.8rem; color: var(--text-secondary); }
+
+    /* === TOAST === */
+    .toast-container {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      z-index: 999; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+
+    .toast {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 1rem;
+      font-size: 0.8rem; min-width: 260px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      display: flex; align-items: center; gap: 0.75rem;
+      animation: slideIn 0.25s ease;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .toast.error { border-color: rgba(239,68,68,0.4); }
+    .toast.success { border-color: rgba(16,185,129,0.4); }
+
+    /* === LOADING OVERLAY === */
+    .loading-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(8,12,20,0.7);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .loading-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem 2.5rem;
+      text-align: center;
+    }
+
+    .loading-box .spinner { width: 36px; height: 36px; border-width: 3px; margin-bottom: 1rem; }
+    .loading-box p { color: var(--text-secondary); font-size: 0.85rem; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loadingText">Caricamento in corso...</p>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🫀</div>
+    <span class="logo-text">Vital<span>DB</span> — Anomaly Detection</span>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connessione API...</span>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Casi Chirurgici</div>
+    <div id="caseList">
+      <div class="sidebar-loader">
+        <div class="spinner"></div>
+        Caricamento casi...
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainContent">
+
+    <!-- API BAR -->
+    <div class="api-bar">
+      <span style="color:var(--text-dim);font-size:0.75rem;">API locale →</span>
+      <span class="api-url" id="apiUrlDisplay">http://localhost:8000</span>
+      <div class="api-bar-actions">
+        <a class="btn btn-ghost" href="http://localhost:8000/docs" target="_blank" style="text-decoration:none">
+          📄 Swagger UI
+        </a>
+      </div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🫀</div>
+      <div class="empty-title">Seleziona un caso dalla sidebar</div>
+      <div class="empty-desc">Visualizza le serie temporali e rileva anomalie biometriche</div>
+    </div>
+
+    <!-- CASE DETAIL (hidden initially) -->
+    <div id="caseDetail" class="hidden">
+
+      <div class="case-header">
+        <div>
+          <div class="case-title" id="detailTitle">—</div>
+          <div class="case-subtitle" id="detailSubtitle">—</div>
+        </div>
+        <div class="case-actions">
+          <select class="window-select" id="windowSelect">
+            <option value="">Dati grezzi (ogni secondo)</option>
+            <option value="30">Media 30s</option>
+            <option value="60" selected>Media 60s</option>
+            <option value="300">Media 5min</option>
+          </select>
+          <button class="btn btn-ghost" id="btnLoadSeries">📈 Carica Serie</button>
+          <button class="btn btn-primary" id="btnDetect">🔍 Rileva Anomalie</button>
+        </div>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Record totali</div>
+          <div class="stat-value" id="statRecords">—</div>
+          <div class="stat-sub">punti temporali</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Schema version</div>
+          <div class="stat-value" id="statSchema" style="font-size:1.1rem">—</div>
+          <div class="stat-sub">governance</div>
+        </div>
+        <div class="stat-card" id="statAnomalyCard" style="display:none">
+          <div class="stat-label">Anomalie rilevate</div>
+          <div class="stat-value danger" id="statAnomalies">—</div>
+          <div class="stat-sub">punti anomali</div>
+        </div>
+      </div>
+
+      <!-- DETECTION RESULT BANNER -->
+      <div class="detection-result hidden" id="detectionBanner">
+        <div class="icon">⚠️</div>
+        <div>
+          <div class="count" id="bannerCount">0 anomalie</div>
+          <div class="label" id="bannerMethods"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Frequenza Cardiaca & SpO₂</div>
+            <div class="chart-subtitle">HR (bpm) — SpO₂ (%)</div>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--hr-color)"></div> HR</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--spo2-color)"></div> SpO₂</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="chartHrSpo2"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Pressione Arteriosa (NIBP)</div>
+            <div class="chart-subtitle">SBP / DBP / MBP (mmHg)</div>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--sbp-color)"></div> SBP</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--dbp-color)"></div> DBP</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--mbp-color)"></div> MBP</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="chartNibp"></canvas>
+        </div>
+      </div>
+
+      <!-- ANOMALY TABLE -->
+      <div class="anomaly-section hidden" id="anomalySection">
+        <div class="section-title">
+          <span>⚡</span> Punti Anomali Identificati
+        </div>
+        <div class="anomaly-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Timestamp</th>
+                <th>Metodi di rilevazione</th>
+              </tr>
+            </thead>
+            <tbody id="anomalyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let charts = {};
+  let currentCaseId = null;
+
+  // ==============================
+  // UTILITIES
+  // ==============================
+  function toast(msg, type = 'info') {
+    const icons = { info: 'ℹ️', success: '✅', error: '❌' };
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toastContainer').prepend(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  function showLoading(text = 'Caricamento...') {
+    document.getElementById('loadingText').textContent = text;
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const res = await fetch(API + path, opts);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  function destroyChart(key) {
+    if (charts[key]) { charts[key].destroy(); charts[key] = null; }
+  }
+
+  function pillClass(method) {
+    if (method.includes('shock')) return 'pill-shock';
+    if (method.includes('stat')) return 'pill-stat';
+    if (method.includes('isolation')) return 'pill-iso';
+    if (method.includes('autoencoder')) return 'pill-ae';
+    return 'pill-hyp';
+  }
+
+  function pillLabel(method) {
+    const labels = {
+      shock_index: 'Shock Index',
+      severe_hypotension: 'Ipotensione Severa',
+      statistical: 'Z-Score',
+      isolation_forest: 'Isolation Forest',
+      autoencoder: 'Autoencoder'
+    };
+    return labels[method] || method;
+  }
+
+  // ==============================
+  // API STATUS CHECK
+  // ==============================
+  async function checkApiStatus() {
+    try {
+      await apiFetch('/health');
+      document.getElementById('statusDot').classList.remove('offline');
+      document.getElementById('statusText').textContent = 'API locale attiva';
+    } catch {
+      document.getElementById('statusDot').classList.add('offline');
+      document.getElementById('statusText').textContent = 'API non raggiungibile — avvia uvicorn';
+    }
+  }
+
+  // ==============================
+  // LOAD CASES
+  // ==============================
+  async function loadCases() {
+    try {
+      const cases = await apiFetch('/cases');
+      renderCaseList(cases);
+    } catch (e) {
+      document.getElementById('caseList').innerHTML = `
+        <div class="sidebar-loader" style="color:var(--danger)">
+          ❌ Impossibile caricare i casi.<br>
+          <small style="color:var(--text-dim);margin-top:0.5rem;display:block">
+            Avvia l'API con:<br>
+            <code style="font-family:monospace">.venv\\Scripts\\uvicorn api.main:app --reload</code>
+          </small>
+        </div>`;
+    }
+  }
+
+  function renderCaseList(cases) {
+    if (!cases.length) {
+      document.getElementById('caseList').innerHTML =
+        '<div class="sidebar-loader">Nessun caso trovato nel database.</div>';
+      return;
+    }
+    const html = cases.map(c => `
+      <div class="case-item" data-id="${c.case_id}" onclick="selectCase(${c.case_id}, ${c.record_count}, '${c.schema_version}')">
+        <div class="case-avatar">#${c.case_id}</div>
+        <div class="case-info">
+          <div class="case-id">Caso ${c.case_id}</div>
+          <div class="case-meta">${(c.record_count || 0).toLocaleString('it')} punti</div>
+        </div>
+      </div>`).join('');
+    document.getElementById('caseList').innerHTML = html;
+  }
+
+  // ==============================
+  // SELECT CASE
+  // ==============================
+  function selectCase(caseId, recordCount, schemaVersion) {
+    currentCaseId = caseId;
+
+    // sidebar highlight
+    document.querySelectorAll('.case-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-id="${caseId}"]`)?.classList.add('active');
+
+    // show detail
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('caseDetail').classList.remove('hidden');
+
+    document.getElementById('detailTitle').textContent = `Caso Chirurgico #${caseId}`;
+    document.getElementById('detailSubtitle').textContent = `VitalDB — Serie temporale biometrica intraoperatoria`;
+    document.getElementById('statRecords').textContent = (recordCount || 0).toLocaleString('it');
+    document.getElementById('statSchema').textContent = `v${schemaVersion || '1.0'}`;
+
+    // reset detection
+    document.getElementById('detectionBanner').classList.add('hidden');
+    document.getElementById('anomalySection').classList.add('hidden');
+    document.getElementById('statAnomalyCard').style.display = 'none';
+
+    // auto-load series
+    loadSeries();
+  }
+
+  // ==============================
+  // LOAD SERIES & DRAW CHARTS
+  // ==============================
+  async function loadSeries() {
+    if (!currentCaseId) return;
+    const win = document.getElementById('windowSelect').value;
+    const url = `/cases/${currentCaseId}/series` + (win ? `?window_seconds=${win}` : '');
+
+    showLoading('Caricamento serie temporale...');
+    try {
+      const data = await apiFetch(url);
+      renderCharts(data);
+      toast(`${data.length} punti caricati per il caso #${currentCaseId}`, 'success');
+    } catch (e) {
+      toast(`Errore caricamento serie: ${e.message}`, 'error');
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function renderCharts(data) {
+    const labels = data.map(d => d.timestamp);
+
+    const chartDefaults = {
+      type: 'line',
+      options: {
+        responsive: true,
+        animation: { duration: 600 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#111827',
+            borderColor: '#1e2d42',
+            borderWidth: 1,
+            titleColor: '#8899b4',
+            bodyColor: '#f0f4ff',
+            bodyFont: { family: 'JetBrains Mono', size: 11 }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#4b5e7a', maxTicksLimit: 8, font: { size: 10 } },
+            grid: { color: 'rgba(30,45,66,0.5)' }
+          },
+          y: {
+            ticks: { color: '#4b5e7a', font: { size: 10 } },
+            grid: { color: 'rgba(30,45,66,0.5)' }
+          }
+        }
+      }
+    };
+
+    // Chart 1: HR + SpO2
+    destroyChart('hrSpo2');
+    const ctx1 = document.getElementById('chartHrSpo2').getContext('2d');
+    charts['hrSpo2'] = new Chart(ctx1, {
+      ...chartDefaults,
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'HR (bpm)',
+            data: data.map(d => d.Solar8000_HR ?? null),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239,68,68,0.06)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'yHR'
+          },
+          {
+            label: 'SpO₂ (%)',
+            data: data.map(d => d.Solar8000_PLETH_SPO2 ?? null),
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,0.04)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: false,
+            yAxisID: 'ySpo2'
+          }
+        ]
+      },
+      options: {
+        ...chartDefaults.options,
+        scales: {
+          x: chartDefaults.options.scales.x,
+          yHR: {
+            type: 'linear', position: 'left',
+            title: { display: true, text: 'bpm', color: '#4b5e7a', font: { size: 10 } },
+            ticks: { color: '#ef4444', font: { size: 10 } },
+            grid: { color: 'rgba(30,45,66,0.5)' }
+          },
+          ySpo2: {
+            type: 'linear', position: 'right',
+            min: 50, max: 105,
+            title: { display: true, text: '%', color: '#4b5e7a', font: { size: 10 } },
+            ticks: { color: '#3b82f6', font: { size: 10 } },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+
+    // Chart 2: NIBP
+    destroyChart('nibp');
+    const ctx2 = document.getElementById('chartNibp').getContext('2d');
+    charts['nibp'] = new Chart(ctx2, {
+      ...chartDefaults,
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'SBP (mmHg)',
+            data: data.map(d => d.Solar8000_NIBP_SBP ?? null),
+            borderColor: '#f59e0b',
+            borderWidth: 1.5, pointRadius: 0, tension: 0.3,
+            backgroundColor: 'rgba(245,158,11,0.05)', fill: true
+          },
+          {
+            label: 'DBP (mmHg)',
+            data: data.map(d => d.Solar8000_NIBP_DBP ?? null),
+            borderColor: '#10b981',
+            borderWidth: 1.5, pointRadius: 0, tension: 0.3
+          },
+          {
+            label: 'MBP (mmHg)',
+            data: data.map(d => d.Solar8000_NIBP_MBP ?? null),
+            borderColor: '#a78bfa',
+            borderWidth: 1.5, pointRadius: 0, tension: 0.3,
+            borderDash: [4, 3]
+          }
+        ]
+      }
+    });
+  }
+
+  // ==============================
+  // ANOMALY DETECTION
+  // ==============================
+  async function runDetection() {
+    if (!currentCaseId) return;
+    const btn = document.getElementById('btnDetect');
+    btn.disabled = true;
+    btn.textContent = '⏳ Rilevazione...';
+    showLoading('Esecuzione Anomaly Detection su MongoDB...');
+    try {
+      const result = await apiFetch(`/cases/${currentCaseId}/detect`, { method: 'POST' });
+      renderDetectionResult(result);
+      toast(`Rilevazione completata: ${result.anomaly_count} anomalie trovate`, 'success');
+    } catch (e) {
+      toast(`Errore detection: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Rileva Anomalie';
+      hideLoading();
+    }
+  }
+
+  function renderDetectionResult(result) {
+    // Banner
+    const banner = document.getElementById('detectionBanner');
+    banner.classList.remove('hidden');
+    document.getElementById('bannerCount').textContent =
+      `${result.anomaly_count} anomali${result.anomaly_count === 1 ? 'a' : 'e'} rilevat${result.anomaly_count === 1 ? 'a' : 'e'}`;
+    document.getElementById('bannerMethods').textContent =
+      'Metodi: Shock Index · Z-Score · Isolation Forest · Autoencoder';
+
+    // Stat card
+    document.getElementById('statAnomalyCard').style.display = '';
+    document.getElementById('statAnomalies').textContent = result.anomaly_count;
+
+    // Table
+    if (result.anomalies && result.anomalies.length > 0) {
+      const tbody = document.getElementById('anomalyTableBody');
+      const rows = result.anomalies.slice(0, 50).map((a, i) => {
+        const pills = a.methods.map(m =>
+          `<span class="method-pill ${pillClass(m)}">${pillLabel(m)}</span>`
+        ).join('');
+        return `<tr>
+          <td style="color:var(--text-dim)">${i + 1}</td>
+          <td>${a.timestamp}</td>
+          <td>${pills}</td>
+        </tr>`;
+      }).join('');
+      tbody.innerHTML = rows;
+      if (result.anomalies.length > 50) {
+        tbody.innerHTML += `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:1rem">
+          ... e altri ${result.anomalies.length - 50} punti anomali (vedi MongoDB Compass)</td></tr>`;
+      }
+      document.getElementById('anomalySection').classList.remove('hidden');
+    }
+  }
+
+  // ==============================
+  // EVENTS
+  // ==============================
+  document.getElementById('btnLoadSeries').addEventListener('click', loadSeries);
+  document.getElementById('btnDetect').addEventListener('click', runDetection);
+  document.getElementById('windowSelect').addEventListener('change', loadSeries);
+
+  // ==============================
+  // INIT
+  // ==============================
+  checkApiStatus();
+  setInterval(checkApiStatus, 10000);
+  loadCases();
+</script>
+</body>
+</html>
