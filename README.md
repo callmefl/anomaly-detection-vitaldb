@@ -75,7 +75,7 @@ anomaly-detection-vitaldb/
 │   ├── bronze/
 │   └── silver/
 ├── mongo/                 # Script mongosh per DB setup
-├── notebooks/             # Jupyter Notebooks per EDA
+├── relazione/             # Relazione accademica LaTeX (main.tex e 5 capitoli)
 ├── src/                   # Codice sorgente Python
 │   ├── analysis/          # Query e aggregazioni MongoDB
 │   ├── bronze/            # Download dati grezzi
