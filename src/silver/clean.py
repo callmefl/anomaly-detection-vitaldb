@@ -1,4 +1,11 @@
-"""Script per la pulizia dei dati grezzi dal layer Bronze verso il layer Silver."""
+"""Modulo per la pulizia, la bonifica ed il partizionamento dei dati (Layer Silver).
+
+Il layer Silver costituisce la seconda fase della Medallion Architecture:
+- Rimuove i record totalmente vuoti (con tutti i parametri biometrici a NaN).
+- Effettua l'interpolazione lineare su brevi buchi temporali di misurazione (fino a 5 secondi contigui).
+- Etichetta gli outlier fisiologicamente impossibili tramite flag booleani dominio-specifici.
+- Organizza ed arricchisce i file Parquet partizionandoli fisicamente in sottodirectory basate sul reparto chirurgico (`department=<REPARTO>`).
+"""
 
 import sys
 from pathlib import Path
@@ -6,29 +13,29 @@ import pandas as pd
 from tqdm import tqdm
 import os
 
+# Setup importazioni dalla radice del progetto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src import config
 
+# Costante per identificare i casi privi di indicazione sul reparto chirurgico
 UNKNOWN_DEPARTMENT = "UNKNOWN"
 
 
 def load_department_map(bronze_dir):
-    """Costruisce una mappa case_id -> reparto (department) dai dati clinici.
+    """Costruisce una mappa hash `case_id -> department` partendo dal file dei dati clinici.
 
-    Legge `clinical_data.parquet` (scaricato da `download_clinical_data`) e
-    restituisce un dizionario per associare rapidamente ogni caso al proprio
-    reparto chirurgico, usato per il partizionamento fisico del layer Silver.
+    Legge `clinical_data.parquet` scaricato nel layer Bronze per associare ad ogni paziente
+    il relativo reparto chirurgico (es. General Surgery, Cardiac Surgery, ICU).
 
     Args:
         bronze_dir (Path): Cartella del layer Bronze.
 
     Returns:
-        dict: Mappa {case_id (int): department (str)}. Vuota se il file
-            clinico non esiste o non contiene le colonne attese.
+        dict: Mappa `{case_id (int): department (str)}`.
     """
     clinical_path = bronze_dir / "clinical_data.parquet"
     if not clinical_path.exists():
-        print(f"Attenzione: {clinical_path} non trovato, i casi non avranno 'department'.")
+        print(f"⚠️ Attenzione: {clinical_path} non trovato nel Bronze. I casi verranno partizionati sotto 'UNKNOWN'.")
         return {}
 
     df_clinical = pd.read_parquet(clinical_path)
@@ -37,11 +44,11 @@ def load_department_map(bronze_dir):
     elif "case_id" in df_clinical.columns:
         id_col = "case_id"
     else:
-        print("Attenzione: nessuna colonna id caso trovata in clinical_data.parquet.")
+        print("⚠️ Attenzione: Nessuna colonna di identificazione del caso trovata in clinical_data.parquet.")
         return {}
 
     if "department" not in df_clinical.columns:
-        print("Attenzione: colonna 'department' assente in clinical_data.parquet.")
+        print("⚠️ Attenzione: Colonna 'department' assente nei dati clinici.")
         return {}
 
     dept_series = df_clinical.set_index(id_col)["department"]
@@ -49,42 +56,37 @@ def load_department_map(bronze_dir):
 
 
 def resolve_department(department_map, case_id):
-    """Restituisce il reparto per un caso, con fallback a UNKNOWN_DEPARTMENT."""
+    """Restituisce il nome del reparto associato ad un caso, applicando il valore di fallback 'UNKNOWN'."""
     dept = department_map.get(case_id)
     if dept is None or (isinstance(dept, float) and pd.isna(dept)):
         return UNKNOWN_DEPARTMENT
     return str(dept)
 
+
 def load_bronze_case(case_id, bronze_dir):
-    """Carica un file Parquet dal layer Bronze.
-    
-    Args:
-        case_id (int): ID del caso.
-        bronze_dir (Path): Cartella del layer Bronze.
-        
-    Returns:
-        pd.DataFrame: DataFrame contenente i dati, None se non esiste.
-    """
+    """Legge il file Parquet grezzo di un caso dal layer Bronze."""
     file_path = bronze_dir / f"case_{case_id}.parquet"
     if file_path.exists():
         return pd.read_parquet(file_path)
     return None
 
+
 def clean_case(df, case_id):
-    """Pulisce i dati di un singolo caso.
-    
-    - Rimuove righe con tutti valori NaN.
-    - Interpola piccoli buchi temporali.
-    - Applica flag per outlier base fisiologici.
+    """Esegue la bonifica ed il filtraggio di Data Quality sui tracciati temporali del caso.
+
+    Fasi di trasformazione:
+    1. Scarta le righe in cui tutte le tracce vitali sono nulle contemporaneamente.
+    2. Interpola linearmente le piccole interruzioni di segnale (fino a 5 valori consecutivi).
+    3. Calcola i flag booleani per identificare eventuali outlier fuori dai range fisiologici.
     """
-    # Rimuove le righe in cui tutte le tracce vitali sono NaN
+    # 1. Filtra le righe completamente vuote sulle metriche vitali
     tracks = [c for c in df.columns if c != 'Time']
     df_clean = df.dropna(subset=tracks, how='all').copy()
     
-    # Interpolazione lineare su piccoli buchi
+    # 2. Esegue l'interpolazione lineare su vuoti di misurazione brevi (limit=5 secondi)
     df_clean[tracks] = df_clean[tracks].interpolate(method='linear', limit=5)
     
-    # Flag outlier base
+    # 3. Identifica e marca gli outlier fisiologici (range medici di validità)
     if 'Solar8000/HR' in df_clean.columns:
         df_clean['HR_outlier'] = (df_clean['Solar8000/HR'] < 20) | (df_clean['Solar8000/HR'] > 250)
         
@@ -103,43 +105,43 @@ def clean_case(df, case_id):
     df_clean['case_id'] = case_id
     return df_clean
 
+
 def save_silver(df, case_id, silver_dir, department=UNKNOWN_DEPARTMENT):
-    """Salva il DataFrame pulito nel layer Silver, partizionato per reparto.
+    """Memorizza il DataFrame pulito nel layer Silver, partizionato fisicamente per reparto chirurgico.
 
-    I file vengono organizzati in sottocartelle `department=<REPARTO>/`,
-    permettendo il partition pruning quando si leggono i dati Silver
-    filtrando per reparto chirurgico.
-
-    Args:
-        df (pd.DataFrame): Dati puliti del caso.
-        case_id (int): ID del caso.
-        silver_dir (Path): Cartella radice del layer Silver.
-        department (str): Reparto chirurgico associato al caso.
+    Struttura della directory creata:
+    `data/silver/department=<REPARTO>/case_<ID>.parquet`
     """
     partition_dir = silver_dir / f"department={department}"
     partition_dir.mkdir(parents=True, exist_ok=True)
     output_file = partition_dir / f"case_{case_id}.parquet"
     df.to_parquet(output_file, index=False)
 
+
 def process_all_cases(bronze_dir, silver_dir):
-    """Processa tutti i file Parquet nel layer Bronze."""
+    """Itera su tutti i casi presenti nel layer Bronze ed esegue la trasformazione verso Silver."""
     silver_dir.mkdir(parents=True, exist_ok=True)
 
     department_map = load_department_map(bronze_dir)
     parquet_files = list(bronze_dir.glob("case_*.parquet"))
     
     for p_file in tqdm(parquet_files, desc="Pulizia dati (Bronze -> Silver)"):
-        # Estrai case_id dal nome file (es. case_12.parquet -> 12)
         try:
+            # Estrae l'ID numerico del caso dal nome del file (es. case_12.parquet -> 12)
             case_id = int(p_file.stem.split('_')[1])
             df = pd.read_parquet(p_file)
+            
+            # Esegue pulizia e recupero reparto
             df_clean = clean_case(df, case_id)
             department = resolve_department(department_map, case_id)
+            
+            # Salva nel layer Silver partizionato
             save_silver(df_clean, case_id, silver_dir, department)
         except Exception as e:
-            print(f"Errore durante l'elaborazione di {p_file.name}: {e}")
+            print(f"❌ Errore durante la bonifica di {p_file.name}: {e}")
+
 
 if __name__ == '__main__':
-    print("Inizio elaborazione dati (Layer Silver)...")
+    print("=== INIZIO FASE DI PULIZIA E BONIFICA SILVER ===")
     process_all_cases(config.BRONZE_DIR, config.SILVER_DIR)
-    print("Elaborazione completata.")
+    print("=== PIPELINE SILVER COMPLETATA CON SUCCESSO ===")

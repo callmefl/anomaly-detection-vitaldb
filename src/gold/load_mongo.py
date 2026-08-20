@@ -1,4 +1,10 @@
-"""Carica i dati dal layer Silver verso MongoDB Time Series Collections."""
+"""Modulo per il caricamento dei dati bonificati dal layer Silver verso il layer Gold (MongoDB Time Series).
+
+Il layer Gold rappresenta il vertice dell'architettura Medallion e l'interfaccia principale per query/ML:
+- Inserisce le misurazioni temporali ad alta frequenza nella Time Series Collection nativa `vital_signals`.
+- Sfrutta il campo `metaField` (`metadata`) per associare informazioni strutturate su paziente e reparto (`case_id`, `department`, `age`, `sex`).
+- Registra ogni caricamento completato nel catalogo di Data Governance `registry` inserendo versione dello schema e provenance.
+"""
 
 import sys
 from pathlib import Path
@@ -8,33 +14,34 @@ from pymongo.errors import PyMongoError
 import datetime
 from tqdm import tqdm
 
+# Setup importazioni radice
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src import config
 
-SENSOR_NAME = "Solar8000"  # Tutte le tracce in config.VITAL_TRACKS provengono da questo sensore
+# Nome del sensore sorgente primario
+SENSOR_NAME = "Solar8000"
 
 
 def get_mongo_client():
-    """Restituisce una connessione al client MongoDB."""
+    """Crea e restituisce il client di connessione PyMongo configurato."""
     return MongoClient(config.MONGO_URI)
 
 
 def load_clinical_info(bronze_dir):
-    """Costruisce una mappa case_id -> {department, age, sex} dai dati clinici Bronze.
+    """Costruisce la mappa hash `case_id -> {department, age, sex}` partendo dalle informazioni cliniche nel Bronze.
 
-    Questi metadati clinici arricchiscono il `metaField` della Time Series
-    Collection, così le query possono filtrare/raggruppare per reparto,
-    fascia d'età o sesso senza dover leggere i punti della serie storica.
+    Questi metadati vengono inseriti nel `metaField` di MongoDB per consentire il query pushdown
+    ed il filtraggio rapido a livello di bucket compressi senza leggere la serie storica intera.
 
     Args:
-        bronze_dir (Path): Cartella del layer Bronze.
+        bronze_dir (Path): Cartella sorgente del layer Bronze.
 
     Returns:
-        dict: Mappa {case_id (int): dict con chiavi 'department', 'age', 'sex'}.
+        dict: Mappa dei metadati clinici per ciascun paziente.
     """
     clinical_path = bronze_dir / "clinical_data.parquet"
     if not clinical_path.exists():
-        print(f"Attenzione: {clinical_path} non trovato, metadata clinici assenti.")
+        print(f"⚠️ Attenzione: {clinical_path} non trovato, metadati clinici non disponibili.")
         return {}
 
     df_clinical = pd.read_parquet(clinical_path)
@@ -43,7 +50,7 @@ def load_clinical_info(bronze_dir):
     elif "case_id" in df_clinical.columns:
         id_col = "case_id"
     else:
-        print("Attenzione: nessuna colonna id caso trovata in clinical_data.parquet.")
+        print("⚠️ Attenzione: Nessuna colonna ID caso reperita in clinical_data.parquet.")
         return {}
 
     info = {}
@@ -56,8 +63,9 @@ def load_clinical_info(bronze_dir):
         }
     return info
 
+
 def ensure_timeseries_collections(db):
-    """Verifica e crea la Time Series Collection se non esiste."""
+    """Verifica l'esistenza della Time Series Collection 'vital_signals' su MongoDB ed la crea se assente."""
     collections = db.list_collection_names()
     if 'vital_signals' not in collections:
         db.create_collection(
@@ -68,22 +76,18 @@ def ensure_timeseries_collections(db):
                 'granularity': 'seconds'
             }
         )
-        print("Collezione time-series 'vital_signals' creata.")
+        print("✓ Collezione Time Series 'vital_signals' creata con successo su MongoDB.")
+
 
 def build_metadata(case_id, clinical_info):
-    """Costruisce il documento `metadata` (metaField) per un caso.
-
-    Il metaField è arricchito con sensore, reparto, età e sesso: questo
-    permette di filtrare/raggruppare le serie storiche per queste dimensioni
-    a livello di bucket, senza dover leggere i singoli punti `metrics`.
+    """Costruisce il sotto-documento `metadata` (metaField) per un dato paziente.
 
     Args:
-        case_id (int): ID del caso.
-        clinical_info (dict): Mappa case_id -> {'department', 'age', 'sex'}
-            prodotta da `load_clinical_info`.
+        case_id (int): Identificativo univoco del caso.
+        clinical_info (dict): Mappa dei metadati clinici.
 
     Returns:
-        dict: Documento di metadati pronto per l'inserimento.
+        dict: Documento strutturato pronto per il metaField di MongoDB.
     """
     info = clinical_info.get(case_id, {})
     department = info.get("department")
@@ -100,27 +104,22 @@ def build_metadata(case_id, clinical_info):
 
 
 def build_records(df, case_id, clinical_info):
-    """Trasforma il DataFrame Silver di un caso in documenti Time Series.
-
-    Non scrive su MongoDB: costruisce solo la lista di documenti, così che
-    la scrittura possa avvenire all'interno di una transazione insieme
-    all'aggiornamento del registry.
+    """Trasforma le righe della tabella Silver in un array di documenti BSON pronti per il caricamento su MongoDB Gold.
 
     Args:
-        df (pd.DataFrame): Dati puliti del caso (layer Silver).
+        df (pd.DataFrame): Dati bonificati dal layer Silver.
         case_id (int): ID del caso.
-        clinical_info (dict): Mappa case_id -> metadati clinici.
+        clinical_info (dict): Metadati clinici di contesto.
 
     Returns:
-        list: Documenti pronti per `insert_many` sulla collezione `vital_signals`.
+        list: Lista di documenti BSON pronti per l'inserimento in `vital_signals`.
     """
     records = []
     metadata = build_metadata(case_id, clinical_info)
-
-    base_time = datetime.datetime(2020, 1, 1)  # Timestamp fittizio base per serie storiche relative
+    base_time = datetime.datetime(2020, 1, 1)
 
     for _, row in df.iterrows():
-        # Usa il campo Time (secondi) per calcolare un timestamp simulato per MongoDB
+        # Calcola il timestamp ISO sommando l'offset in secondi alla data base
         current_time = base_time + datetime.timedelta(seconds=float(row.get('Time', 0)))
 
         doc = {
@@ -129,30 +128,20 @@ def build_records(df, case_id, clinical_info):
             "metrics": {}
         }
 
-        # Inserisci le metriche disponibili
+        # Sanitizza le chiavi delle metriche sostituendo '/' con '_'
         for col in config.VITAL_TRACKS:
             if col in row and pd.notna(row[col]):
-                # sanitize chiave per mongo (non può contenere punti, ma '/' va bene, 
-                # convertiamo '/' in '_' per pulizia)
                 safe_col = col.replace('/', '_')
                 doc["metrics"][safe_col] = float(row[col])
 
-        if doc["metrics"]:  # Inserisci solo se ci sono dati
+        if doc["metrics"]:
             records.append(doc)
 
     return records
 
 
 def build_registry_doc(case_id, record_count):
-    """Costruisce il documento di registry per un caso caricato.
-
-    Args:
-        case_id (int): ID del caso.
-        record_count (int): Numero di punti temporali inseriti.
-
-    Returns:
-        dict: Documento pronto per `insert_one` sulla collezione `registry`.
-    """
+    """Crea il documento di tracciamento di Data Governance da inserire nel catalogo `registry`."""
     return {
         "case_id": int(case_id),
         "record_count": record_count,
@@ -164,29 +153,8 @@ def build_registry_doc(case_id, record_count):
     }
 
 
-def load_case_transactional(client, db, df, case_id, clinical_info):
-    """Carica un caso in `vital_signals` e aggiorna `registry` in una singola
-    transazione multi-documento nativa di MongoDB.
-
-    L'atomicità garantisce che, in caso di errore a metà operazione, non si
-    verifichi lo scenario "punti vitali inseriti ma registry non aggiornato"
-    (o viceversa): la transazione viene abortita e nessuna delle due scritture
-    resta visibile.
-
-    Nota: le transazioni multi-documento richiedono che MongoDB sia in
-    esecuzione come replica set (anche a singolo nodo), non come `mongod`
-    standalone.
-
-    Args:
-        client: MongoClient connesso.
-        db: Database pymongo di destinazione.
-        df (pd.DataFrame): Dati puliti del caso (layer Silver).
-        case_id (int): ID del caso.
-        clinical_info (dict): Mappa case_id -> metadati clinici.
-
-    Returns:
-        int: Numero di record inseriti (0 se non ci sono dati validi).
-    """
+def load_case_to_mongo(client, db, df, case_id, clinical_info):
+    """Effettua l'inserimento dei documenti delle serie temporali e la registrazione nel catalog `registry`."""
     records = build_records(df, case_id, clinical_info)
     if not records:
         return 0
@@ -197,24 +165,14 @@ def load_case_transactional(client, db, df, case_id, clinical_info):
         db['vital_signals'].insert_many(records)
         db['registry'].insert_one(registry_doc)
     except PyMongoError as e:
-        print(f"Errore durante l'inserimento per il caso {case_id}: {e}")
+        print(f"❌ Errore durante l'inserimento su MongoDB per il caso #{case_id}: {e}")
         raise
 
     return len(records)
 
 
 def process_silver_to_gold(silver_dir, bronze_dir=None):
-    """Carica tutti i casi Silver in MongoDB tramite transazioni multi-documento.
-
-    I file Silver sono partizionati per reparto (`department=<REPARTO>/`),
-    quindi la ricerca dei file usa `rglob` per attraversare tutte le
-    sottocartelle.
-
-    Args:
-        silver_dir (Path): Cartella radice del layer Silver.
-        bronze_dir (Path, optional): Cartella del layer Bronze, usata per
-            recuperare i metadati clinici. Default: config.BRONZE_DIR.
-    """
+    """Itera su tutti i file Parquet del layer Silver e li inserisce in MongoDB Gold."""
     bronze_dir = bronze_dir or config.BRONZE_DIR
     client = get_mongo_client()
     db = client[config.DB_NAME]
@@ -228,16 +186,17 @@ def process_silver_to_gold(silver_dir, bronze_dir=None):
             case_id = int(p_file.stem.split('_')[1])
             df = pd.read_parquet(p_file)
 
-            # Controllo se il caso è già stato caricato (tramite registry)
+            # Salta i casi già caricati nel registro per evitare duplicazioni
             if db['registry'].find_one({"case_id": case_id}):
                 continue
 
-            load_case_transactional(client, db, df, case_id, clinical_info)
+            load_case_to_mongo(client, db, df, case_id, clinical_info)
 
         except Exception as e:
-            print(f"Errore nel caricamento del caso da {p_file.name}: {e}")
+            print(f"❌ Errore nel caricamento del caso da {p_file.name}: {e}")
+
 
 if __name__ == '__main__':
-    print("Inizio caricamento in MongoDB...")
+    print("=== INIZIO CARICAMENTO IN MONGODB GOLD ===")
     process_silver_to_gold(config.SILVER_DIR)
-    print("Caricamento completato.")
+    print("=== PIPELINE GOLD COMPLETATA CON SUCCESSO ===")

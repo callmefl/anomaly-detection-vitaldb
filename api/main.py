@@ -1,15 +1,13 @@
-"""REST API per esporre il layer Gold (MongoDB) e l'Anomaly Detection.
+"""REST API FastAPI per l'interazione con il layer Gold di MongoDB ed i moduli di Anomaly Detection.
 
-Il servizio viene eseguito da Vercel tramite `experimentalServices` (vedi
-`vercel.json` nella root del progetto). Le rotte sono definite senza il
-prefisso `/api`: Vercel lo rimuove automaticamente prima di instradare la
-richiesta a questo backend.
+Questo backend viene eseguito all'interno del container Docker `vitaldb_api` sulla porta 8000
+ed interagisce direttamente con il database MongoDB 8.0 `vitaldb_mongo`.
 
-Rotte esposte:
-- GET  /health                        Controllo di stato del servizio.
-- GET  /cases                         Elenco dei casi caricati (dal registry).
-- GET  /cases/{case_id}/series        Serie temporale di un caso (con downsampling opzionale).
-- POST /cases/{case_id}/detect        Esegue l'anomaly detection su un caso e ne salva i risultati.
+Rotte REST esposte:
+- GET  /health                        Controllo di stato di salute dell'API e della connessione.
+- GET  /cases                         Restituisce la lista dei casi clinici registrati nel catalog `registry`.
+- GET  /cases/{case_id}/series        Restituisce la serie temporale biometrica di un caso (con downsampling temporale opzionale).
+- POST /cases/{case_id}/detect        Esegue la pipeline di Anomaly Detection (Regole Cliniche + ML) e salva le anomalie su MongoDB.
 """
 
 import sys
@@ -17,19 +15,26 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 import fastapi
 import fastapi.middleware.cors
 from fastapi import HTTPException
 from pymongo import MongoClient
 
-# Aggiunge la root del progetto al path per importare i moduli in src/
+# Aggiunge la radice del progetto al sys.path per importare i moduli interni in src/
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src import config
 from src.analysis.queries import get_case_series, downsample_case, list_loaded_cases
 from src.detection.detector import run_detection_pipeline
 
-app = fastapi.FastAPI(title="VitalDB Anomaly Detection API")
+# Inizializzazione dell'applicazione FastAPI
+app = fastapi.FastAPI(
+    title="VitalDB Anomaly Detection API",
+    description="REST API per l'esplorazione ed il rilevamento anomalie su dati biometrici intraoperatori.",
+    version="1.0.0"
+)
 
+# Abilita CORS (Cross-Origin Resource Sharing) per consentire le chiamate dal frontend dashboard/index.html
 app.add_middleware(
     fastapi.middleware.cors.CORSMiddleware,
     allow_origins=["*"],
@@ -38,11 +43,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Variabile globale per il riutilizzo della connessione PyMongo tra le varie richieste HTTP
 _client: Optional[MongoClient] = None
 
 
 def get_db():
-    """Restituisce il database configurato, riutilizzando la connessione tra le richieste."""
+    """Restituisce l'istanza del database MongoDB configurato, riutilizzando il pool di connessioni."""
     global _client
     if _client is None:
         _client = MongoClient(config.MONGO_URI)
@@ -51,29 +57,30 @@ def get_db():
 
 @app.get("/health")
 async def health():
-    """Controllo di stato minimale del servizio."""
-    return {"status": "ok"}
+    """Endpoint di Health Check per verificare l'operatività del container e dell'API."""
+    return {"status": "ok", "database": config.DB_NAME}
 
 
 @app.get("/cases")
 async def get_cases():
-    """Restituisce la lista dei casi caricati, letta dalla collezione `registry`."""
+    """Restituisce l'elenco di tutti i casi clinici attualmente caricati nel layer Gold di MongoDB."""
     db = get_db()
     df = list_loaded_cases(db)
     if df.empty:
         return []
+    # Sostituisce eventuali valori NaN con None per garantire la corretta serializzazione JSON
     df = df.replace({np.nan: None})
     return df.to_dict(orient="records")
 
 
 @app.get("/cases/{case_id}/series")
 async def get_series(case_id: int, window_seconds: Optional[int] = None):
-    """Restituisce la serie temporale di un caso.
+    """Restituisce la serie temporale dei parametri vitali di un dato paziente.
 
     Args:
-        case_id: ID del caso da interrogare.
-        window_seconds: se fornito, applica un downsampling lato MongoDB
-            (media per finestra temporale) invece di restituire ogni punto.
+        case_id (int): Identificativo univoco del caso clinico.
+        window_seconds (Optional[int]): Se specificato (es. 30, 60, 300), applica l'aggregazione
+            temporale lato database ($bucketAuto o media per intervallo) per ridurre i dati inviati.
     """
     db = get_db()
 
@@ -85,8 +92,9 @@ async def get_series(case_id: int, window_seconds: Optional[int] = None):
         df = get_case_series(db, case_id)
 
     if df.empty:
-        raise HTTPException(status_code=404, detail=f"Nessun dato trovato per case_id={case_id}")
+        raise HTTPException(status_code=404, detail=f"Nessun dato trovato per il caso #{case_id}")
 
+    # Converte il campo timestamp in stringa ISO ed effettua il sanitizing dei valori NaN per JSON
     df["timestamp"] = df["timestamp"].astype(str)
     df = df.replace({np.nan: None})
     return df.to_dict(orient="records")
@@ -94,28 +102,54 @@ async def get_series(case_id: int, window_seconds: Optional[int] = None):
 
 @app.post("/cases/{case_id}/detect")
 async def detect_case(case_id: int):
-    """Esegue la detection (statistica, clinica, ML) su un caso e salva i risultati.
+    """Esegue l'algoritmo multilivello di Anomaly Detection sul caso specificato.
 
-    I punti anomali vengono persistiti nella collezione `anomalies_detected`
-    (tramite `save_anomalies_to_mongo`, chiamata internamente da
-    `run_detection_pipeline`) e restituiti nella risposta.
+    Calcola le Regole Cliniche (Shock Index ed Ipotensione Severa) e gli algoritmi di Machine Learning
+    (Isolation Forest ed Autoencoder Neurale). Salva i punti anomali trovati nella collezione
+    MongoDB `anomalies_detected` e restituisce i risultati al chiamante.
     """
     db = get_db()
     df = run_detection_pipeline(db, [case_id])
 
     if df.empty:
-        raise HTTPException(status_code=404, detail=f"Nessun dato trovato per case_id={case_id}")
+        raise HTTPException(status_code=404, detail=f"Nessun dato temporale disponibile per case_id={case_id}")
 
+    # Individua le colonne marcate come anomalia
     flag_cols = [c for c in df.columns if c.endswith("_anomaly")]
     anomalous_rows = df[df[flag_cols].any(axis=1)]
+
+    # Calcola il conteggio dettagliato per ciascuna metodologia di detection
+    summary_by_method = {}
+    for col in flag_cols:
+        method_name = col.replace("_anomaly", "")
+        summary_by_method[method_name] = int(df[col].sum())
 
     anomalies = []
     for _, row in anomalous_rows.iterrows():
         methods = [c.replace("_anomaly", "") for c in flag_cols if bool(row[c])]
-        anomalies.append({"timestamp": str(row["timestamp"]), "methods": methods})
+        
+        # Converte i valori Float di Pandas sanitizzando eventuali NaN
+        hr_val = float(row["Solar8000_HR"]) if "Solar8000_HR" in row and pd.notna(row["Solar8000_HR"]) else None
+        spo2_val = float(row["Solar8000_PLETH_SPO2"]) if "Solar8000_PLETH_SPO2" in row and pd.notna(row["Solar8000_PLETH_SPO2"]) else None
+        sbp_val = float(row["Solar8000_NIBP_SBP"]) if "Solar8000_NIBP_SBP" in row and pd.notna(row["Solar8000_NIBP_SBP"]) else None
+        dbp_val = float(row["Solar8000_NIBP_DBP"]) if "Solar8000_NIBP_DBP" in row and pd.notna(row["Solar8000_NIBP_DBP"]) else None
+        mbp_val = float(row["Solar8000_NIBP_MBP"]) if "Solar8000_NIBP_MBP" in row and pd.notna(row["Solar8000_NIBP_MBP"]) else None
+        si_val = float(row["shock_index"]) if "shock_index" in row and pd.notna(row["shock_index"]) else None
+
+        anomalies.append({
+            "timestamp": str(row["timestamp"]),
+            "methods": methods,
+            "hr": hr_val,
+            "spo2": spo2_val,
+            "sbp": sbp_val,
+            "dbp": dbp_val,
+            "mbp": mbp_val,
+            "shock_index": round(si_val, 3) if si_val is not None else None
+        })
 
     return {
         "case_id": case_id,
         "anomaly_count": len(anomalies),
+        "summary_by_method": summary_by_method,
         "anomalies": anomalies,
     }

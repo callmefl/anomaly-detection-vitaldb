@@ -21,6 +21,45 @@ I segnali sensoristici grezzi possono presentare artefatti dovuti a perdita di c
     \item Gestione e interpolazione dei valori mancanti (\textit{missing values}) e allineamento dei timestamp.
 \end{itemize}
 
+\subsection{Confronto Visivo Prima e Dopo la Pulizia (Bronze vs Silver)}
+La Figura \ref{fig:before_after} evidenzia l'impatto concreto del processo di data cleaning su un tracciato reale del dataset:
+\begin{itemize}
+    \item \textbf{Layer Bronze (Sopra)}: Mostra il segnale frammentato con discontinuità temporali e punti mancanti dovuti a perdite temporanee di contatto dei sensori.
+    \item \textbf{Layer Silver (Sotto)}: Mostra lo stesso segnale bonificato tramite interpolazione ed allineamento temporale, risultando in un segnale continuo e coerente per i modelli di Machine Learning.
+\end{itemize}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.88\textwidth]{before_after_cleaning.png}
+    \caption{Confronto visivo tra il tracciato della Frequenza Cardiaca grezzo (Bronze) e bonificato (Silver).}
+    \label{fig:before_after}
+\end{figure}
+
 \subsection{Partizionamento per Reparto Chirurgico}
 Per ottimizzare la lettura successiva ed emulare il \textit{partition pruning}, i dati del layer Silver vengono salvati in formato Parquet partizionato fisicamente in sottocartelle basate sul reparto chirurgico di appartenenza del paziente:
 $$\texttt{data/silver/department=<REPARTO>/case\_<ID>.parquet}$$
+
+\section{Evoluzione del Formato del Dato: Da Tabella Piatta a BSON Gold}
+Oltre alla qualità dei segnali, l'architettura Medallion trasforma la struttura logica del dato. Mentre nel layer Bronze/Silver i dati risiedono in file tabulari piatti, nel layer Gold vengono strutturati in \textbf{documenti BSON gerarchici} contenenti sia il payload sensoristico che la governance del contesto clinico:
+
+\begin{lstlisting}[caption={Trasformazione del dato dal formato Parquet piatto al documento BSON Gold Time Series in MongoDB.}]
+// Documento caricato nella collezione 'vital_signals' (Layer Gold)
+{
+  "_id": ObjectId("65d3f1a0e4b01a2b3c4d5e6f"),
+  "timestamp": ISODate("2020-01-01T08:15:30Z"),
+  "metadata": {
+    "case_id": 1,
+    "sensor_name": "Solar8000",
+    "department": "General Surgery",
+    "age": 64,
+    "sex": "M"
+  },
+  "metrics": {
+    "Solar8000_HR": 72.0,
+    "Solar8000_PLETH_SPO2": 98.0,
+    "Solar8000_NIBP_SBP": 120.0,
+    "Solar8000_NIBP_DBP": 80.0,
+    "Solar8000_NIBP_MBP": 93.3
+  }
+}
+\end{lstlisting}

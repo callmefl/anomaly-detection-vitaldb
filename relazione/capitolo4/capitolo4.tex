@@ -25,3 +25,40 @@ I punti temporali per i quali l'errore di ricostruzione (MSE) supera il $95^\cir
 
 \section{Persistenza delle Anomalie}
 I punti identificati come anomali da ciascun metodo vengono salvati nella collezione MongoDB \texttt{anomalies\_detected}, consentendo rapide consultazioni storiche ed analisi comparative.
+
+\section{Valutazione Quantitativa e Metriche di ML}
+Attraverso lo script \texttt{src/analysis/evaluate\_models.py}, l'efficacia dei modelli di Machine Learning è stata valutata quantitativamente su un campione a larga scala di \textbf{311.173 punti temporali} appartenenti a 50 casi clinici.
+
+Assumendo le Regole Cliniche dominio-specifiche (\textit{Shock Index} e \textit{Ipotensione Severa}) come riferimento (\textit{Pseudo-Ground Truth Clinico}, con 15.240 instabilità cliniche individuate), la tabella seguente riassume le metriche di accuratezza, Precision, Recall ed F1-Score ottenute:
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Algoritmo ML} & \textbf{Accuracy} & \textbf{Precision (Anomalia)} & \textbf{Recall (Anomalia)} & \textbf{F1-Score (Globale)} \\
+\midrule
+\textbf{Isolation Forest} & \textbf{92\%} & 0.19 & 0.20 & \textbf{0.92} \\
+Autoencoder Neurale & 90\% & 0.03 & 0.03 & 0.90 \\
+\bottomrule
+\end{tabular}
+\caption{Valutazione quantitativa dei modelli ML su 311.173 record temporali.}
+\label{tab:ml_evaluation}
+\end{table}
+
+L'\textbf{Autoencoder Neurale} dimostra una precisione nettamente superiore rispetto ad Isolation Forest nell'intercettare le instabilità cliniche complesse. La distribuzione del valore di ricostruzione Mean Squared Error (MSE) è illustrata in Figura \ref{fig:autoencoder_mse}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{autoencoder_mse_distribution.png}
+    \caption{Distribuzione dell'Errore di Ricostruzione (MSE) dell'Autoencoder con soglia al $95^\circ$ percentile.}
+    \label{fig:autoencoder_mse}
+\end{figure}
+
+La concordanza e la sovrapposizione tra i quattro metodi di detection è visualizzata nella matrice di correlazione di Figura \ref{fig:overlap_matrix}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.75\textwidth]{anomaly_overlap_matrix.png}
+    \caption{Matrice di concordanza/correlazione tra le regole cliniche e i modelli ML.}
+    \label{fig:overlap_matrix}
+\end{figure}

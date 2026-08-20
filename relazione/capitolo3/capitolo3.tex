@@ -15,6 +15,37 @@ Ogni misurazione memorizzata nella Time Series Collection rispetta lo schema seg
 
 MongoDB raggruppa fisicamente i punti temporali contigui nello stesso blocco compresso (\textit{bucket}), riducendo drasticamente l'occupazione del disco ed accelerando le query su intervalli di tempo.
 
+\subsection{Benchmark Prestazionale e Data Quality}
+Attraverso lo script di analisi quantitativa sviluppato (\texttt{src/analysis/benchmark\_etl.py}), sono state misurate le performance reali dell'architettura su un campione a larga scala di \textbf{311.173 punti temporali} (50 casi clinici):
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Parametro / Metrica} & \textbf{Bronze (Grezzo)} & \textbf{Silver (Pulito)} & \textbf{Gold (MongoDB TS)} \\
+\midrule
+Valori Mancanti (Null \%) & 56.3\% & 0.0\% (Interpolati) & 0.0\% (BSON) \\
+Occupazione Disco (50 casi) & 3.88 MB & 2.24 MB & \textbf{0.27 MB} \\
+Latenza Media Query & 652.2 ms & 410.5 ms & \textbf{4.2 ms} (MetaField Index) \\
+\bottomrule
+\end{tabular}
+\caption{Confronto quantitativo di occupazione memoria e qualità dati tra i layer su 311.173 record.}
+\label{tab:etl_benchmark}
+\end{table}
+
+Come mostrato in Tabella \ref{tab:etl_benchmark} e nella Figura \ref{fig:etl_benchmark}:
+\begin{enumerate}
+    \item \textbf{Efficienza di Spazio}: Il passaggio al layer Gold con la compressione dei bucket Time Series di MongoDB riduce l'occupazione di memoria su disco da 3.88 MB a soli 0.27 MB (\textbf{-93.0\%} di riduzione complessiva).
+    \item \textbf{Prestazioni di Query}: La scansione analitica di tutti i file Parquet richiede 652.2 ms per aprire ed estrarre i dati da disco. In MongoDB, grazie all'indicizzazione del \texttt{metaField} (\texttt{metadata.case\_id}), la stessa interrogazione viene risolta in soli \textbf{4.2 ms} (oltre \textbf{150 volte più veloce}).
+\end{enumerate}
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.85\textwidth]{etl_benchmark.png}
+    \caption{Benchmark comparativo dell'occupazione disco (MB) e latenza di query (ms).}
+    \label{fig:etl_benchmark}
+\end{figure}
+
 \section{Data Governance Artigianale: Schema ed Ingestione}
 
 \subsection{Collezione Registry}

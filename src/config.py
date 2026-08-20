@@ -33,7 +33,7 @@ VITAL_TRACKS = [
 
 # === Parametri pipeline ===
 SAMPLING_INTERVAL = 1.0  # Intervallo di campionamento in secondi
-MAX_CASES = None          # Numero massimo di casi da scaricare (None = tutti)
+MAX_CASES = 50         # Numero di casi da scaricare per la sperimentazione (50 casi)
 
 # Crea le directory dati se non esistono
 for d in [BRONZE_DIR, SILVER_DIR, RAW_DIR]:

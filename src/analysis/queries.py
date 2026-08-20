@@ -1,14 +1,10 @@
-"""Utility di analisi per interrogare il layer Gold (MongoDB Time Series Collections).
+"""Modulo di utility per le query di aggregazione ed analisi sul layer Gold (MongoDB Time Series).
 
-Questo modulo raccoglie query e aggregazioni riutilizzabili sulla collezione
-`vital_signals` e sul `registry`. Le funzioni sono pensate per essere usate
-sia in fase esplorativa (notebook/REPL) sia a monte dell'anomaly detection,
-sfruttando le aggregazioni native di MongoDB anziché scaricare tutto lato client.
-
-Convenzioni sui dati (coerenti con src/gold/load_mongo.py):
-- I documenti hanno `timestamp`, `metadata.case_id` e un sotto-documento `metrics`.
-- Le chiavi delle metriche derivano da config.VITAL_TRACKS sostituendo '/' con '_'
-  (es. 'Solar8000/HR' -> 'Solar8000_HR').
+Fornisce funzioni riutilizzabili per:
+- Consultare la lista dei casi registrati ed il conteggio dei punti temporali nel catalog `registry`.
+- Estrarre la serie temporale di un paziente per la visualizzazione nella dashboard web.
+- Eseguire il downsampling temporale efficiente lato database usando `$dateTrunc`.
+- Calcolare le statistiche descrittive (media, min, max, stddev) direttamente a livello di MongoDB.
 """
 
 import sys
@@ -16,61 +12,53 @@ from pathlib import Path
 import pandas as pd
 from pymongo import MongoClient
 
+# Setup importazioni dalla radice del progetto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src import config
 
 
 def get_mongo_client():
-    """Restituisce una connessione al client MongoDB."""
+    """Crea e restituisce il client di connessione PyMongo."""
     return MongoClient(config.MONGO_URI)
 
 
 def get_db():
-    """Restituisce l'oggetto database configurato."""
+    """Restituisce l'istanza del database MongoDB configurato."""
     return get_mongo_client()[config.DB_NAME]
 
 
 def metric_key(track):
-    """Converte un nome traccia VitalDB nella chiave usata dentro `metrics`.
+    """Converte il nome di una traccia VitalDB nella chiave corrispondente memorizzata nel documento BSON.
 
     Args:
-        track (str): Nome traccia, es. 'Solar8000/HR'.
+        track (str): Nome traccia originale (es. 'Solar8000/HR').
 
     Returns:
-        str: Chiave metrica sanificata, es. 'Solar8000_HR'.
+        str: Chiave sanificata per MongoDB (es. 'Solar8000_HR').
     """
     return track.replace('/', '_')
 
 
 def metric_keys():
-    """Restituisce le chiavi metrica per tutte le tracce in config.VITAL_TRACKS."""
+    """Restituisce la lista di tutte le chiavi sanificate dei parametri vitali configurati."""
     return [metric_key(t) for t in config.VITAL_TRACKS]
 
 
 def list_loaded_cases(db):
-    """Elenca i casi già caricati nel layer Gold usando il registry.
+    """Restituisce l'elenco di tutti i casi clinici caricati, consultando la collezione `registry`.
 
     Args:
-        db: Oggetto database pymongo.
+        db: Istanza PyMongo del database.
 
     Returns:
-        pd.DataFrame: Righe del registry (case_id, record_count, provenance, ...).
+        pd.DataFrame: Tabella dei casi registrati con `case_id`, `record_count`, `schema_version`, `provenance`.
     """
     cursor = db['registry'].find({}, {"_id": 0}).sort("case_id", 1)
     return pd.DataFrame(list(cursor))
 
 
 def count_points_by_case(db):
-    """Conta i punti temporali memorizzati per ciascun caso.
-
-    Utile per un controllo di coerenza rispetto a `registry.record_count`.
-
-    Args:
-        db: Oggetto database pymongo.
-
-    Returns:
-        pd.DataFrame: Colonne ['case_id', 'points'] ordinate per case_id.
-    """
+    """Calcola il numero effettivo di misurazioni per ciascun caso nella collezione `vital_signals`."""
     pipeline = [
         {"$group": {"_id": "$metadata.case_id", "points": {"$sum": 1}}},
         {"$sort": {"_id": 1}},
@@ -83,16 +71,15 @@ def count_points_by_case(db):
 
 
 def get_case_series(db, case_id, tracks=None):
-    """Estrae la serie temporale di un caso come DataFrame.
+    """Estrae l'intera serie temporale di un caso dal layer Gold ordinata per timestamp.
 
     Args:
-        db: Oggetto database pymongo.
+        db: Istanza PyMongo del database.
         case_id (int): ID del caso.
-        tracks (list, optional): Sottoinsieme di tracce VitalDB da estrarre.
-            Se None usa tutte quelle in config.VITAL_TRACKS.
+        tracks (list, optional): Sottoinsieme di tracce da estrarre (default: tutte).
 
     Returns:
-        pd.DataFrame: Colonne ['timestamp', <chiavi metrica>] ordinate per tempo.
+        pd.DataFrame: DataFrame contenente la colonna `timestamp` e le metriche vitali.
     """
     keys = metric_keys() if tracks is None else [metric_key(t) for t in tracks]
     projection = {"_id": 0, "timestamp": 1}
@@ -111,7 +98,6 @@ def get_case_series(db, case_id, tracks=None):
         rows.append(row)
 
     df = pd.DataFrame(rows)
-    # Garantisce la presenza di tutte le colonne richieste anche se assenti
     for k in keys:
         if k not in df.columns:
             df[k] = pd.NA
@@ -119,16 +105,7 @@ def get_case_series(db, case_id, tracks=None):
 
 
 def summary_stats(db, case_id, tracks=None):
-    """Calcola statistiche descrittive per traccia via aggregazione MongoDB.
-
-    Args:
-        db: Oggetto database pymongo.
-        case_id (int): ID del caso.
-        tracks (list, optional): Tracce da analizzare (default: tutte).
-
-    Returns:
-        pd.DataFrame: Righe per traccia con count/avg/min/max/stddev.
-    """
+    """Calcola le statistiche descrittive (conteggio, media, min, max, deviazione standard) via aggregazione MongoDB."""
     keys = metric_keys() if tracks is None else [metric_key(t) for t in tracks]
 
     group = {"_id": None}
@@ -163,19 +140,10 @@ def summary_stats(db, case_id, tracks=None):
 
 
 def downsample_case(db, case_id, window_seconds=60, tracks=None):
-    """Aggrega la serie in finestre temporali (media per finestra).
+    """Esegue l'aggregazione della serie temporale in finestre di ampiezza `window_seconds` sfruttando `$dateTrunc`.
 
-    Sfrutta $dateTrunc per un downsampling efficiente lato database, utile per
-    visualizzazioni o per ridurre il rumore prima dell'anomaly detection.
-
-    Args:
-        db: Oggetto database pymongo.
-        case_id (int): ID del caso.
-        window_seconds (int): Ampiezza della finestra in secondi.
-        tracks (list, optional): Tracce da aggregare (default: tutte).
-
-    Returns:
-        pd.DataFrame: Colonne ['window_start', <chiavi metrica>] ordinate per tempo.
+    Questo downsampling viene eseguito interamente all'interno del motore MongoDB, riducendo il traffico
+    di rete verso l'API e rendendo l'interfaccia utente fluida.
     """
     keys = metric_keys() if tracks is None else [metric_key(t) for t in tracks]
 
@@ -208,17 +176,6 @@ def downsample_case(db, case_id, window_seconds=60, tracks=None):
 
 if __name__ == '__main__':
     db = get_db()
-
-    print("=== Casi caricati (registry) ===")
+    print("=== TEST QUERY MONGODB GOLD ===")
+    print("Casi registrati:")
     print(list_loaded_cases(db).to_string(index=False))
-
-    cases = count_points_by_case(db)
-    if cases.empty:
-        print("\nNessun dato presente in 'vital_signals'.")
-    else:
-        first_case = int(cases.iloc[0]["case_id"])
-        print(f"\n=== Statistiche descrittive (case_id={first_case}) ===")
-        print(summary_stats(db, first_case).to_string(index=False))
-
-        print(f"\n=== Downsampling a finestre di 60s (case_id={first_case}) ===")
-        print(downsample_case(db, first_case, window_seconds=60).head().to_string(index=False))
