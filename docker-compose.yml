@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Servizio Database MongoDB (Time Series ready)
+  mongo:
+    image: mongo:8.0
+    container_name: vitaldb_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - vitaldb_net
+
+  # Servizio Backend API (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vitaldb_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+      - DB_NAME=vitaldb_project
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - mongo
+    networks:
+      - vitaldb_net
+
+networks:
+  vitaldb_net:
+    driver: bridge
+
+volumes:
+  mongo_data:
