@@ -27,6 +27,8 @@ from src import config
 from src.analysis.queries import get_case_series, downsample_case, list_loaded_cases
 from src.detection.detector import run_detection_pipeline
 
+from fastapi.staticfiles import StaticFiles
+
 # Inizializzazione dell'applicazione FastAPI
 app = fastapi.FastAPI(
     title="VitalDB Anomaly Detection API",
@@ -42,6 +44,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Monta la cartella statica della Dashboard web
+dashboard_dir = Path(__file__).resolve().parent.parent / "dashboard"
+if dashboard_dir.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(dashboard_dir), html=True), name="dashboard")
 
 # Variabile globale per il riutilizzo della connessione PyMongo tra le varie richieste HTTP
 _client: Optional[MongoClient] = None
@@ -63,14 +70,27 @@ async def health():
 
 @app.get("/cases")
 async def get_cases():
-    """Restituisce l'elenco di tutti i casi clinici attualmente caricati nel layer Gold di MongoDB."""
+    """Restituisce l'elenco di tutti i casi clinici caricati nel layer Gold, arricchiti con i metadati di paziente."""
     db = get_db()
     df = list_loaded_cases(db)
     if df.empty:
         return []
-    # Sostituisce eventuali valori NaN con None per garantire la corretta serializzazione JSON
-    df = df.replace({np.nan: None})
-    return df.to_dict(orient="records")
+    
+    records = df.replace({np.nan: None}).to_dict(orient="records")
+    for rec in records:
+        c_id = rec.get("case_id")
+        sample_doc = db['vital_signals'].find_one({"metadata.case_id": c_id}, {"metadata": 1})
+        if sample_doc and "metadata" in sample_doc:
+            meta = sample_doc["metadata"]
+            rec["department"] = meta.get("department") or "Chirurgia Generale"
+            rec["age"] = meta.get("age")
+            rec["sex"] = meta.get("sex")
+        else:
+            rec["department"] = "Chirurgia Generale"
+            rec["age"] = None
+            rec["sex"] = None
+
+    return records
 
 
 @app.get("/cases/{case_id}/series")
