@@ -12,18 +12,10 @@ pymongo>=4.6               # Driver MongoDB per Python
 # === Anomaly Detection ===
 scikit-learn>=1.4          # Isolation Forest, metriche, preprocessing
 
-# === Visualizzazione ===
-matplotlib>=3.8            # Grafici base
-seaborn>=0.13              # Grafici statistici
-
-# === Notebook ===
-jupyter                    # Jupyter Notebook
-ipykernel                  # Kernel Python per Jupyter
-
 # === Utilità ===
 python-dotenv>=1.0         # Gestione variabili ambiente (.env)
 tqdm>=4.66                 # Progress bar per download/processing
 
 # === REST API ===
-fastapi[standard]>=0.128.1 # Framework REST API (api/main.py)
-uvicorn>=0.30               # Server ASGI per eseguire l'API in locale
+fastapi[standard]>=0.128.1 # Framework REST API
+uvicorn>=0.30              # Server ASGI

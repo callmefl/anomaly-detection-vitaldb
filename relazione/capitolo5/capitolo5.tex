@@ -1,0 +1,33 @@
+\chapter{Ingegnerizzazione del Sistema, REST API e Containerizzazione}
+
+\section{Backend REST API (FastAPI)}
+Il backend del sistema è realizzato in Python mediante il framework **FastAPI**. Il servizio interagisce con MongoDB Gold ed espone i seguenti endpoint principali:
+\begin{itemize}
+    \item \texttt{GET /cases}: Elenco dei casi clinici registrati.
+    \item \texttt{GET /cases/\{case\_id\}/series}: Serie temporale del caso selezionato, con supporto all'aggregazione temporale lato database (\textit{downsampling}).
+    \item \texttt{POST /cases/\{case\_id\}/detect}: Esecuzione al volo dei modelli di anomaly detection e salvataggio dei risultati.
+\end{itemize}
+
+\section{Dashboard Web Interattiva}
+Per la visualizzazione intuitiva dei dati è stata realizzata una dashboard web frontend in HTML5/CSS3/JavaScript (con libreria Chart.js).
+La dashboard permette all'operatore sanitario o all'analista di:
+\begin{itemize}
+    \item Selezionare interattivamente un caso dal registro.
+    \item Esplorare i grafici temporali sovrapposti delle cinque metriche vitali.
+    \item Avviare l'anomaly detection e visualizzare visivamente i marcatori delle anomalie sovrapposti ai tracciati.
+\end{itemize}
+
+\section{Containerizzazione ed Orchestrazione con Docker}
+L'intero ecosistema è completamente containerizzato ed orchestrato tramite **Docker** e **Docker Compose**:
+\begin{itemize}
+    \item \textbf{Container \texttt{vitaldb\_mongo}}: Istanza di MongoDB 8.0 avviata automaticamente come Replica Set (\texttt{--replSet rs0}) con verifica di salute nativa (\textit{healthcheck}).
+    \item \textbf{Container \texttt{vitaldb\_api}}: Istanza dell'API FastAPI basata su Python 3.12-slim, isolata nella rete interna di Docker.
+\end{itemize}
+
+L'avvio dell'intero ambiente viene effettuato con un singolo comando:
+$$\texttt{docker compose up --build -d}$$
+
+\section{Conclusioni e Sviluppi Futuri}
+Il progetto ha dimostrato con successo l'efficacia dell'integrazione tra moderne pipeline di Data Engineering ed algoritmi avanzati di Anomaly Detection per il dominio sanitario. 
+
+Tra i possibili sviluppi futuri figurano l'integrazione di motori di streaming in tempo reale (ad es. Apache Kafka) e l'estensione del tracciamento ad ulteriori indicatori fisiologici.

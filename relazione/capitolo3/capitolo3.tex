@@ -1,0 +1,30 @@
+\chapter{Archiviazione e Governance con MongoDB Time Series}
+
+\section{Layer Gold: MongoDB Time Series Collections}
+Il layer **Gold** rappresenta lo stato finale e strutturato dei dati, destinato al consumo da parte dei modelli di Machine Learning e dell'API REST. 
+
+I dati di livello Silver vengono caricati all'interno di una **Time Series Collection** nativa di MongoDB chiamata \texttt{vital\_signals}.
+
+\subsection{Struttura del Documento e Bucketing}
+Ogni misurazione memorizzata nella Time Series Collection rispetta lo schema seguente:
+\begin{itemize}
+    \item \texttt{timestamp}: Campo temporale principale (\textit{timeField}).
+    \item \texttt{metadata}: Campo di metadati (\textit{metaField}) contenente l'ID del caso (\texttt{case\_id}), il reparto (\texttt{department}), l'età e il sesso del paziente.
+    \item \texttt{metrics}: Sotto-documento contenente i valori dei parametri vitali (es. \texttt{Solar8000\_HR}, \texttt{Solar8000\_PLETH\_SPO2}).
+\end{itemize}
+
+MongoDB raggruppa fisicamente i punti temporali contigui nello stesso blocco compresso (\textit{bucket}), riducendo drasticamente l'occupazione del disco ed accelerando le query su intervalli di tempo.
+
+\section{Data Governance Artigianale: Schema ed Ingestione}
+
+\subsection{Collezione Registry}
+Per garantire il tracciamento della provenienza dei dati (\textit{data lineage}), è stata definita la collezione \texttt{registry}. Ogni volta che un caso viene caricato con successo nel layer Gold, viene inserito un documento nel registro recante:
+\begin{itemize}
+    \item \texttt{case\_id}: Identificativo univoco del caso.
+    \item \texttt{record\_count}: Numero complessivo di punti misurati caricati.
+    \item \texttt{schema\_version}: Versione dello schema dati.
+    \item \texttt{provenance}: Timestamp e step di elaborazione.
+\end{itemize}
+
+\subsection{JSON Schema Validation}
+La collezione \texttt{registry} è protetta da regole di **JSON Schema Validation** gestite nativamente da MongoDB per prevenire l'inserimento di dati malformati o mancanti di campi obbligatori.

@@ -1,0 +1,26 @@
+\chapter{Architettura della Data Pipeline (Medallion Architecture)}
+
+\section{Panoramica dell'Architettura}
+Per la gestione e la trasformazione dei dati biometrici è stata adottata la **Medallion Architecture**, un pattern architetturale consolidato nel Data Engineering che suddivide la pipeline in tre livelli di qualità progressiva: \textit{Bronze}, \textit{Silver} e \textit{Gold}.
+
+\section{Layer Bronze (Dati Grezzi)}
+Il layer **Bronze** rappresenta il punto di ingresso dei dati grezzi estratti dal dataset VitalDB tramite la libreria Python ufficiale.
+\begin{itemize}
+    \item I tracciati biometrici dei casi selezionati e le tabelle dei dati clinici/di laboratorio vengono scaricati ed estratti nel loro formato originale.
+    \item I dati vengono salvati in locale in formato binario compresso Parquet all'interno della directory \texttt{data/bronze/}.
+    \item In questa fase non viene applicata alcuna trasformazione o filtraggio, preservando la completa storicizzazione del dato originario.
+\end{itemize}
+
+\section{Layer Silver (Data Cleaning e Partizionamento)}
+Il layer **Silver** ha il compito di bonificare ed organizzare i dati per renderli idonei alle analisi avanzate.
+
+\subsection{Pulizia dei Dati e Outlier Fisiologici}
+I segnali sensoristici grezzi possono presentare artefatti dovuti a perdita di contatto del sensore o disturbi di misurazione. Vengono applicate le seguenti regole di validazione e pulizia:
+\begin{itemize}
+    \item Rimozione di outlier fisiologicamente non plausibili (es. $\text{HR} < 20$ o $> 250$ bpm, $\text{SpO2} < 50\%$).
+    \item Gestione e interpolazione dei valori mancanti (\textit{missing values}) e allineamento dei timestamp.
+\end{itemize}
+
+\subsection{Partizionamento per Reparto Chirurgico}
+Per ottimizzare la lettura successiva ed emulare il \textit{partition pruning}, i dati del layer Silver vengono salvati in formato Parquet partizionato fisicamente in sottocartelle basate sul reparto chirurgico di appartenenza del paziente:
+$$\texttt{data/silver/department=<REPARTO>/case\_<ID>.parquet}$$

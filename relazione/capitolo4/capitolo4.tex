@@ -1,0 +1,27 @@
+\chapter{Modelli di Anomaly Detection}
+
+\section{Approccio Multilivello alla Rilevazione Anomalie}
+Il modulo di Anomaly Detection applica un approccio ibrido multilivello sui dati archiviati nel layer Gold su MongoDB. Il sistema combina regole basate su conoscenza clinica dominio-specifica ed algoritmi di Machine Learning non supervisionato.
+
+\section{Regole Cliniche Domínio-Specifiche}
+
+\subsection{Shock Index (SI)}
+Lo \textit{Shock Index} è un indicatore clinico definito come il rapporto tra la frequenza cardiaca ($HR$) e la pressione arteriosa sistolica ($SBP$):
+$$\text{SI} = \frac{\text{HR}}{\text{NIBP\_SBP}}$$
+Valori di $\text{SI} > 0.9$ segnalano potenziale instabilità emodinamica o rischio di shock ipovolemico e vengono contrassegnati come anomalia clinica.
+
+\subsection{Ipotensione Severa}
+La regola dell'ipotensione severa identifica una grave sofferenza cardiocircolatoria e tissutale quando entrambe le seguenti condizioni si verificano simultaneamente:
+$$\text{NIBP\_MBP} < 65 \text{ mmHg} \quad \land \quad \text{SpO2} < 90\%$$
+
+\section{Algoritmi di Machine Learning}
+
+\subsection{Isolation Forest}
+L'algoritmo \textbf{Isolation Forest} isola le osservazioni anomale partizionando casualmente lo spazio delle feature tramite alberi di decisione. Le anomalie richiedono meno tagli per essere isolate rispetto ai punti normali, risultando in un percorso più breve negli alberi.
+
+\subsection{Autoencoder Neurale (MLPRegressor)}
+È stato implementato un \textbf{Autoencoder Neurale} basato su reti multilayer perceptron. La rete viene addestrata a ricostruire il proprio vettore di input $X$. 
+I punti temporali per i quali l'errore di ricostruzione (MSE) supera il $95^\circ$ percentile della distribuzione vengono marcati come anomalie multivariate complesse.
+
+\section{Persistenza delle Anomalie}
+I punti identificati come anomali da ciascun metodo vengono salvati nella collezione MongoDB \texttt{anomalies\_detected}, consentendo rapide consultazioni storiche ed analisi comparative.

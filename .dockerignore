@@ -1,0 +1,46 @@
+# === Ambienti virtuali ===
+.venv/
+venv/
+env/
+
+# === Dati ===
+data/
+*.parquet
+
+# === Git ===
+.git/
+.gitignore
+
+# === Python cache ===
+__pycache__/
+*.pyc
+*.pyo
+
+# === Notebook e Documentazione LaTeX (non necessari nel container API) ===
+notebooks/
+relazione/
+todo
+
+# === IDE ===
+.vscode/
+.idea/
+
+# === Docker ===
+Dockerfile
+docker-compose.yml
+
+# === Docs ===
+README.md
+SKILL.md
+SKILL_COMPLETION.md
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Env locale ===
+.env
+.env.*
+
+# === Gemini ===
+.gemini/

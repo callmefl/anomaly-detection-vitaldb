@@ -6,56 +6,87 @@ Progetto universitario per il corso di New Generation Databases. L'obiettivo è 
 
 La pipeline dei dati si divide nei seguenti layer:
 - **Bronze**: Dati grezzi estratti da VitalDB, mantenuti nel loro formato originale senza trasformazioni e salvati in formato Parquet.
-- **Silver**: Dati puliti, interpolati e partizionati in modo efficiente. Filtraggio di outlier fisiologici base.
+- **Silver**: Dati puliti, interpolati e partizionati per reparto chirurgico. Filtraggio di outlier fisiologici base.
 - **Gold**: I dati di qualità Silver vengono caricati su collezioni Time Series all'interno di MongoDB.
-- **Detection**: Moduli di Anomaly Detection per trovare pattern anomali sui dati serie storiche archiviati in MongoDB.
+- **Detection**: Moduli di Anomaly Detection (Isolation Forest, Autoencoder, regole cliniche) per trovare pattern anomali sui dati serie storiche archiviati in MongoDB.
 
-## Prerequisiti
+## Avvio Rapido con Docker
 
-- Python 3.12
-- MongoDB 8.0
-- Git
+### Prerequisiti
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [MongoDB Compass](https://www.mongodb.com/products/tools/compass) (opzionale, per esplorare il database via GUI)
 
-## Configurazione
+### 1. Avviare i container
 
-1. Clonare la repository
-2. Creare un virtual environment:
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   ```
-3. Installare le dipendenze:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Configurare il file `.env` basato sui propri parametri:
-   ```env
-   MONGO_URI=mongodb://localhost:27017
-   DB_NAME=vitaldb_project
-   ```
-5. Inizializzare MongoDB tramite gli script in `mongo/` (ad es. usando `mongosh`).
+```bash
+docker compose up --build -d
+```
+
+Questo comando avvia automaticamente:
+- **MongoDB 8.0** con Replica Set configurato (porta `27017`)
+- **API FastAPI** con tutte le dipendenze Python (porta `8000`)
+
+### 2. Popolare il database
+
+```bash
+# Download dati grezzi da VitalDB (Layer Bronze)
+docker exec vitaldb_api python src/bronze/download.py
+
+# Pulizia e partizionamento (Layer Silver)
+docker exec vitaldb_api python src/silver/clean.py
+
+# Caricamento su MongoDB Time Series (Layer Gold)
+docker exec vitaldb_api python src/gold/load_mongo.py
+```
+
+### 3. Utilizzare l'applicazione
+
+- **Dashboard Web**: Aprire `dashboard/index.html` nel browser
+- **API Swagger**: http://localhost:8000/docs
+- **MongoDB Compass**: Connettersi a `mongodb://localhost:27017`
+
+### 4. Gestione dei container
+
+```bash
+# Vedere lo stato dei container
+docker ps
+
+# Leggere i log dell'API
+docker logs -f vitaldb_api
+
+# Stoppare tutto
+docker compose down
+
+# Stoppare e rimuovere anche i dati del database
+docker compose down -v
+```
+
 
 ## Struttura del Progetto
 
 ```
-Progettox/
+anomaly-detection-vitaldb/
 │
+├── api/                   # REST API (FastAPI)
+│   └── main.py
+├── dashboard/             # Frontend web (grafici interattivi)
+│   └── index.html
 ├── data/                  # Directory dei dati (ignorata da git)
 │   ├── bronze/
-│   ├── raw/
 │   └── silver/
 ├── mongo/                 # Script mongosh per DB setup
 ├── notebooks/             # Jupyter Notebooks per EDA
 ├── src/                   # Codice sorgente Python
-│   ├── bronze/
-│   ├── silver/
-│   ├── gold/
-│   └── detection/
+│   ├── analysis/          # Query e aggregazioni MongoDB
+│   ├── bronze/            # Download dati grezzi
+│   ├── silver/            # Pulizia e partizionamento
+│   ├── gold/              # Caricamento su MongoDB
+│   └── detection/         # Algoritmi di anomaly detection
 ├── tests/                 # Test unitari
-├── .env                   # Variabili ambiente
-├── .gitignore
-├── README.md
-└── requirements.txt
+├── docker-compose.yml     # Orchestrazione container
+├── Dockerfile             # Immagine API Python
+├── requirements.txt       # Dipendenze Python
+└── README.md
 ```
 
 ## Autori

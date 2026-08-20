@@ -1,19 +1,25 @@
-version: '3.8'
-
 services:
-  # Servizio Database MongoDB (Time Series ready)
+
+  # === MongoDB 8.0 (Time Series Collections) ===
   mongo:
     image: mongo:8.0
     container_name: vitaldb_mongo
     restart: always
+    command: --replSet rs0
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate() }" | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - vitaldb_net
 
-  # Servizio Backend API (FastAPI)
+  # === Backend API (FastAPI + Python 3.12) ===
   api:
     build:
       context: .
@@ -23,12 +29,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_URI=mongodb://mongo:27017/?directConnection=true
       - DB_NAME=vitaldb_project
     volumes:
       - ./data:/app/data
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - vitaldb_net
 

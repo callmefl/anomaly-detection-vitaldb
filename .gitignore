@@ -1,36 +1,105 @@
-# Virtual environment
+# ==========================================
+# === PYTHON & VIRTUAL ENVIRONMENTS ===
+# ==========================================
 .venv/
 venv/
 env/
-
-# Dati (troppo grandi per Git)
-data/
-
-# Python
+ENV/
 __pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-dist/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Environment
+# ==========================================
+# === AMBIENTE E SEGRETI (.env) ===
+# ==========================================
 .env
+.env.*
+!.env.example
 
-# Jupyter
+# ==========================================
+# === DATI PESANTI & DATASET ===
+# ==========================================
+data/
+*.parquet
+*.csv
+*.h5
+*.pkl
+*.joblib
+
+# ==========================================
+# === LATEX (ARTIFACTS DI COMPILAZIONE) ===
+# ==========================================
+# Ignora tutti i file ausiliari generati da pdflatex / latexmk
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.bbl
+*.blg
+*.idx
+*.ind
+*.lof
+*.lot
+*.nav
+*.snm
+*.vrb
+*.bcf
+*.run.xml
+# Se preferite generare il PDF solo in locale ed evitare conflitti su file binari:
+# relazione/*.pdf
+
+# ==========================================
+# === JUPYTER NOTEBOOKS ===
+# ==========================================
 .ipynb_checkpoints/
+*-checkpoint.ipynb
 
-# IDE
+# ==========================================
+# === IDE & EDITOR ===
+# ==========================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.project
+.pydevproject
+.settings/
 
-# OS
+# ==========================================
+# === OPERATING SYSTEM ===
+# ==========================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# Zip ed estrazioni temporanee
-*.zip
-*-master/
-
+# ==========================================
+# === STRUMENTI AI & FILE TEMPORANEI ===
+# ==========================================
+.gemini/
+todo

@@ -1,8 +1,0 @@
-{
-  "experimentalServices": {
-    "api": {
-      "entrypoint": "api/main.py",
-      "routePrefix": "/api"
-    }
-  }
-}

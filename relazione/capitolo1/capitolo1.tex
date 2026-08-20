@@ -1,0 +1,27 @@
+\chapter{Introduzione e Dominio Applicativo}
+
+\section{Contesto del Progetto}
+Il presente elaborato descrive la progettazione e l'implementazione di un sistema di \textit{Data Engineering} ed \textit{Anomaly Detection} su dati temporali ad alta frequenza ricavati dal dataset clinico open-access \textbf{VitalDB}. 
+
+Il lavoro si inserisce nell'ambito dei database di nuova generazione (\textit{New Generation Databases}), affrontando le sfide legate all'ingestione, alla pulizia, all'archiviazione strutturata e all'analisi automatizzata di serie storiche biometrici ricavati da parametri monitorati durante interventi chirurgici intraoperatori.
+
+\section{Dominio dei Dati: VitalDB}
+VitalDB è un dataset clinico comprendente oltre 6.300 casi chirurgici intraoperatori. Per ciascun paziente vengono registrati segnali fisiologici e parametri biometrici numerici a intervalli di campionamento compresi tra 1 e 7 secondi.
+
+Nello specifico, il progetto focalizza l'analisi su cinque metriche vitali fondamentali:
+\begin{itemize}
+    \item \textbf{Solar8000/HR}: Frequenza cardiaca (\textit{Heart Rate}, espressa in bpm).
+    \item \textbf{Solar8000/PLETH\_SPO2}: Saturazione d'ossigeno nel sangue (\textit{SpO2}, espressa in \%).
+    \item \textbf{Solar8000/NIBP\_SBP}: Pressione arteriosa sistolica non invasiva (in mmHg).
+    \item \textbf{Solar8000/NIBP\_DBP}: Pressione arteriosa diastolica non invasiva (in mmHg).
+    \item \textbf{Solar8000/NIBP\_MBP}: Pressione arteriosa media non invasiva (in mmHg).
+\end{itemize}
+
+\section{Obiettivi dell'Elaborato}
+Gli obiettivi principali del sistema sviluppato sono:
+\begin{enumerate}
+    \item Costruire una pipeline di raffinamento dati strutturata su architettura a livelli (\textbf{Bronze}, \textbf{Silver}, \textbf{Gold}).
+    \item Garantire l'archiviazione scalabile ed efficiente dei tracciati mediante le **Time Series Collections** di MongoDB.
+    \item Sviluppare ed etichettare automaticamente eventi ed istanti anomali applicando sia regole cliniche sia modelli di Machine Learning non supervisionato (\textit{Isolation Forest} ed \textit{Autoencoder}).
+    \item Ingegnerizzare la soluzione tramite container **Docker** e fornire un'interfaccia grafica web interattiva affiancata da API REST.
+\end{enumerate}

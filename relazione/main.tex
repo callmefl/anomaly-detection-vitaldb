@@ -1,0 +1,76 @@
+\documentclass[12pt, a4paper]{report}
+
+% === PACCHETTI DI BASE ===
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+
+% === CONFIGURAZIONE PAGINA ===
+\geometry{
+    top=3cm,
+    bottom=3cm,
+    left=3cm,
+    right=3cm
+}
+
+% === STILE PER IL CODICE ===
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+
+\lstdefinestyle{codeStyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=codeStyle}
+
+% === PATH IMMAGINI ===
+\graphicspath{{img/}}
+
+% === INFORMAZIONI DOCUMENTO ===
+\title{
+    \textbf{Anomaly Detection su Dati Biometrici (VitalDB)}\\
+    \large Progetto per il corso di New Generation Databases\\
+    \large Corso di Laurea in Informatica
+}
+\author{\textbf{Autori}: Collaboratori del Progetto}
+\date{\today}
+
+\begin{document}
+
+% === FRONTESPIZIO E INDICE ===
+\maketitle
+\tableofcontents
+\newpage
+
+% === CAPITOLI ===
+\input{capitolo1/capitolo1.tex}
+\input{capitolo2/capitolo2.tex}
+\input{capitolo3/capitolo3.tex}
+\input{capitolo4/capitolo4.tex}
+\input{capitolo5/capitolo5.tex}
+
+\end{document}
