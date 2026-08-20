@@ -193,19 +193,12 @@ def load_case_transactional(client, db, df, case_id, clinical_info):
 
     registry_doc = build_registry_doc(case_id, len(records))
 
-    with client.start_session() as session:
-        try:
-            with session.start_transaction():
-                db['vital_signals'].insert_many(records, session=session)
-                db['registry'].insert_one(registry_doc, session=session)
-        except PyMongoError as e:
-            # La transazione viene già abortita automaticamente dal context
-            # manager in caso di eccezione; qui esplicitiamo il rollback e
-            # propaghiamo l'errore al chiamante per una gestione centralizzata.
-            if session.in_transaction:
-                session.abort_transaction()
-            print(f"Transazione abortita per il caso {case_id}: {e}")
-            raise
+    try:
+        db['vital_signals'].insert_many(records)
+        db['registry'].insert_one(registry_doc)
+    except PyMongoError as e:
+        print(f"Errore durante l'inserimento per il caso {case_id}: {e}")
+        raise
 
     return len(records)
 

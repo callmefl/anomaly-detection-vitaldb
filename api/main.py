@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import fastapi
 import fastapi.middleware.cors
 from fastapi import HTTPException
@@ -61,6 +62,7 @@ async def get_cases():
     df = list_loaded_cases(db)
     if df.empty:
         return []
+    df = df.replace({np.nan: None})
     return df.to_dict(orient="records")
 
 
@@ -86,6 +88,7 @@ async def get_series(case_id: int, window_seconds: Optional[int] = None):
         raise HTTPException(status_code=404, detail=f"Nessun dato trovato per case_id={case_id}")
 
     df["timestamp"] = df["timestamp"].astype(str)
+    df = df.replace({np.nan: None})
     return df.to_dict(orient="records")
 
 
