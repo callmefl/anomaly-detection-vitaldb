@@ -50,6 +50,11 @@ dashboard_dir = Path(__file__).resolve().parent.parent / "dashboard"
 if dashboard_dir.exists():
     app.mount("/dashboard", StaticFiles(directory=str(dashboard_dir), html=True), name="dashboard")
 
+# Monta la cartella statica delle Slide di Presentazione (Slidesgo AI Tech Theme)
+presentazione_dir = Path(__file__).resolve().parent.parent / "presentazione"
+if presentazione_dir.exists():
+    app.mount("/presentazione", StaticFiles(directory=str(presentazione_dir), html=True), name="presentazione")
+
 # Variabile globale per il riutilizzo della connessione PyMongo tra le varie richieste HTTP
 _client: Optional[MongoClient] = None
 

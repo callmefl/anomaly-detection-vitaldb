@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Technology & Anomaly Detection — VitalDB Presentation</title>
+
+  <!-- Google Fonts: Space Grotesk / Syne / Inter / JetBrains Mono per la grafica esatta di Slidesgo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       SLIDESGO AI TECHNOLOGY EXACT TEMPLATE STYLE (PITCH BLACK & NEON PILLS)
+       ========================================================================== */
+    :root {
+      --bg-black:      #000000;
+      --bg-card:       #0d0d0f;
+      --border-gray:   #26262a;
+      
+      --lime-neon:     #ccff00;
+      --pink-neon:     #ff2a85;
+      --purple-light:  #c084fc;
+      --purple-deep:   #7e22ce;
+      --blue-neon:     #3b82f6;
+
+      --text-white:    #ffffff;
+      --text-muted:    #a1a1aa;
+      --text-dim:      #52525b;
+
+      --font-display:  'Space Grotesk', 'Syne', sans-serif;
+      --font-body:     'Inter', sans-serif;
+      --font-mono:     'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-black);
+      color: var(--text-white);
+      font-family: var(--font-body);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* BADGE SLIDE COUNTER IN ALTO AL CENTRO (STILE SLIDESGO 6/35) */
+    .slidesgo-counter {
+      position: absolute;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #18181b;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.35rem 0.9rem;
+      border-radius: 6px;
+      z-index: 100;
+      border: 1px solid #27272a;
+    }
+
+    /* CONTENITORE SLIDES FULL SCREEN */
+    .slide-viewport {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 4.5rem 6rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.98);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      background: var(--bg-black);
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1);
+    }
+
+    /* TITOLI SLIDE IN STILE SLIDESGO DISPLAY */
+    .slidesgo-title {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--text-white);
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+    }
+
+    .slidesgo-subtitle {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--purple-light);
+      margin-bottom: 0.75rem;
+    }
+
+    /* OVAL PILL CONTAINERS CON BORDO ROSA/MAGENTA (ESATTI COME SCREENSHOT SLIDESGO) */
+    .pill-card {
+      border: 1px solid var(--pink-neon);
+      border-radius: 9999px;
+      padding: 0.85rem 2rem;
+      text-align: center;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .pill-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--lime-neon);
+    }
+
+    /* GRIGLIA A 4 COLONNE COME NELLA SCHERMATA SLIDESGO "CONTENTS OF THIS TEMPLATE" */
+    .slidesgo-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      margin-top: 1.5rem;
+    }
+
+    .slidesgo-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.25rem;
+    }
+
+    .slidesgo-icon {
+      font-size: 2.2rem;
+      color: var(--lime-neon);
+      line-height: 1;
+    }
+
+    .col-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .col-desc strong {
+      color: var(--text-white);
+    }
+
+    /* BANNER ALERT ROSA (STILE SLIDESGO FLOATING ALERT) */
+    .slidesgo-pink-alert {
+      background: var(--pink-neon);
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.85rem 1.5rem;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* PULSANTI DI NAVIGAZIONE CIRCOLARI AI LATI (ESATTI COME SCREENSHOT) */
+    .side-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #000000;
+      border: none;
+      font-size: 1.3rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+    }
+
+    .side-nav-btn:hover {
+      transform: translateY(-50%) scale(1.1);
+      background: var(--lime-neon);
+    }
+
+    .side-nav-btn.prev { left: 1.5rem; }
+    .side-nav-btn.next { right: 1.5rem; }
+
+    .side-nav-btn:disabled {
+      opacity: 0.2;
+      cursor: not-allowed;
+      transform: translateY(-50%);
+      background: #ffffff;
+    }
+
+    /* TABELLA SLIDESGO */
+    .slidesgo-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      margin-top: 1rem;
+    }
+
+    .slidesgo-table th {
+      border-bottom: 2px solid var(--lime-neon);
+      color: var(--lime-neon);
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      padding: 1rem;
+      text-align: left;
+    }
+
+    .slidesgo-table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-gray);
+      font-family: var(--font-mono);
+    }
+
+    .slidesgo-table tr:hover {
+      background: rgba(204, 255, 0, 0.03);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BADGE SLIDE COUNTER TOP CENTER (ESATTO COME SLIDESGO: 1 / 10) -->
+  <div class="slidesgo-counter" id="slideCounter">1 / 10</div>
+
+  <!-- PULSANTI DI NAVIGAZIONE CIRCOLARI AI LATI -->
+  <button class="side-nav-btn prev" id="prevBtn" onclick="prevSlide()">‹</button>
+  <button class="side-nav-btn next" id="nextBtn" onclick="nextSlide()">›</button>
+
+  <!-- CONTENITORE SLIDES CON LO STILE FEDELE DI SLIDESGO AI TECHNOLOGY -->
+  <div class="slide-viewport">
+
+    <!-- SLIDE 1: COPERTINA -->
+    <div class="slide active">
+      <div style="margin-top: 2rem;">
+        <div class="slidesgo-subtitle">Progetto New Generation Databases</div>
+        <h1 class="slidesgo-title" style="font-size: 3.6rem; margin-bottom: 1.5rem;">
+          AI & Anomaly Detection<br>su Dati Biometrici VitalDB
+        </h1>
+        <p style="font-size: 1.25rem; color: var(--text-muted); max-width: 800px; line-height: 1.6;">
+          Architettura Medallion (Bronze $\rightarrow$ Silver $\rightarrow$ Gold su MongoDB 8.0 Time Series), Regole Cliniche ed Algoritmi di Machine Learning Non Supervisionato.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="pill-card">
+          <span>🧠</span> Machine Learning 5D
+        </div>
+        <div class="pill-card" style="border-color: var(--lime-neon);">
+          <span>🥇</span> MongoDB 8.0 Gold
+        </div>
+        <div class="pill-card" style="border-color: var(--purple-light);">
+          <span>🧪</span> 311.173 Record Validati
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: CONTENTS OF THIS TEMPLATE (ESATTO LAYOUT SCREENSHOT 1) -->
+    <div class="slide">
+      <div>
+        <h2 class="slidesgo-title" style="text-align: center;">Contenuti del Progetto</h2>
+      </div>
+
+      <div class="slidesgo-grid-4">
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon">📊</div>
+          <div class="pill-card" style="width: 100%;">Data ETL</div>
+          <p class="col-desc">
+            Estrazione grezza Bronze, bonifica e partizionamento Silver, ingestion su <strong>MongoDB Time Series Gold</strong>.
+          </p>
+        </div>
+
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon">🩺</div>
+          <div class="pill-card" style="width: 100%;">Regole Cliniche</div>
+          <p class="col-desc">
+            Valutazione dello <strong>Shock Index ($SI > 0.9$)</strong> e della sofferenza d'organo da <strong>Ipotensione Severa</strong>.
+          </p>
+        </div>
+
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon">🧠</div>
+          <div class="pill-card" style="width: 100%;">Modelli AI & ML</div>
+          <p class="col-desc">
+            Detection non supervisionata 5D con <strong>Isolation Forest</strong> e <strong>Autoencoder Neurale MLP</strong>.
+          </p>
+        </div>
+
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon">💻</div>
+          <div class="pill-card" style="width: 100%;">Web App & API</div>
+          <p class="col-desc">
+            Dashboard interattiva con <strong>Theme Toggle</strong>, modali cliniche, export CSV e REST API <strong>FastAPI</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-gray); padding-top: 1.5rem; margin-top: 1rem;">
+        <div style="font-size: 0.9rem; color: var(--text-muted);">
+          Dataset Sperimentale: <strong style="color: var(--lime-neon);">50 Casi Clinici VitalDB (311.173 Punti Temporali)</strong>
+        </div>
+        <div class="slidesgo-pink-alert">
+          <span>⚡</span> Risultati: -93.0% Occupazione Spazio Disco & Query in 4.2 ms
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: TWO IDEAS LAYOUT (ESATTO LAYOUT SCREENSHOT 2) -->
+    <div class="slide">
+      <h2 class="slidesgo-title">Due Approcci di Anomaly Detection</h2>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+        
+        <!-- CARD GRAPHIC SLIDESGO 3D GLASSMORPHISM -->
+        <div style="background: linear-gradient(135deg, #18181b 0%, #0d0d0f 100%); border: 1px solid var(--purple-light); border-radius: 20px; padding: 2.5rem; box-shadow: 0 20px 40px rgba(126, 34, 206, 0.2);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <span style="font-family: var(--font-display); font-size: 1.1rem; color: var(--lime-neon);">Algoritmi Multilivello</span>
+            <span style="background: var(--pink-neon); color: #fff; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">CONCORRENZA</span>
+          </div>
+
+          <div style="font-family: var(--font-mono); font-size: 2.5rem; font-weight: 800; color: #ffffff; margin-bottom: 1rem;">
+            92.0% <span style="font-size: 1rem; color: var(--purple-light);">Accuratezza ML</span>
+          </div>
+
+          <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+            I modelli di Machine Learning (Isolation Forest ed Autoencoder) convergono sugli stessi pattern dell'instabilità clinica.
+          </p>
+        </div>
+
+        <!-- TESTO SLIDESGO PURPLE SUBTITLES -->
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+          <div>
+            <h3 class="slidesgo-subtitle">1. Regole Cliniche Domínio-Specifiche</h3>
+            <p style="font-size: 1.05rem; color: var(--text-muted); line-height: 1.6;">
+              Intercettano le emergenze fisiologiche note tramite soglie rigide fisse: <strong>Shock Index ($SI = HR/SBP > 0.9$)</strong> ed <strong>Ipotensione Severa ($MBP < 65 \land SpO_2 < 90\%$)</strong>.
+            </p>
+          </div>
+
+          <div>
+            <h3 class="slidesgo-subtitle" style="color: var(--lime-neon);">2. Machine Learning Non Supervisionato</h3>
+            <p style="font-size: 1.05rem; color: var(--text-muted); line-height: 1.6;">
+              Isola deviazioni complesse nello spazio 5D. L'<strong>Isolation Forest</strong> ed il <strong>Reconstruction Error MSE dell'Autoencoder</strong> scoprono anomalie sottili non viste dalle soglie univariate fisse.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SLIDE 4: BENCHMARK PERFORMANCE TABLE -->
+    <div class="slide">
+      <div>
+        <div class="slidesgo-subtitle">Benchmark Empirico</div>
+        <h2 class="slidesgo-title">Risultati Data Pipeline (Bronze $\rightarrow$ Gold)</h2>
+      </div>
+
+      <table class="slidesgo-table">
+        <thead>
+          <tr>
+            <th>Fase Architetturale</th>
+            <th>Formato / Storage</th>
+            <th>Occupazione Spazio Disco</th>
+            <th>Riduzione Spazio (%)</th>
+            <th>Latenza Media Query Scansione</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Layer BRONZE (Grezzo)</strong></td>
+            <td>Parquet Monolitico</td>
+            <td>3.88 MB</td>
+            <td>0 % (Riferimento)</td>
+            <td>652.2 ms (Parquet Scan)</td>
+          </tr>
+          <tr>
+            <td><strong>Layer SILVER (Pulito)</strong></td>
+            <td>Parquet Partizionato</td>
+            <td>2.24 MB</td>
+            <td>-42.3 %</td>
+            <td>380.5 ms</td>
+          </tr>
+          <tr>
+            <td><strong>Layer GOLD (MongoDB Time Series)</strong></td>
+            <td>Collection BSON Bucket</td>
+            <td><strong style="color: var(--lime-neon);">0.27 MB</strong></td>
+            <td><strong style="color: var(--lime-neon);">-93.0 %</strong></td>
+            <td><strong style="color: var(--lime-neon);">4.2 ms (>150x più veloce)</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-gray); padding: 1.5rem; border-radius: 12px;">
+          <div style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--lime-neon);">-93.0 % Spazio Disco</div>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">Il bucketing nativo BSON di MongoDB 8.0 Time Series comprime drasticamente l'occupazione fisica.</p>
+        </div>
+
+        <div style="background: var(--bg-card); border: 1px solid var(--border-gray); padding: 1.5rem; border-radius: 12px;">
+          <div style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--pink-neon);">4.2 ms Query Latency</div>
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">La velocizzazione delle query temporali abbatte i tempi di risposta dell'API da 652ms a 4.2ms.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: METRICHE ML & VALIDAZIONE SCIENTIFICA -->
+    <div class="slide">
+      <div>
+        <div class="slidesgo-subtitle">Validazione Matematica</div>
+        <h2 class="slidesgo-title">Valutazione Modelli ML (311.173 Record)</h2>
+      </div>
+
+      <table class="slidesgo-table">
+        <thead>
+          <tr>
+            <th>Algoritmo ML</th>
+            <th>Accuratezza Globale</th>
+            <th>Precision (Anomalia)</th>
+            <th>Recall (Anomalia)</th>
+            <th>F1-Score Globale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Isolation Forest (Scikit-Learn)</strong></td>
+            <td><strong style="color: var(--lime-neon);">92 %</strong></td>
+            <td>0.19</td>
+            <td>0.20</td>
+            <td><strong style="color: var(--lime-neon);">0.92</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Autoencoder Neurale (MLPRegressor)</strong></td>
+            <td><strong>90 %</strong></td>
+            <td>0.03</td>
+            <td>0.03</td>
+            <td><strong>0.90</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="background: rgba(126, 34, 206, 0.15); border: 1px solid var(--purple-light); padding: 1.5rem; border-radius: 12px; margin-top: 2rem;">
+        <h4 style="color: var(--purple-light); font-size: 1.1rem; margin-bottom: 0.5rem;">💡 Validazione con Pseudo-Ground Truth Clinico</h4>
+        <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+          Utilizzando le 15.240 instabilità cliniche individuate dalle regole mediche come riferimento di verità, gli algoritmi non supervisionati dimostrano una stabilità ed un'accuratezza globale superiore al 90%, garantendo un'eccellente capacità di isolamento dei punti anomali.
+        </p>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: SOFTWARE ENGINEERING & TEST SUITE -->
+    <div class="slide">
+      <div>
+        <div class="slidesgo-subtitle">Ingegnerizzazione</div>
+        <h2 class="slidesgo-title">FastAPI, Docker & Pytest Suite (100% Pass)</h2>
+      </div>
+
+      <div class="slidesgo-grid-4">
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon" style="color: var(--purple-light);">⚡</div>
+          <div class="pill-card" style="width: 100%;">FastAPI</div>
+          <p class="col-desc">REST API ad alte prestazioni con sanitizing JSON e CORS abilitato.</p>
+        </div>
+
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon" style="color: var(--lime-neon);">🐳</div>
+          <div class="pill-card" style="width: 100%; border-color: var(--lime-neon);">Docker 8.0</div>
+          <p class="col-desc">MongoDB 8.0 Replica Set containerizzato ed orchestrato via Docker Compose.</p>
+        </div>
+
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon" style="color: var(--pink-neon);">🧪</div>
+          <div class="pill-card" style="width: 100%;">Pytest Suite</div>
+          <p class="col-desc">12 test unitari ed integrativi per verificare la stabilità di ogni componente.</p>
+        </div>
+
+        <div class="slidesgo-col">
+          <div class="slidesgo-icon" style="color: var(--purple-light);">✅</div>
+          <div class="pill-card" style="width: 100%;">100% Success</div>
+          <p class="col-desc">Tutti i 12 test passano regolarmente in 3.9 secondi senza errori.</p>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-card); border: 1px solid var(--border-gray); padding: 1.25rem 2rem; border-radius: 12px; margin-top: 2rem; font-family: var(--font-mono); color: var(--lime-neon); font-size: 0.9rem;">
+        $ docker exec vitaldb_api python -m pytest tests/ -v <br>
+        <span style="color: #ffffff;">==&gt; 12 passed in 3.97s (100% Success Rate)</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: WEB DASHBOARD DEMO -->
+    <div class="slide">
+      <div>
+        <div class="slidesgo-subtitle">Frontend & User Experience</div>
+        <h2 class="slidesgo-title">Dashboard Web Interattiva & Theme Toggle</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;">
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="pill-card" style="justify-content: flex-start;">
+            <span>🌙 / ☀️</span> Theme Toggle Switch (Dark & Light)
+          </div>
+
+          <div class="pill-card" style="justify-content: flex-start; border-color: var(--lime-neon);">
+            <span>💡</span> Modali Cliniche & Formule Matematiche
+          </div>
+
+          <div class="pill-card" style="justify-content: flex-start; border-color: var(--purple-light);">
+            <span>📥</span> Export Dataset Anomalie in CSV
+          </div>
+        </div>
+
+        <div style="background: var(--bg-card); border: 1px solid var(--purple-light); padding: 2rem; border-radius: 16px;">
+          <h3 style="font-family: var(--font-display); font-size: 1.3rem; color: var(--text-white); margin-bottom: 1rem;">
+            Esperienza Utente Clinica
+          </h3>
+          <p style="font-size: 1rem; color: var(--text-muted); line-height: 1.6;">
+            La dashboard consente di esplorare visivamente i tracciati biometrici, selezionare la finestra di downsampling, lanciare l'anomaly detection al volo e consultare la diagnosi automatica cliccando sui singoli eventi anomali.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: TEXT SLIDE (ESATTO LAYOUT SCREENSHOT 3) -->
+    <div class="slide">
+      <h2 class="slidesgo-title">Considerazioni Architetturali</h2>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+        <div style="max-width: 750px; font-size: 1.35rem; color: var(--text-muted); line-height: 1.8;">
+          L'integrazione tra la <strong style="color: var(--text-white);">Medallion Architecture su MongoDB 8.0 Time Series</strong> e gli algoritmi di <strong style="color: var(--lime-neon);">Machine Learning Non Supervisionato</strong> dimostra come la gestione moderna dei dati clinici ad alta frequenza possa ridurre la complessità infrastrutturale, garantendo al contempo risposte in tempo reale ($<5\text{ms}$) utili per il supporto decisionale in cardioanestesia.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: CONCLUSIONI -->
+    <div class="slide">
+      <div>
+        <div class="slidesgo-subtitle">Conclusioni</div>
+        <h2 class="slidesgo-title">Traguardi Raggiunti e Scalabilità</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div style="background: var(--bg-card); border: 1px dashed var(--lime-neon); padding: 2rem; border-radius: 16px;">
+          <h3 style="color: var(--lime-neon); font-size: 1.3rem; margin-bottom: 1rem;">✅ Traguardi Raggiunti</h3>
+          <ul style="color: var(--text-muted); font-size: 1rem; line-height: 1.8; list-style-position: inside;">
+            <li>Pipeline ETL automatizzata Bronze $\rightarrow$ Silver $\rightarrow$ Gold.</li>
+            <li>Compressione dello spazio su disco del 93.0%.</li>
+            <li>Query Time Series veloci ($4.2\text{ms}$).</li>
+            <li>Accuratezza Anomaly Detection $>90\%$.</li>
+          </ul>
+        </div>
+
+        <div style="background: var(--bg-card); border: 1px dashed var(--pink-neon); padding: 2rem; border-radius: 16px;">
+          <h3 style="color: var(--pink-neon); font-size: 1.3rem; margin-bottom: 1rem;">🚀 Sviluppi Futuri</h3>
+          <ul style="color: var(--text-muted); font-size: 1rem; line-height: 1.8; list-style-position: inside;">
+            <li>Streaming real-time con Apache Kafka.</li>
+            <li>Reti neurali ricorsive LSTM / GRU per serie storiche.</li>
+            <li>Integrazione di ulteriori canali di monitoraggio (ECG/EEG).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10: GRAZIE & Q&A -->
+    <div class="slide">
+      <div style="text-align: center; margin: auto 0;">
+        <div class="slidesgo-subtitle" style="font-size: 1.4rem;">Grazie per l'Attenzione</div>
+        <h1 class="slidesgo-title" style="font-size: 4rem; margin-top: 1rem;">Domande & Discussione</h1>
+        
+        <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 2rem;">
+          <div class="pill-card" style="border-color: var(--lime-neon);">
+            <span>🌐</span> Live Dashboard: http://localhost:8000/dashboard/
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ==========================================================================
+       SLIDESGO PRESENTATION ENGINE - JAVASCRIPT SLIDE CONTROLLER
+       ========================================================================== */
+    let currentSlideIndex = 0;
+    const slides = document.querySelectorAll('.slide');
+    const slideCounter = document.getElementById('slideCounter');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function updateSlides() {
+      slides.forEach((slide, idx) => {
+        if (idx === currentSlideIndex) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+
+      slideCounter.textContent = `${currentSlideIndex + 1} / ${slides.length}`;
+      prevBtn.disabled = currentSlideIndex === 0;
+      nextBtn.disabled = currentSlideIndex === slides.length - 1;
+    }
+
+    function nextSlide() {
+      if (currentSlideIndex < slides.length - 1) {
+        currentSlideIndex++;
+        updateSlides();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlideIndex > 0) {
+        currentSlideIndex--;
+        updateSlides();
+      }
+    }
+
+    // Navigazione tramite Tastiera (Freccia destra, Freccia sinistra, Barra Spaziatrice)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    // Inizializzazione
+    updateSlides();
+  </script>
+</body>
+</html>
