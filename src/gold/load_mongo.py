@@ -117,26 +117,27 @@ def build_records(df, case_id, clinical_info):
     records = []
     metadata = build_metadata(case_id, clinical_info)
     base_time = datetime.datetime(2020, 1, 1)
-
+    # Nomi delle colonne contenenti i flag di outlier dal Silver
+    OUTLIER_COLS = ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']
     for _, row in df.iterrows():
-        # Calcola il timestamp ISO sommando l'offset in secondi alla data base
         current_time = base_time + datetime.timedelta(seconds=float(row.get('Time', 0)))
-
         doc = {
             "timestamp": current_time,
             "metadata": metadata,
-            "metrics": {}
+            "metrics": {},
+            "quality_flags": {}  # <-- NUOVO CAMPO GOVERNANCE
         }
-
-        # Sanitizza le chiavi delle metriche sostituendo '/' con '_'
+        # Metriche vitali
         for col in config.VITAL_TRACKS:
             if col in row and pd.notna(row[col]):
                 safe_col = col.replace('/', '_')
                 doc["metrics"][safe_col] = float(row[col])
-
+        # Flag di qualità generati nel layer Silver
+        for col in OUTLIER_COLS:
+            if col in row and pd.notna(row[col]):
+                doc["quality_flags"][col] = bool(row[col])
         if doc["metrics"]:
             records.append(doc)
-
     return records
 
 

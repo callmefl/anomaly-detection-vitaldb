@@ -119,26 +119,50 @@ def save_silver(df, case_id, silver_dir, department=UNKNOWN_DEPARTMENT):
 
 
 def process_all_cases(bronze_dir, silver_dir):
-    """Itera su tutti i casi presenti nel layer Bronze ed esegue la trasformazione verso Silver."""
+    """Itera su tutti i casi presenti nel layer Bronze ed esegue la trasformazione verso Silver con generazione di Quality Report."""
     silver_dir.mkdir(parents=True, exist_ok=True)
-
     department_map = load_department_map(bronze_dir)
     parquet_files = list(bronze_dir.glob("case_*.parquet"))
     
+    quality_metrics = []  # Lista per il tracking di Data Governance
     for p_file in tqdm(parquet_files, desc="Pulizia dati (Bronze -> Silver)"):
         try:
-            # Estrae l'ID numerico del caso dal nome del file (es. case_12.parquet -> 12)
             case_id = int(p_file.stem.split('_')[1])
             df = pd.read_parquet(p_file)
             
-            # Esegue pulizia e recupero reparto
+            rows_before = len(df)
             df_clean = clean_case(df, case_id)
-            department = resolve_department(department_map, case_id)
+            rows_after = len(df_clean)
             
-            # Salva nel layer Silver partizionato
+            department = resolve_department(department_map, case_id)
             save_silver(df_clean, case_id, silver_dir, department)
+            # Raccoglie i dati per il Report di Qualità
+            case_report = {
+                "case_id": case_id,
+                "rows_original": rows_before,
+                "rows_cleaned": rows_after,
+                "rows_dropped": rows_before - rows_after,
+                "department": department,
+                "outliers_count": {}
+            }
+            
+            # Conteggio degli outlier per segnale
+            for flag in ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']:
+                if flag in df_clean.columns:
+                    case_report["outliers_count"][flag] = int(df_clean[flag].sum())
+            quality_metrics.append(case_report)
         except Exception as e:
             print(f"❌ Errore durante la bonifica di {p_file.name}: {e}")
+    # Salva il report di Data Governance globale in un file JSON
+    report_file = silver_dir.parent / "quality_report.json"
+    with open(report_file, "w", encoding="utf-8") as f:
+        json.dump({
+            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "total_cases_processed": len(quality_metrics),
+            "cases_detail": quality_metrics
+        }, f, indent=2)
+        
+    print(f"✓ Quality Report salvato con successo in: {report_file}")
 
 
 if __name__ == '__main__':
