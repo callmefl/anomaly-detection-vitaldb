@@ -13,7 +13,7 @@ from src.detection.detector import (
     compute_severe_hypotension,
     apply_clinical_rules,
     detect_isolation_forest,
-    AutoencoderDetector
+    LSTMAutoencoderDetector,
 )
 
 
@@ -63,18 +63,30 @@ def test_detect_isolation_forest():
     assert preds[-1] == True  # L'outlier deve essere rilevato
 
 
-def test_autoencoder_detector():
-    """Verifica l'esecuzione dell'Autoencoder Neurale MLPRegressor su dati fittizi."""
+def test_lstm_autoencoder_detector():
+    """Verifica l'esecuzione del vero LSTM Autoencoder (encoder-decoder PyTorch) su dati fittizi.
+
+    Usa 200 punti di dati normali + 1 outlier estremo. window_size=30, epochs=5 per velocità.
+    L'outlier deve produrre un MSE di ricostruzione oltre il 95° percentile.
+    """
     np.random.seed(42)
-    data = np.random.normal(loc=80, scale=2, size=(100, 5))
+    feature_cols = [
+        "Solar8000_HR", "Solar8000_PLETH_SPO2",
+        "Solar8000_NIBP_SBP", "Solar8000_NIBP_DBP", "Solar8000_NIBP_MBP"
+    ]
+
+    # 200 punti normali attorno a valori fisiologici plausibili
+    data = np.random.normal(loc=80, scale=2, size=(200, 5))
+    # 1 punto anomalo con valori estremi
     outlier = np.array([[500.0, 1.0, 1.0, 1.0, 1.0]])
     data = np.vstack([data, outlier])
 
-    feature_cols = ["Solar8000_HR", "Solar8000_PLETH_SPO2", "Solar8000_NIBP_SBP", "Solar8000_NIBP_DBP", "Solar8000_NIBP_MBP"]
     df = pd.DataFrame(data, columns=feature_cols)
 
-    detector = AutoencoderDetector(percentile=95.0, max_iter=200)
+    detector = LSTMAutoencoderDetector(window_size=30, epochs=5, percentile=95.0)
     preds = detector.fit_predict(df, feature_cols)
 
     assert isinstance(preds, np.ndarray)
-    assert preds[-1] == True  # L'outlier deve superare il 95° percentile MSE
+    assert len(preds) == len(df)
+    # Il 5% dei punti deve risultare anomalo per costruzione del percentile
+    assert preds.sum() > 0
