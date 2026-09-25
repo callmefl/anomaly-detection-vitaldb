@@ -16,8 +16,12 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
-import torch
-import torch.nn as nn
+try:
+    import torch
+    import torch.nn as nn
+    _TORCH_AVAILABLE = True
+except ImportError:
+    _TORCH_AVAILABLE = False
 
 # Setup importazioni radice
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -140,21 +144,34 @@ def detect_isolation_forest(df, contamination=0.05):
     return preds == -1
 
 
-class LSTMAutoencoder(nn.Module):
-    """Architettura LSTM Autoencoder per anomaly detection su serie temporali."""
-    def __init__(self, n_features, hidden_size=32, n_layers=1):
-        super().__init__()
-        # Encoder LSTM: comprime la sequenza in un vettore latente
-        self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
-        # Decoder LSTM: ricostruisce la sequenza originale dal vettore latente
-        self.decoder = nn.LSTM(hidden_size, n_features, n_layers, batch_first=True)
-    def forward(self, x):
-        # x ha forma (batch, T, n_features)
-        _, (hidden, _) = self.encoder(x)
-        # Ripete il vettore latente per ogni timestep della sequenza
-        context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
-        output, _ = self.decoder(context)
-        return output  # stessa forma di x
+def _make_lstm_autoencoder_class():
+    """Costruisce la classe LSTMAutoencoder come nn.Module solo se PyTorch è disponibile."""
+    if not _TORCH_AVAILABLE:
+        return None
+
+    class _LSTMAutoencoder(nn.Module):
+        """Architettura LSTM Autoencoder (nn.Module) per anomaly detection su serie temporali."""
+
+        def __init__(self, n_features, hidden_size=32, n_layers=1):
+            super().__init__()
+            # Encoder LSTM: comprime la sequenza in un vettore latente
+            self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
+            # Decoder LSTM: ricostruisce la sequenza originale dal vettore latente
+            self.decoder = nn.LSTM(hidden_size, n_features, n_layers, batch_first=True)
+
+        def forward(self, x):
+            # x ha forma (batch, T, n_features)
+            _, (hidden, _) = self.encoder(x)
+            # Ripete il vettore latente per ogni timestep della sequenza
+            context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
+            output, _ = self.decoder(context)
+            return output  # stessa forma di x
+
+    return _LSTMAutoencoder
+
+
+# Classe concreta: è None se torch non è installato; viene istanziata in LSTMAutoencoderDetector
+LSTMAutoencoder = _make_lstm_autoencoder_class()
     
     
 class LSTMAutoencoderDetector:
@@ -175,6 +192,11 @@ class LSTMAutoencoderDetector:
             windows.append(X_scaled[i : i + self.window_size])
         return np.array(windows)  # (N_windows, window_size, n_features)
     def fit_predict(self, df, feature_cols):
+        if not _TORCH_AVAILABLE or LSTMAutoencoder is None:
+            raise ImportError(
+                "PyTorch non è installato. Aggiungere 'torch>=2.0' a requirements.txt "
+                "ed eseguire 'pip install torch' per usare LSTMAutoencoderDetector."
+            )
         X = df[feature_cols].fillna(df[feature_cols].mean()).values
         X_scaled = self.scaler.fit_transform(X)
         windows = self._make_windows(X_scaled)
@@ -227,9 +249,9 @@ class AnomalyDetector:
             for col in feature_cols:
                 anomalies[col] = detect_statistical(df[col], z_threshold)
             return anomalies.any(axis=1)
-        elif self.method == 'lstm_autoencoder':
+        elif self.method in ('lstm_autoencoder', 'autoencoder'):
             percentile = self.kwargs.get('percentile', 95.0)
-            self._autoencoder = AutoencoderDetector(percentile=percentile)
+            self._autoencoder = LSTMAutoencoderDetector(percentile=percentile)
             return self._autoencoder.fit_predict(df, feature_cols)
         else:
             raise ValueError(f"Metodo '{self.method}' non supportato.")
@@ -295,8 +317,8 @@ def run_detection_pipeline(db, case_ids, statistical_z=3.0, if_contamination=0.0
     df['isolation_forest_anomaly'] = AnomalyDetector(method='isolation_forest', contamination=if_contamination) \
         .fit_predict(df, feature_cols)
         
-    # 4. Autoencoder Neurale ML
-    df['autoencoder_anomaly'] = AnomalyDetector(method='autoencoder', percentile=ae_percentile) \
+    # 4. LSTM Autoencoder Neurale ML
+    df['autoencoder_anomaly'] = AnomalyDetector(method='lstm_autoencoder', percentile=ae_percentile) \
         .fit_predict(df, feature_cols)
 
     # Persistenza risultati su MongoDB

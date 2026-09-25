@@ -11,6 +11,7 @@ pymongo>=4.6               # Driver MongoDB per Python
 
 # === Anomaly Detection ===
 scikit-learn>=1.4          # Isolation Forest, metriche, preprocessing
+torch>=2.0                 # LSTM Autoencoder per anomaly detection
 
 # === Utilità ===
 python-dotenv>=1.0         # Gestione variabili ambiente (.env)
