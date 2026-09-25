@@ -55,6 +55,7 @@ def load_clinical_info(bronze_dir):
 
     info = {}
     for _, row in df_clinical.iterrows():
+        # Forza a int Python puro: evita mismatch np.int64 vs int in dict.get()
         case_id = int(row[id_col])
         info[case_id] = {
             "department": row.get("department"),

@@ -12,6 +12,8 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 import os
+import json
+import datetime
 
 # Setup importazioni dalla radice del progetto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -52,7 +54,8 @@ def load_department_map(bronze_dir):
         return {}
 
     dept_series = df_clinical.set_index(id_col)["department"]
-    return dept_series.to_dict()
+    # Forza le chiavi a int Python puro: np.int64 e int non matchano in dict.get()
+    return {int(k): v for k, v in dept_series.to_dict().items()}
 
 
 def resolve_department(department_map, case_id):

@@ -288,6 +288,9 @@ def save_anomalies_to_mongo(db, df_anomalies):
         })
 
     if documents:
+        # Idempotenza multi-caso: rimuove TUTTE le anomalie dei casi coinvolti prima di riscrivere
+        affected_cases = list({d["case_id"] for d in documents})
+        db['anomalies_detected'].delete_many({"case_id": {"$in": affected_cases}})
         db['anomalies_detected'].insert_many(documents)
     return len(documents)
 
