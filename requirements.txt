@@ -19,3 +19,6 @@ tqdm>=4.66                 # Progress bar per download/processing
 # === REST API ===
 fastapi[standard]>=0.128.1 # Framework REST API
 uvicorn>=0.30              # Server ASGI
+
+pytest>=8.0
+matplotlib>=3.8

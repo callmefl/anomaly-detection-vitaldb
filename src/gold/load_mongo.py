@@ -154,20 +154,20 @@ def build_registry_doc(case_id, record_count):
 
 
 def load_case_to_mongo(client, db, df, case_id, clinical_info):
-    """Effettua l'inserimento dei documenti delle serie temporali e la registrazione nel catalog `registry`."""
+    """Effettua l'inserimento atomico (transazionale) delle serie temporali e la registrazione nel catalog `registry`."""
     records = build_records(df, case_id, clinical_info)
     if not records:
         return 0
-
     registry_doc = build_registry_doc(case_id, len(records))
-
     try:
-        db['vital_signals'].insert_many(records)
-        db['registry'].insert_one(registry_doc)
+        # Avvia una sessione e una transazione atomica ACID
+        with client.start_session() as session:
+            with session.start_transaction():
+                db['vital_signals'].insert_many(records, session=session)
+                db['registry'].insert_one(registry_doc, session=session)
     except PyMongoError as e:
-        print(f"❌ Errore durante l'inserimento su MongoDB per il caso #{case_id}: {e}")
+        print(f"❌ Errore durante l'inserimento atomico su MongoDB per il caso #{case_id}: {e}")
         raise
-
     return len(records)
 
 
