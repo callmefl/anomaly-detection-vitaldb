@@ -3,6 +3,10 @@
 
 db = db.getSiblingDB('vitaldb_project');
 
+if (!db.getCollectionNames().includes("registry")) {
+    db.createCollection("registry");
+}
+
 db.runCommand({
     collMod: "registry",
     validator: {

@@ -8,14 +8,27 @@ Il layer Silver costituisce la seconda fase della Medallion Architecture:
 """
 
 import sys
+import os
+import json
+import datetime
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
-import os
 
 # Setup importazioni dalla radice del progetto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src import config
+
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 # Costante per identificare i casi privi di indicazione sul reparto chirurgico
 UNKNOWN_DEPARTMENT = "UNKNOWN"
@@ -25,7 +38,7 @@ def load_department_map(bronze_dir):
     """Costruisce una mappa hash `case_id -> department` partendo dal file dei dati clinici.
 
     Legge `clinical_data.parquet` scaricato nel layer Bronze per associare ad ogni paziente
-    il relativo reparto chirurgico (es. General Surgery, Cardiac Surgery, ICU).
+    il relativo reparto chirurgico (es. General surgery, Cardiac surgery, ICU).
 
     Args:
         bronze_dir (Path): Cartella del layer Bronze.
@@ -51,8 +64,16 @@ def load_department_map(bronze_dir):
         print("⚠️ Attenzione: Colonna 'department' assente nei dati clinici.")
         return {}
 
-    dept_series = df_clinical.set_index(id_col)["department"]
-    return dept_series.to_dict()
+    dept_map = {}
+    for _, row in df_clinical.iterrows():
+        try:
+            cid = int(row[id_col])
+            dept = row["department"]
+            if pd.notna(dept) and str(dept).strip():
+                dept_map[cid] = str(dept).strip()
+        except (ValueError, TypeError):
+            continue
+    return dept_map
 
 
 def resolve_department(department_map, case_id):
@@ -60,7 +81,8 @@ def resolve_department(department_map, case_id):
     dept = department_map.get(case_id)
     if dept is None or (isinstance(dept, float) and pd.isna(dept)):
         return UNKNOWN_DEPARTMENT
-    return str(dept)
+    clean_str = str(dept).strip()
+    return clean_str if clean_str else UNKNOWN_DEPARTMENT
 
 
 def load_bronze_case(case_id, bronze_dir):
