@@ -16,9 +16,9 @@ scikit-learn>=1.4          # Isolation Forest, metriche, preprocessing
 python-dotenv>=1.0         # Gestione variabili ambiente (.env)
 tqdm>=4.66                 # Progress bar per download/processing
 
-# === REST API & Testing ===
+# === REST API ===
 fastapi[standard]>=0.128.1 # Framework REST API
 uvicorn>=0.30              # Server ASGI
-httpx>=0.27.0              # Client HTTP per TestClient FastAPI
-pytest>=8.0                # Test suite automatizzata
-matplotlib>=3.8            # Benchmark e visualizzazione grafici
+
+pytest>=8.0
+matplotlib>=3.8

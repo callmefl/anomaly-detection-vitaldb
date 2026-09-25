@@ -9,10 +9,10 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongo_data:/data/db
-      - ./mongo:/docker-entrypoint-initdb.d:ro
+        - mongo_data:/data/db
+        - ./mongo:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }) }" | mongosh --quiet
+      test: echo "try { rs.status() } catch (err) { rs.initiate() }" | mongosh --quiet
       interval: 10s
       timeout: 5s
       retries: 5

@@ -18,17 +18,6 @@ from tqdm import tqdm
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from src import config
 
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-if sys.stderr and hasattr(sys.stderr, "reconfigure"):
-    try:
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-
 # Nome del sensore sorgente primario
 SENSOR_NAME = "Solar8000"
 
@@ -75,55 +64,8 @@ def load_clinical_info(bronze_dir):
     return info
 
 
-def init_track_metadata(db):
-    """Inizializza la collezione track_metadata (Data Dictionary di Governance)."""
-    initial_metadata = [
-        {
-            "sensor_name": "Solar8000",
-            "track_name": "HR",
-            "schema_version": "1.0",
-            "unit_of_measure": "bpm",
-            "expected_range": {"min": 20, "max": 250}
-        },
-        {
-            "sensor_name": "Solar8000",
-            "track_name": "PLETH_SPO2",
-            "schema_version": "1.0",
-            "unit_of_measure": "%",
-            "expected_range": {"min": 50, "max": 100}
-        },
-        {
-            "sensor_name": "Solar8000",
-            "track_name": "NIBP_SBP",
-            "schema_version": "1.0",
-            "unit_of_measure": "mmHg",
-            "expected_range": {"min": 40, "max": 250}
-        },
-        {
-            "sensor_name": "Solar8000",
-            "track_name": "NIBP_DBP",
-            "schema_version": "1.0",
-            "unit_of_measure": "mmHg",
-            "expected_range": {"min": 10, "max": 200}
-        },
-        {
-            "sensor_name": "Solar8000",
-            "track_name": "NIBP_MBP",
-            "schema_version": "1.0",
-            "unit_of_measure": "mmHg",
-            "expected_range": {"min": 20, "max": 220}
-        }
-    ]
-    for meta in initial_metadata:
-        db['track_metadata'].update_one(
-            {"track_name": meta["track_name"]},
-            {"$set": meta},
-            upsert=True
-        )
-
-
 def ensure_timeseries_collections(db):
-    """Verifica l'esistenza della Time Series Collection 'vital_signals' e delle collezioni di governance."""
+    """Verifica l'esistenza della Time Series Collection 'vital_signals' su MongoDB ed la crea se assente."""
     collections = db.list_collection_names()
     if 'vital_signals' not in collections:
         db.create_collection(
@@ -135,18 +77,6 @@ def ensure_timeseries_collections(db):
             }
         )
         print("✓ Collezione Time Series 'vital_signals' creata con successo su MongoDB.")
-
-    # Indice per accelerare query e bucketing su vital_signals
-    db['vital_signals'].create_index([("metadata.case_id", 1), ("timestamp", 1)])
-
-    # Registry e indice univoco per case_id
-    if 'registry' not in collections:
-        db.create_collection('registry')
-        print("✓ Collezione 'registry' creata.")
-    db['registry'].create_index("case_id", unique=True)
-
-    # Inizializza il Data Dictionary
-    init_track_metadata(db)
 
 
 def build_metadata(case_id, clinical_info):
@@ -186,7 +116,7 @@ def build_records(df, case_id, clinical_info):
     """
     records = []
     metadata = build_metadata(case_id, clinical_info)
-    base_time = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
+    base_time = datetime.datetime(2020, 1, 1)
     # Nomi delle colonne contenenti i flag di outlier dal Silver
     OUTLIER_COLS = ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']
     for _, row in df.iterrows():
@@ -195,7 +125,7 @@ def build_records(df, case_id, clinical_info):
             "timestamp": current_time,
             "metadata": metadata,
             "metrics": {},
-            "quality_flags": {}  # <-- CAMPO GOVERNANCE DAL SILVER
+            "quality_flags": {}  # <-- NUOVO CAMPO GOVERNANCE
         }
         # Metriche vitali
         for col in config.VITAL_TRACKS:
@@ -211,20 +141,17 @@ def build_records(df, case_id, clinical_info):
     return records
 
 
-def build_registry_doc(case_id, record_count, quality_summary=None):
+def build_registry_doc(case_id, record_count):
     """Crea il documento di tracciamento di Data Governance da inserire nel catalogo `registry`."""
-    doc = {
+    return {
         "case_id": int(case_id),
-        "record_count": int(record_count),
+        "record_count": record_count,
         "schema_version": "1.0",
         "provenance": {
             "step": "silver_to_gold",
             "timestamp": datetime.datetime.now(datetime.timezone.utc)
         }
     }
-    if quality_summary:
-        doc["quality_summary"] = quality_summary
-    return doc
 
 
 def load_case_to_mongo(client, db, df, case_id, clinical_info):
@@ -232,27 +159,13 @@ def load_case_to_mongo(client, db, df, case_id, clinical_info):
     records = build_records(df, case_id, clinical_info)
     if not records:
         return 0
-
-    OUTLIER_COLS = ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']
-    quality_summary = {
-        col: int(df[col].sum()) for col in OUTLIER_COLS if col in df.columns
-    }
-    registry_doc = build_registry_doc(case_id, len(records), quality_summary)
-
+    registry_doc = build_registry_doc(case_id, len(records))
     try:
-        # Avvia una sessione e una transazione atomica ACID su Replica Set
+        # Avvia una sessione e una transazione atomica ACID
         with client.start_session() as session:
-            try:
-                with session.start_transaction():
-                    db['vital_signals'].insert_many(records, session=session)
-                    db['registry'].insert_one(registry_doc, session=session)
-            except PyMongoError as pe:
-                # Fallback trasparente per deployment standalone (senza replica set attivo)
-                if "Transaction numbers are only allowed on a replica set member" in str(pe) or "replica set" in str(pe):
-                    db['vital_signals'].insert_many(records)
-                    db['registry'].insert_one(registry_doc)
-                else:
-                    raise
+            with session.start_transaction():
+                db['vital_signals'].insert_many(records, session=session)
+                db['registry'].insert_one(registry_doc, session=session)
     except PyMongoError as e:
         print(f"❌ Errore durante l'inserimento atomico su MongoDB per il caso #{case_id}: {e}")
         raise

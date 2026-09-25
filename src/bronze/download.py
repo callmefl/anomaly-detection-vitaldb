@@ -42,10 +42,6 @@ def download_case(case_id, tracks, interval, output_dir):
         interval (float): Intervallo di campionamento in secondi (es. 1.0s).
         output_dir (Path): Cartella di destinazione nel layer Bronze.
     """
-    output_file = output_dir / f"case_{case_id}.parquet"
-    if output_file.exists():
-        return
-
     try:
         # Carica la matrice numerica dei dati grezzi tramite l'SDK VitalDB
         data = vitaldb.load_case(case_id, tracks, interval)
@@ -58,6 +54,7 @@ def download_case(case_id, tracks, interval, output_dir):
         df['Time'] = df.index * interval
         
         # Scrive il file Parquet grezzo senza applicare filtri (storicizzazione immutabile)
+        output_file = output_dir / f"case_{case_id}.parquet"
         df.to_parquet(output_file, index=False)
     except Exception as e:
         print(f"❌ Errore durante il download del caso #{case_id}: {e}")
@@ -71,24 +68,13 @@ def download_all_cases(tracks, interval, output_dir, max_cases=None):
     for case_id in tqdm(cases, desc="Download casi Bronze in corso"):
         download_case(case_id, tracks, interval, output_dir)
 
-def download_clinical_data(output_dir, case_ids=None):
+def download_clinical_data(output_dir):
     """Scarica i metadati clinici perioperatori (età, sesso, tipo intervento, reparto) e li salva nel Bronze."""
     try:
-        # Se case_ids è specificato usa la lista, altrimenti scarica via API diretta per aggirare il bug dell'SDK vitaldb con caseids=[]
-        if case_ids:
-            df_clinical = vitaldb.load_clinical_data(caseids=case_ids)
-        else:
-            try:
-                df_clinical = pd.read_csv("https://api.vitaldb.net/cases")
-            except Exception:
-                df_clinical = vitaldb.load_clinical_data(caseids=list(range(1, 6389)))
-
-        if df_clinical is not None and not df_clinical.empty:
-            output_file = output_dir / "clinical_data.parquet"
-            df_clinical.to_parquet(output_file, index=False)
-            print(f"✓ Dati clinici e demografici scaricati correttamente ({len(df_clinical)} casi).")
-        else:
-            print("⚠️ Nessun dato clinico scaricato.")
+        df_clinical = vitaldb.load_clinical_data()
+        output_file = output_dir / "clinical_data.parquet"
+        df_clinical.to_parquet(output_file, index=False)
+        print("✓ Dati clinici e demografici scaricati correttamente.")
     except Exception as e:
         print(f"❌ Errore nel download dei dati clinici: {e}")
 

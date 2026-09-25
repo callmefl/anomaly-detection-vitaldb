@@ -54,7 +54,7 @@ def plot_before_after():
     
     # 2. Tracciato Silver (Pulito ed Interpolato)
     time_s = sub_s['Time'] if 'Time' in sub_s.columns else sub_s.index
-    hr_s = sub_s['Solar8000/HR'] if 'Solar8000/HR' in sub_s.columns else (sub_s['Solar8000_HR'] if 'Solar8000_HR' in sub_s.columns else sub_s.iloc[:, 1])
+    hr_s = sub_s['Solar8000_HR'] if 'Solar8000_HR' in sub_s.columns else sub_s.iloc[:, 0]
     
     axes[1].plot(time_s, hr_s, color='#10b981', label='Frequenza Cardiaca (Silver Pulito)', linewidth=1.8)
     axes[1].set_title(f'Caso #{case_id} - Layer SILVER (Dati Bonificati, Interpolati e Validati)', fontsize=11, fontweight='bold')
