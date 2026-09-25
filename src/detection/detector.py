@@ -16,6 +16,8 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
+import torch
+import torch.nn as nn
 
 # Setup importazioni radice
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -138,41 +140,68 @@ def detect_isolation_forest(df, contamination=0.05):
     return preds == -1
 
 
-class AutoencoderDetector:
-    """Modello di Anomaly Detection basato su Rete Neurale Deep Autoencoder (MLPRegressor).
-
-    La rete apprende l'identità del segnale fisiologico normale comprimendo il vettore di input
-    attraverso un livello nascosto a collo di bottiglia (*bottleneck*). I punti anomali generano
-    un errore di ricostruzione (MSE) significativamente elevato oltre il 95° percentile.
-    """
-
-    def __init__(self, hidden_layer_sizes=(8,), percentile=95.0, max_iter=500, random_state=42, **kwargs):
+class LSTMAutoencoder(nn.Module):
+    """Architettura LSTM Autoencoder per anomaly detection su serie temporali."""
+    def __init__(self, n_features, hidden_size=32, n_layers=1):
+        super().__init__()
+        # Encoder LSTM: comprime la sequenza in un vettore latente
+        self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
+        # Decoder LSTM: ricostruisce la sequenza originale dal vettore latente
+        self.decoder = nn.LSTM(hidden_size, n_features, n_layers, batch_first=True)
+    def forward(self, x):
+        # x ha forma (batch, T, n_features)
+        _, (hidden, _) = self.encoder(x)
+        # Ripete il vettore latente per ogni timestep della sequenza
+        context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
+        output, _ = self.decoder(context)
+        return output  # stessa forma di x
+    
+    
+class LSTMAutoencoderDetector:
+    """Detector basato su vero LSTM Autoencoder — addestrato su finestre temporali."""
+    
+    def __init__(self, window_size=30, hidden_size=32, epochs=20, percentile=95.0):
+        self.window_size = window_size   # N campioni consecutivi per finestra
+        self.hidden_size = hidden_size   # Dimensione bottleneck
+        self.epochs = epochs
         self.percentile = percentile
         self.scaler = StandardScaler()
-        self.model = MLPRegressor(
-            hidden_layer_sizes=hidden_layer_sizes,
-            max_iter=max_iter,
-            random_state=random_state,
-            **kwargs,
-        )
-        self.threshold_ = None
-        self.reconstruction_error_ = None
-
+        self.model = None
+    def _make_windows(self, X_scaled):
+        """Divide la serie in finestre scorrevoli di dimensione window_size."""
+        T = len(X_scaled)
+        windows = []
+        for i in range(T - self.window_size):
+            windows.append(X_scaled[i : i + self.window_size])
+        return np.array(windows)  # (N_windows, window_size, n_features)
     def fit_predict(self, df, feature_cols):
-        """Addestra l'autoencoder neurale e calcola la soglia del percentile per identificare le anomalie."""
-        X = df[feature_cols].fillna(df[feature_cols].mean())
+        X = df[feature_cols].fillna(df[feature_cols].mean()).values
         X_scaled = self.scaler.fit_transform(X)
-
-        # Addestramento non supervisionato: target = input standardizzato
-        self.model.fit(X_scaled, X_scaled)
-        reconstructed = self.model.predict(X_scaled)
-
-        # Calcolo Mean Squared Error (MSE) per ciascun punto temporale
-        mse = np.mean((X_scaled - reconstructed) ** 2, axis=1)
-        self.reconstruction_error_ = mse
-        self.threshold_ = np.percentile(mse, self.percentile)
-
-        return mse > self.threshold_
+        windows = self._make_windows(X_scaled)
+        n_features = len(feature_cols)
+        self.model = LSTMAutoencoder(n_features=n_features, hidden_size=self.hidden_size)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        loss_fn = nn.MSELoss()
+        X_tensor = torch.tensor(windows, dtype=torch.float32)
+        # Training
+        self.model.train()
+        for epoch in range(self.epochs):
+            optimizer.zero_grad()
+            output = self.model(X_tensor)
+            loss = loss_fn(output, X_tensor)
+            loss.backward()
+            optimizer.step()
+        # Calcolo errore di ricostruzione per ogni finestra
+        self.model.eval()
+        with torch.no_grad():
+            reconstructed = self.model(X_tensor).numpy()
+        mse_per_window = np.mean((windows - reconstructed) ** 2, axis=(1, 2))
+        # Mappa l'errore da finestre → punti temporali originali
+        mse_per_point = np.full(len(df), 0.0)
+        for i, err in enumerate(mse_per_window):
+            mse_per_point[i + self.window_size] = max(mse_per_point[i + self.window_size], err)
+        threshold = np.percentile(mse_per_window, self.percentile)
+        return mse_per_point > threshold
 
 
 def evaluate_detections(y_true, y_pred):
@@ -198,7 +227,7 @@ class AnomalyDetector:
             for col in feature_cols:
                 anomalies[col] = detect_statistical(df[col], z_threshold)
             return anomalies.any(axis=1)
-        elif self.method == 'autoencoder':
+        elif self.method == 'lstm_autoencoder':
             percentile = self.kwargs.get('percentile', 95.0)
             self._autoencoder = AutoencoderDetector(percentile=percentile)
             return self._autoencoder.fit_predict(df, feature_cols)
@@ -250,9 +279,11 @@ def run_detection_pipeline(db, case_ids, statistical_z=3.0, if_contamination=0.0
     if df.empty:
         print("⚠️ Nessun dato temporale recuperato per i casi richiesti.")
         return df
-
-    feature_cols = [c for c in [HR_KEY, SPO2_KEY, SBP_KEY, DBP_KEY, MBP_KEY] if c in df.columns]
-
+    df['HR_rolling_mean'] = df[HR_KEY].rolling(5).mean()
+    df['HR_rolling_std']  = df[HR_KEY].rolling(5).std()
+    df['HR_delta']        = df[HR_KEY].diff()
+    feature_cols = [c for c in [HR_KEY, SPO2_KEY, SBP_KEY, DBP_KEY, MBP_KEY,'HR_rolling_mean', 'HR_rolling_std', 'HR_delta']
+                    if c in df.columns]
     # 1. Regole Cliniche
     df = apply_clinical_rules(df)
     

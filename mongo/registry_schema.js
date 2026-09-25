@@ -11,15 +11,15 @@ db.runCommand({
             required: ["case_id", "schema_version", "provenance"],
             properties: {
                 case_id: {
-                    bsonType: "int",
-                    description: "ID del caso VitalDB, richiesto e di tipo intero"
+                    bsonType: ["int", "long"],
+                    description: "ID del caso VitalDB, richiesto e di tipo intero (32 o 64 bit)"
                 },
                 schema_version: {
                     bsonType: "string",
                     description: "Versione dello schema, richiesto e di tipo stringa"
                 },
                 record_count: {
-                    bsonType: "int",
+                    bsonType: ["int", "long"],
                     description: "Numero di record caricati per questo caso"
                 },
                 provenance: {
