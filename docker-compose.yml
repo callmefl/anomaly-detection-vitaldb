@@ -34,6 +34,11 @@ services:
       - DB_NAME=vitaldb_project
     volumes:
       - ./data:/app/data
+      - ./src:/app/src
+      - ./api:/app/api
+      - ./dashboard:/app/dashboard
+      - ./tests:/app/tests
+      - ./relazione:/app/relazione
     depends_on:
       mongo:
         condition: service_healthy

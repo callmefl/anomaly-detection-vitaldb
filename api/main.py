@@ -11,6 +11,7 @@ Rotte REST esposte:
 """
 
 import sys
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -69,8 +70,36 @@ def get_db():
 
 @app.get("/health")
 async def health():
-    """Endpoint di Health Check per verificare l'operatività del container e dell'API."""
-    return {"status": "ok", "database": config.DB_NAME}
+    """Endpoint di Health Check per verificare l'operatività del container e dell'API con statistiche del database."""
+    db = get_db()
+    try:
+        cases_count = int(db['registry'].count_documents({}))
+        points_count = int(db['vital_signals'].count_documents({}))
+        anomalies_count = int(db['anomalies_detected'].count_documents({}))
+    except Exception:
+        cases_count, points_count, anomalies_count = 0, 0, 0
+
+    return {
+        "status": "ok",
+        "database": config.DB_NAME,
+        "cases_count": cases_count,
+        "total_points": points_count,
+        "anomalies_count": anomalies_count
+    }
+
+
+@app.get("/quality")
+async def get_quality():
+    """Restituisce il Data Quality Report generato dal layer Silver (metriche di bonifica, drop e outlier)."""
+    report_file = config.DATA_DIR / "quality_report.json"
+    if not report_file.exists():
+        raise HTTPException(status_code=404, detail="Quality report non ancora generato. Eseguire src/silver/clean.py.")
+    try:
+        with open(report_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore lettura quality report: {e}")
 
 
 @app.get("/cases")

@@ -4,7 +4,7 @@ Il modulo combina quattro diverse metodologie di detection:
 1. **Shock Index Clinico**: Rapporto tra Frequenza Cardiaca e Pressione Sistolica ($SI > 0.9$).
 2. **Ipotensione Severa Clinica**: Condizione simultanea di $NIBP\_MBP < 65\text{ mmHg}$ ed $SpO2 < 90\%$.
 3. **Isolation Forest (ML)**: Algoritmo ad alberi di decisione per partizionamento spaziale non supervisionato degli inlier/outlier.
-4. **Autoencoder Neurale (MLPRegressor)**: Rete neurale profonda addestrata a ricostruire il proprio input; individua anomalie multivariate ad alto errore di ricostruzione (MSE $> 95^\circ$ percentile).
+4. **LSTM Autoencoder Neurale (PyTorch)**: Rete neurale ricorrente encoder-decoder addestrata su sequenze temporali; individua anomalie multivariate ad alto errore di ricostruzione (MSE $> 95^\circ$ percentile).
 """
 
 import sys
@@ -13,7 +13,6 @@ import datetime
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
-from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 try:
@@ -223,6 +222,8 @@ class LSTMAutoencoderDetector:
         for i, err in enumerate(mse_per_window):
             mse_per_point[i + self.window_size] = max(mse_per_point[i + self.window_size], err)
         threshold = np.percentile(mse_per_window, self.percentile)
+        self.threshold_ = threshold
+        self.reconstruction_error_ = mse_per_point
         return mse_per_point > threshold
 
 

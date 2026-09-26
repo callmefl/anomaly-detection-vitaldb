@@ -197,6 +197,56 @@ function applyAnomalyFilter() {
 }
 
 /**
+ * Carica dinamicamente il Quality Report dall'endpoint /quality e popola la tabella nel tab Benchmark
+ */
+async function loadQualityReport() {
+  const tbody = document.getElementById('qualityTableBody');
+  const subtitle = document.getElementById('qualityReportSubtitle');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/quality`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (subtitle && data.generated_at) {
+      const dateStr = new Date(data.generated_at).toLocaleString();
+      subtitle.innerHTML = `Report generato il <strong>${dateStr}</strong> su <strong>${data.total_cases_processed} casi</strong> (Certificazione Layer Silver).`;
+    }
+
+    if (!data.cases_detail || data.cases_detail.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nessun dato di qualità registrato.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.cases_detail.map(c => {
+      const pctDrop = c.rows_original > 0 ? ((c.rows_dropped / c.rows_original) * 100).toFixed(1) : '0.0';
+      const totalOutliers = c.outliers_count ? Object.values(c.outliers_count).reduce((a, b) => a + b, 0) : 0;
+      const outlierBadge = totalOutliers === 0 
+        ? '<span style="color:var(--success); font-weight:600;">0 (Tracciati Validi)</span>'
+        : `<span style="color:var(--danger); font-weight:600;">${totalOutliers}</span>`;
+
+      return `
+        <tr>
+          <td><strong>Caso #${c.case_id}</strong></td>
+          <td>${c.department || 'Non specificato'}</td>
+          <td>${c.rows_original.toLocaleString()}</td>
+          <td><strong style="color:var(--accent);">${c.rows_cleaned.toLocaleString()}</strong></td>
+          <td>${c.rows_dropped.toLocaleString()}</td>
+          <td><strong style="color:var(--warning);">${pctDrop}%</strong></td>
+          <td>${outlierBadge}</td>
+        </tr>
+      `;
+    }).join('');
+
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Quality report non ancora generato sul backend.</td></tr>`;
+    }
+  }
+}
+
+/**
  * Navigazione tra i Tab della Dashboard
  */
 function switchTab(tabName) {
@@ -209,6 +259,7 @@ function switchTab(tabName) {
   } else if (tabName === 'benchmark') {
     document.getElementById('viewSeries').classList.add('hidden');
     document.getElementById('viewBenchmark').classList.remove('hidden');
+    loadQualityReport();
   }
 }
 
@@ -217,4 +268,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   checkApiHealth();
   loadCases();
+  loadQualityReport();
 });

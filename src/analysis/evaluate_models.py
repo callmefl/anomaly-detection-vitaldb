@@ -13,7 +13,7 @@ sys.path.append(str(ROOT_DIR))
 from src import config
 from src.detection.detector import (
     load_from_gold, compute_shock_index, compute_severe_hypotension,
-    AnomalyDetector, AutoencoderDetector
+    AnomalyDetector, LSTMAutoencoderDetector
 )
 
 def evaluate_anomaly_models():
@@ -52,8 +52,8 @@ def evaluate_anomaly_models():
     if_detector = AnomalyDetector(method='isolation_forest', contamination=0.05)
     y_if = if_detector.fit_predict(df, feature_cols)
     
-    # Autoencoder
-    ae = AutoencoderDetector(percentile=95.0, max_iter=300)
+    # LSTM Autoencoder
+    ae = LSTMAutoencoderDetector(percentile=95.0, epochs=15)
     y_ae = ae.fit_predict(df, feature_cols)
     
     # Metriche di performance rispetto a Ground Truth Clinico

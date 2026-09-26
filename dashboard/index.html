@@ -328,11 +328,38 @@
                 <td><strong style="color: var(--accent);">0.92</strong></td>
               </tr>
               <tr>
-                <td><strong>Autoencoder Neurale (MLPRegressor)</strong></td>
-                <td><strong>90 %</strong></td>
-                <td>0.03</td>
-                <td>0.03</td>
-                <td><strong>0.90</strong></td>
+                <td><strong>LSTM Autoencoder (PyTorch)</strong></td>
+                <td><strong>91 %</strong></td>
+                <td>0.08</td>
+                <td>0.07</td>
+                <td><strong>0.91</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- SEZIONE LIVE DATA QUALITY REPORT DA /quality -->
+        <div class="benchmark-card" id="qualityReportCard">
+          <div class="benchmark-title">Data Quality & Governance Report (Live dal Layer Silver)</div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);" id="qualityReportSubtitle">
+            Report ufficiale di Data Governance e bonifica caricato dinamicamente dall'endpoint <code>/quality</code>.
+          </p>
+
+          <table class="benchmark-table" id="qualityTable">
+            <thead>
+              <tr>
+                <th>Caso Clinico</th>
+                <th>Reparto Chirurgico</th>
+                <th>Righe Grezze (Bronze)</th>
+                <th>Righe Bonificate (Silver)</th>
+                <th>Righe Eliminate</th>
+                <th>% Bonifica Rumore</th>
+                <th>Outlier Fisiologici</th>
+              </tr>
+            </thead>
+            <tbody id="qualityTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.2rem;">Caricamento metriche di qualità in corso...</td>
               </tr>
             </tbody>
           </table>
