@@ -156,6 +156,8 @@ async function runDetection() {
   btn.textContent = '⏳ Analisi in corso...';
 
   try {
+    document.getElementById('windowSelect').value = "";
+    await loadSeriesData();  // ricarica currentSeriesData a granularità 1s
     const res = await fetch(`${API_BASE}/cases/${currentCaseId}/detect`, { method: 'POST' });
     if (!res.ok) throw new Error('Errore durante la detection');
     lastDetectionResult = await res.json();

@@ -205,23 +205,34 @@ class LSTMAutoencoderDetector:
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         loss_fn = nn.MSELoss()
         X_tensor = torch.tensor(windows, dtype=torch.float32)
-        # Training
+        dataset = torch.utils.data.TensorDataset(X_tensor)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=2048, shuffle=True)
+
+        # Training a mini-batch (efficienza RAM e prevenzione OOM)
         self.model.train()
         for epoch in range(self.epochs):
-            optimizer.zero_grad()
-            output = self.model(X_tensor)
-            loss = loss_fn(output, X_tensor)
-            loss.backward()
-            optimizer.step()
-        # Calcolo errore di ricostruzione per ogni finestra
+            for (batch_x,) in dataloader:
+                optimizer.zero_grad()
+                output = self.model(batch_x)
+                loss = loss_fn(output, batch_x)
+                loss.backward()
+                optimizer.step()
+
+        # Calcolo errore di ricostruzione per ogni finestra tramite eval_loader
         self.model.eval()
+        eval_loader = torch.utils.data.DataLoader(dataset, batch_size=4096, shuffle=False)
+        mse_list = []
         with torch.no_grad():
-            reconstructed = self.model(X_tensor).numpy()
-        mse_per_window = np.mean((windows - reconstructed) ** 2, axis=(1, 2))
+            for (batch_x,) in eval_loader:
+                reconstructed = self.model(batch_x)
+                batch_mse = torch.mean((batch_x - reconstructed) ** 2, dim=(1, 2))
+                mse_list.append(batch_mse.numpy())
+        mse_per_window = np.concatenate(mse_list)
+
         # Mappa l'errore da finestre → punti temporali originali
         mse_per_point = np.full(len(df), 0.0)
         for i, err in enumerate(mse_per_window):
-            mse_per_point[i + self.window_size] = max(mse_per_point[i + self.window_size], err)
+            mse_per_point[i + self.window_size] = max(mse_per_point[i + self.window_size], float(err))
         threshold = np.percentile(mse_per_window, self.percentile)
         self.threshold_ = threshold
         self.reconstruction_error_ = mse_per_point

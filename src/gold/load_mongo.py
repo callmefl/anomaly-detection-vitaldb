@@ -156,22 +156,37 @@ def build_registry_doc(case_id, record_count):
 
 
 def load_case_to_mongo(client, db, df, case_id, clinical_info):
-    """Effettua l'inserimento atomico (transazionale) delle serie temporali e la registrazione nel catalog `registry`."""
+    """Inserisce le serie temporali e registra il caso nel catalog `registry`.
+
+    NOTA (limite documentato di MongoDB): le Time Series Collection NON supportano
+    insert all'interno di una transazione multi-documento (errore 263,
+    OperationNotSupportedInTransaction). Non è quindi possibile ottenere qui una
+    vera atomicità ACID come nelle collection normali.
+
+    Strategia adottata — compensazione manuale invece di transazione reale:
+    1. Inserisce prima i punti in `vital_signals` (fuori transazione).
+    2. Solo se l'inserimento ha successo, registra il caso in `registry`.
+    3. Se il passo 1 fallisce, `registry` non viene toccato: niente casi
+       "fantasma" registrati senza dati corrispondenti.
+    """
     records = build_records(df, case_id, clinical_info)
     if not records:
         return 0
     registry_doc = build_registry_doc(case_id, len(records))
-    try:
-        # Avvia una sessione e una transazione atomica ACID
-        with client.start_session() as session:
-            with session.start_transaction():
-                db['vital_signals'].insert_many(records, session=session)
-                db['registry'].insert_one(registry_doc, session=session)
-    except PyMongoError as e:
-        print(f"❌ Errore durante l'inserimento atomico su MongoDB per il caso #{case_id}: {e}")
-        raise
-    return len(records)
 
+    try:
+        db['vital_signals'].insert_many(records)
+    except PyMongoError as e:
+        print(f"❌ Errore durante l'inserimento in vital_signals per il caso #{case_id}: {e}")
+        raise
+
+    try:
+        db['registry'].insert_one(registry_doc)
+    except PyMongoError as e:
+        print(f"⚠️ Punti inseriti in vital_signals per il caso #{case_id}, ma registrazione in 'registry' fallita: {e}")
+        raise
+
+    return len(records)
 
 def process_silver_to_gold(silver_dir, bronze_dir=None):
     """Itera su tutti i file Parquet del layer Silver e li inserisce in MongoDB Gold."""
