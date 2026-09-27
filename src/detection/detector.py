@@ -1,10 +1,11 @@
 """Modulo per l'algoritmo multilivello di Anomaly Detection sui dati biometrici (Layer Gold).
 
 Il modulo combina quattro diverse metodologie di detection:
-1. **Shock Index Clinico**: Rapporto tra Frequenza Cardiaca e Pressione Sistolica ($SI > 0.9$).
-2. **Ipotensione Severa Clinica**: Condizione simultanea di $NIBP\_MBP < 65\text{ mmHg}$ ed $SpO2 < 90\%$.
-3. **Isolation Forest (ML)**: Algoritmo ad alberi di decisione per partizionamento spaziale non supervisionato degli inlier/outlier.
-4. **LSTM Autoencoder Neurale (PyTorch)**: Rete neurale ricorrente encoder-decoder addestrata su sequenze temporali; individua anomalie multivariate ad alto errore di ricostruzione (MSE $> 95^\circ$ percentile).
+1. Shock Index Clinico: Rapporto tra Frequenza Cardiaca e Pressione Sistolica (SI > 0.9).
+2. Ipotensione Severa Clinica: Condizione simultanea di NIBP_MBP < 65 mmHg e SpO2 < 90%.
+3. Isolation Forest (ML): Algoritmo ad alberi di decisione per partizionamento spaziale non supervisionato.
+4. LSTM Autoencoder Neurale (PyTorch): Rete neurale ricorrente encoder-decoder addestrata su finestre
+   temporali; individua anomalie multivariate ad alto errore di ricostruzione (MSE > 95 percentile).
 """
 
 import sys
@@ -84,12 +85,12 @@ def compute_shock_index(df, threshold=0.9):
 
 
 def compute_severe_hypotension(df, mbp_threshold=65.0, spo2_threshold=90.0):
-    """Applica la regola clinica di Ipotensione Severa ($MBP < 65\text{ mmHg} \land SpO2 < 90\%$).
+    """Applica la regola clinica di Ipotensione Severa (MBP < 65 mmHg AND SpO2 < 90%).
 
     Args:
         df (pd.DataFrame): DataFrame contenente le colonne MBP_KEY ed SPO2_KEY.
-        mbp_threshold (float): Soglia di pressione arteriosa media in mmHg.
-        spo2_threshold (float): Soglia di saturazione d'ossigeno in %.
+        mbp_threshold (float): Soglia di pressione arteriosa media in mmHg (default: 65).
+        spo2_threshold (float): Soglia di saturazione d'ossigeno in % (default: 90).
 
     Returns:
         pd.DataFrame: Copia del DataFrame arricchita con la colonna 'severe_hypotension_anomaly' (bool).

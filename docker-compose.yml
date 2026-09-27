@@ -39,6 +39,7 @@ services:
       - ./dashboard:/app/dashboard
       - ./tests:/app/tests
       - ./relazione:/app/relazione
+      - ./scripts:/app/scripts
     depends_on:
       mongo:
         condition: service_healthy

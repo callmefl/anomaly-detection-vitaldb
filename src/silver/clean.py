@@ -14,6 +14,7 @@ from tqdm import tqdm
 import os
 import json
 import datetime
+import shutil
 
 # Setup importazioni dalla radice del progetto
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -158,13 +159,26 @@ def process_all_cases(bronze_dir, silver_dir):
             print(f"❌ Errore durante la bonifica di {p_file.name}: {e}")
     # Salva il report di Data Governance globale in un file JSON
     report_file = silver_dir.parent / "quality_report.json"
+
+    # ── Storicizzazione: archivia il report precedente prima di sovrascriverlo ──
+    history_dir = silver_dir.parent / "quality_history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+    if report_file.exists():
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        shutil.copy(report_file, history_dir / f"quality_report_{ts}.json")
+        print(f"✓ Report precedente archiviato in: quality_history/quality_report_{ts}.json")
+
     with open(report_file, "w", encoding="utf-8") as f:
         json.dump({
             "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            # Tracciabilità configurazione: niente più ambiguità tra numeri nella relazione
+            # e numeri effettivi dell'ultimo run
+            "max_cases_configured": config.MAX_CASES,
+            "cases_found_in_bronze": len(parquet_files),
             "total_cases_processed": len(quality_metrics),
             "cases_detail": quality_metrics
         }, f, indent=2)
-        
+
     print(f"✓ Quality Report salvato con successo in: {report_file}")
 
 

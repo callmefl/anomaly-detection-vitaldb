@@ -197,7 +197,8 @@ function applyAnomalyFilter() {
 }
 
 /**
- * Carica dinamicamente il Quality Report dall'endpoint /quality e popola la tabella nel tab Benchmark
+ * Carica dinamicamente il Quality Report dall'endpoint /quality e popola la tabella nel tab Benchmark.
+ * Mostra anche la configurazione del run (MAX_CASES) per tracciabilità.
  */
 async function loadQualityReport() {
   const tbody = document.getElementById('qualityTableBody');
@@ -211,7 +212,14 @@ async function loadQualityReport() {
 
     if (subtitle && data.generated_at) {
       const dateStr = new Date(data.generated_at).toLocaleString();
-      subtitle.innerHTML = `Report generato il <strong>${dateStr}</strong> su <strong>${data.total_cases_processed} casi</strong> (Certificazione Layer Silver).`;
+      const maxCases = data.max_cases_configured != null ? data.max_cases_configured : '—';
+      const foundInBronze = data.cases_found_in_bronze != null ? data.cases_found_in_bronze : data.total_cases_processed;
+      subtitle.innerHTML = `
+        Report generato il <strong>${dateStr}</strong> —
+        MAX_CASES configurato: <strong style="color:var(--accent);">${maxCases}</strong> |
+        File trovati in Bronze: <strong style="color:var(--accent);">${foundInBronze}</strong> |
+        Processati con successo: <strong style="color:var(--success);">${data.total_cases_processed}</strong>.
+      `;
     }
 
     if (!data.cases_detail || data.cases_detail.length === 0) {
@@ -222,7 +230,7 @@ async function loadQualityReport() {
     tbody.innerHTML = data.cases_detail.map(c => {
       const pctDrop = c.rows_original > 0 ? ((c.rows_dropped / c.rows_original) * 100).toFixed(1) : '0.0';
       const totalOutliers = c.outliers_count ? Object.values(c.outliers_count).reduce((a, b) => a + b, 0) : 0;
-      const outlierBadge = totalOutliers === 0 
+      const outlierBadge = totalOutliers === 0
         ? '<span style="color:var(--success); font-weight:600;">0 (Tracciati Validi)</span>'
         : `<span style="color:var(--danger); font-weight:600;">${totalOutliers}</span>`;
 
