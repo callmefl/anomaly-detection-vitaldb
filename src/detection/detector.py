@@ -375,8 +375,14 @@ def save_anomalies_to_mongo(db, df_anomalies):
     return len(documents)
 
 
-def run_detection_pipeline(db, case_ids, statistical_z=3.0, if_contamination=0.05, ae_percentile=95.0):
-    """Esegue l'intera pipeline di Anomaly Detection (Regole Cliniche + Statistica + ML) su uno o più casi.
+def run_detection_pipeline(db, case_ids, if_contamination=0.05, ae_percentile=95.0, **kwargs):
+    """Esegue l'intera pipeline di Anomaly Detection (Regole Cliniche + ML Multivariato) su uno o più casi.
+
+    L'architettura poggia su 4 pilastri chiari:
+    1. Shock Index (Regola Clinica)
+    2. Ipotensione Severa (Regola Clinica)
+    3. Isolation Forest (Machine Learning Spaziale)
+    4. LSTM Autoencoder (Deep Learning Sequenziale PyTorch)
 
     I risultati vengono aggregati e salvati automaticamente su MongoDB Gold.
     """
@@ -391,22 +397,17 @@ def run_detection_pipeline(db, case_ids, statistical_z=3.0, if_contamination=0.0
     df['HR_delta']        = g.diff().fillna(0.0)
     feature_cols = [c for c in FEATURE_COLS if c in df.columns]
     print(f"=== AVVIO ANOMALY DETECTION SU {len(case_ids)} CASI ({len(df)} RECORD) ===")
-    # 1. Regole Cliniche
-    print("  [1/4] Calcolo Regole Cliniche (Shock Index & Ipotensione Severa)...")
+    # 1. Regole Cliniche (Shock Index & Ipotensione Severa)
+    print("  [1/3] Calcolo Regole Cliniche (Shock Index & Ipotensione Severa)...")
     df = apply_clinical_rules(df)
 
-    # 2. Metodo Statistico Z-Score
-    print("  [2/4] Calcolo Outlier Statistici (Z-Score)...")
-    df['statistical_anomaly'] = AnomalyDetector(method='statistical', z_threshold=statistical_z) \
-        .fit_predict(df, feature_cols)
-
-    # 3. Isolation Forest ML
-    print("  [3/4] Addestramento ed inferenza Isolation Forest...")
+    # 2. Isolation Forest ML
+    print("  [2/3] Addestramento ed inferenza Isolation Forest...")
     df['isolation_forest_anomaly'] = AnomalyDetector(method='isolation_forest', contamination=if_contamination) \
         .fit_predict(df, feature_cols)
 
-    # 4. LSTM Autoencoder Neurale ML
-    print("  [4/4] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
+    # 3. LSTM Autoencoder Neurale ML
+    print("  [3/3] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
     df['autoencoder_anomaly'] = AnomalyDetector(method='lstm_autoencoder', percentile=ae_percentile) \
         .fit_predict(df, feature_cols)
 

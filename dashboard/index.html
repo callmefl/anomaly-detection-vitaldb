@@ -150,7 +150,7 @@
             
             <div class="info-explanation-box">
               <strong>Nota sulla Concorrenza degli Algoritmi:</strong><br>
-              Il contatore "Anomalie Totali Uniche" misura i secondi distinti in cui è stata riscontrata un'anomalia. La somma dei singoli algoritmi (590) è maggiore di 440 poiché uno stesso istante temporale può essere segnalato contemporaneamente sia dalle Regole Cliniche sia dai Modelli di Machine Learning.<br>
+              <span id="overlapNoteText">Il contatore "Anomalie Totali Uniche" misura i secondi distinti in cui è stata riscontrata un'anomalia. La somma dei singoli algoritmi è generalmente maggiore delle anomalie uniche poiché uno stesso istante temporale può essere segnalato contemporaneamente sia dalle Regole Cliniche sia dai Modelli di Machine Learning.</span><br>
               <em style="color:var(--accent);">Clicca su qualsiasi riquadro qua sotto per aprire la spiegazione clinica e la formula del metodo.</em>
             </div>
 
@@ -229,6 +229,7 @@
                   <option value="all">Tutti i Punti Anomali</option>
                   <option value="high_severity">Solo Alta Confidenza (3+ Metodi)</option>
                   <option value="shock_index">Shock Index Clinico</option>
+                  <option value="severe_hypotension">Ipotensione Severa</option>
                   <option value="isolation_forest">Isolation Forest ML</option>
                   <option value="autoencoder">Autoencoder Neurale</option>
                 </select>

@@ -129,6 +129,8 @@ function filterCases() {
  */
 function selectCase(caseId, recordCount) {
   currentCaseId = caseId;
+  lastDetectionResult = null;
+  currentFilteredAnomalies = [];
   document.getElementById('caseSelectMenu').value = caseId;
   renderCases(casesCache, currentCaseId);
   
@@ -141,6 +143,8 @@ function selectCase(caseId, recordCount) {
   
   document.getElementById('methodBreakdownContainer').classList.add('hidden');
   document.getElementById('anomalySection').classList.add('hidden');
+  const tbody = document.getElementById('anomalyTableBody');
+  if (tbody) tbody.innerHTML = '';
   document.getElementById('chart1AnomalyBadge').textContent = '';
   document.getElementById('chart2AnomalyBadge').textContent = '';
 
@@ -194,6 +198,13 @@ async function runDetection() {
       document.getElementById('cntIsoForest').textContent = (lastDetectionResult.summary_by_method.isolation_forest || 0).toLocaleString();
       document.getElementById('cntAutoencoder').textContent = (lastDetectionResult.summary_by_method.autoencoder || 0).toLocaleString();
       document.getElementById('methodBreakdownContainer').classList.remove('hidden');
+
+      // Calcola dinamicamente la somma dei metodi e aggiorna il testo della nota
+      const sumMethods = Object.values(lastDetectionResult.summary_by_method).reduce((a, b) => a + b, 0);
+      const noteBox = document.getElementById('overlapNoteText');
+      if (noteBox) {
+        noteBox.innerHTML = `Il contatore "Anomalie Totali Uniche" misura i secondi distinti in cui è stata riscontrata un'anomalia. La somma dei singoli algoritmi (<strong>${sumMethods.toLocaleString()}</strong>) è maggiore di <strong>${lastDetectionResult.anomaly_count.toLocaleString()}</strong> poiché uno stesso istante temporale può essere segnalato contemporaneamente sia dalle Regole Cliniche sia dai Modelli di Machine Learning.`;
+      }
     }
 
     const anomalyTimestamps = lastDetectionResult.anomalies.map(a => a.timestamp);
