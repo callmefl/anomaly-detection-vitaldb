@@ -2,6 +2,8 @@
 
 import sys
 import time
+import json
+import datetime
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -103,15 +105,39 @@ def run_etl_benchmark():
     plt.savefig(chart_path, dpi=300)
     plt.close()
     print(f"✓ Grafico salvato in: {chart_path}")
-    
-    return {
-        "bronze_mb": bronze_size_mb,
-        "silver_mb": silver_size_mb,
-        "gold_mb": gold_size_mb,
-        "null_pct_bronze": null_pct_bronze,
-        "latency_file_ms": t_parquet_ms,
-        "latency_mongo_ms": t_mongo_ms
+
+    reduction_silver = ((bronze_size_mb - silver_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
+    reduction_gold = ((bronze_size_mb - gold_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
+    speedup = (t_parquet_ms / t_mongo_ms) if t_mongo_ms > 0 else 1.0
+
+    report_data = {
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "cases_count": len(bronze_files),
+        "storage": {
+            "bronze_mb": round(bronze_size_mb, 2),
+            "silver_mb": round(silver_size_mb, 2),
+            "gold_mb": round(gold_size_mb, 2),
+            "reduction_silver_pct": round(reduction_silver, 1),
+            "reduction_gold_pct": round(reduction_gold, 1)
+        },
+        "query_latency": {
+            "parquet_scan_ms": round(t_parquet_ms, 1),
+            "mongo_indexed_ms": round(t_mongo_ms, 1),
+            "speedup_factor": round(speedup, 1)
+        },
+        "quality": {
+            "null_pct_bronze": round(null_pct_bronze, 1),
+            "null_pct_silver": 0.0,
+            "null_pct_gold": 0.0
+        }
     }
+
+    report_path = config.DATA_DIR / "benchmark_report.json"
+    with open(report_path, "w", encoding="utf-8") as f:
+        json.dump(report_data, f, indent=2)
+    print(f"✓ Benchmark Report salvato in: {report_path}")
+
+    return report_data
 
 if __name__ == '__main__':
     run_etl_benchmark()

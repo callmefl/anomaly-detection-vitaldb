@@ -56,8 +56,13 @@
         <select class="select-dropdown" id="caseSelectMenu" onchange="onCaseMenuSelect(this.value)">
           <option value="">-- Scegli Caso dal Menù --</option>
         </select>
+
+        <div class="sidebar-label" style="margin-top: 0.4rem;">Filtra per Reparto (Metadata):</div>
+        <select class="select-dropdown" id="deptFilterMenu" onchange="filterCases()">
+          <option value="">Tutti i Reparti</option>
+        </select>
         
-        <div class="sidebar-label" style="margin-top: 0.4rem;">Cerca nella Lista:</div>
+        <div class="sidebar-label" style="margin-top: 0.4rem;">Cerca per ID Caso:</div>
         <input type="text" class="search-input" id="caseSearch" placeholder="Cerca ID Caso..." onkeyup="filterCases()" />
       </div>
       
@@ -267,8 +272,8 @@
         
         <div class="benchmark-card">
           <div class="benchmark-title">Risultati Empirici della Data Pipeline (Bronze → Silver → Gold)</div>
-          <p style="font-size: 0.82rem; color: var(--text-muted);">
-            Valutazione quantitativa condotta su <strong>50 casi chirurgici (311.173 punti temporali)</strong> registrati su MongoDB 8.0.
+          <p style="font-size: 0.82rem; color: var(--text-muted);" id="benchmarkSubtitle">
+            Valutazione quantitativa delle prestazioni e dello storage per la pipeline Medallion caricata da <code>/benchmark</code>.
           </p>
 
           <table class="benchmark-table">
@@ -280,7 +285,7 @@
                 <th>Latenza Media Query Scansione</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="benchmarkTableBody">
               <tr>
                 <td><strong>Layer BRONZE (Grezzo)</strong></td>
                 <td>3.88 MB</td>

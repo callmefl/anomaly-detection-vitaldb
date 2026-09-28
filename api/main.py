@@ -102,6 +102,20 @@ async def get_quality():
         raise HTTPException(status_code=500, detail=f"Errore lettura quality report: {e}")
 
 
+@app.get("/benchmark")
+async def get_benchmark():
+    """Restituisce il Benchmark prestazionale e di compressione generato da src/analysis/benchmark_etl.py."""
+    benchmark_file = config.DATA_DIR / "benchmark_report.json"
+    if not benchmark_file.exists():
+        raise HTTPException(status_code=404, detail="Benchmark non ancora calcolato. Eseguire src/analysis/benchmark_etl.py.")
+    try:
+        with open(benchmark_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore lettura benchmark report: {e}")
+
+
 @app.get("/cases")
 async def get_cases():
     """Restituisce l'elenco di tutti i casi clinici caricati nel layer Gold, arricchiti con i metadati di paziente."""

@@ -69,14 +69,29 @@ def download_all_cases(tracks, interval, output_dir, max_cases=None):
         download_case(case_id, tracks, interval, output_dir)
 
 def download_clinical_data(output_dir):
-    """Scarica i metadati clinici perioperatori (età, sesso, tipo intervento, reparto) e li salva nel Bronze."""
+    """Scarica i metadati clinici perioperatori (età, sesso, tipo intervento, reparto) e li salva nel Bronze.
+
+    Nota di robustezza:
+    L'implementazione di `vitaldb.load_clinical_data()` presenta un bug noto che restituisce 0 righe
+    se invocata senza parametri. Per garantire la persistenza corretta, interroghiamo direttamente l'endpoint
+    REST ufficiale di VitalDB (https://api.vitaldb.net/cases) con fallback su SDK parametrizzato.
+    """
     try:
-        df_clinical = vitaldb.load_clinical_data()
-        output_file = output_dir / "clinical_data.parquet"
-        df_clinical.to_parquet(output_file, index=False)
-        print("✓ Dati clinici e demografici scaricati correttamente.")
-    except Exception as e:
-        print(f"❌ Errore nel download dei dati clinici: {e}")
+        url = "https://api.vitaldb.net/cases"
+        df_clinical = pd.read_csv(url)
+        if df_clinical.empty:
+            raise ValueError("Endpoint REST /cases ha restituito una tabella vuota.")
+    except Exception as e_rest:
+        print(f"⚠️ Avviso: Download da {url} non riuscito ({e_rest}), fallback su SDK VitalDB...")
+        try:
+            df_clinical = vitaldb.load_clinical_data(caseids=list(range(1, 6389)))
+        except Exception as e_sdk:
+            print(f"❌ Errore irreversibile nel download dei dati clinici: {e_sdk}")
+            return
+
+    output_file = output_dir / "clinical_data.parquet"
+    df_clinical.to_parquet(output_file, index=False)
+    print(f"✓ Dati clinici e demografici scaricati correttamente ({len(df_clinical)} pazienti censiti).")
 
 if __name__ == '__main__':
     print("=== INIZIO FASE DI INGESTIONE BRONZE ===")

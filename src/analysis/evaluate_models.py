@@ -53,7 +53,7 @@ def evaluate_anomaly_models():
     y_if = if_detector.fit_predict(df, feature_cols)
     
     # LSTM Autoencoder
-    ae = LSTMAutoencoderDetector(percentile=95.0, epochs=15)
+    ae = LSTMAutoencoderDetector(percentile=95.0, epochs=10)
     y_ae = ae.fit_predict(df, feature_cols)
     
     # Metriche di performance rispetto a Ground Truth Clinico

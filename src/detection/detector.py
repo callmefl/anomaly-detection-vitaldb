@@ -177,20 +177,24 @@ LSTMAutoencoder = _make_lstm_autoencoder_class()
 class LSTMAutoencoderDetector:
     """Detector basato su vero LSTM Autoencoder — addestrato su finestre temporali."""
     
-    def __init__(self, window_size=30, hidden_size=32, epochs=20, percentile=95.0):
+    def __init__(self, window_size=30, hidden_size=32, epochs=10, percentile=95.0):
         self.window_size = window_size   # N campioni consecutivi per finestra
         self.hidden_size = hidden_size   # Dimensione bottleneck
         self.epochs = epochs
         self.percentile = percentile
         self.scaler = StandardScaler()
         self.model = None
+
     def _make_windows(self, X_scaled):
         """Divide la serie in finestre scorrevoli di dimensione window_size."""
         T = len(X_scaled)
+        if T <= self.window_size:
+            return np.empty((0, self.window_size, X_scaled.shape[1] if X_scaled.ndim > 1 else 1))
         windows = []
         for i in range(T - self.window_size):
             windows.append(X_scaled[i : i + self.window_size])
         return np.array(windows)  # (N_windows, window_size, n_features)
+
     def fit_predict(self, df, feature_cols):
         if not _TORCH_AVAILABLE or LSTMAutoencoder is None:
             raise ImportError(
@@ -200,17 +204,36 @@ class LSTMAutoencoderDetector:
         X = df[feature_cols].fillna(df[feature_cols].mean()).values
         X_scaled = self.scaler.fit_transform(X)
         windows = self._make_windows(X_scaled)
+        
+        if len(windows) == 0:
+            self.threshold_ = 0.0
+            self.reconstruction_error_ = np.zeros(len(df))
+            return np.zeros(len(df), dtype=bool)
+
         n_features = len(feature_cols)
         self.model = LSTMAutoencoder(n_features=n_features, hidden_size=self.hidden_size)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         loss_fn = nn.MSELoss()
         X_tensor = torch.tensor(windows, dtype=torch.float32)
-        dataset = torch.utils.data.TensorDataset(X_tensor)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=2048, shuffle=True)
 
-        # Training a mini-batch (efficienza RAM e prevenzione OOM)
+        # Seleziona un sottoinsieme rappresentativo uniforme per il training dei pesi (max 15.000 finestre)
+        # per garantire convergenza rapida in ~8-12 secondi senza latenze durante le demo
+        max_train = 15000
+        if len(windows) > max_train:
+            indices = np.linspace(0, len(windows) - 1, max_train, dtype=int)
+            train_tensor = X_tensor[indices]
+            n_epochs = min(self.epochs, 5)
+        else:
+            train_tensor = X_tensor
+            n_epochs = self.epochs
+
+        batch_sz = min(512, max(32, len(train_tensor)))
+        train_dataset = torch.utils.data.TensorDataset(train_tensor)
+        dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_sz, shuffle=True)
+
+        # Training rapido a mini-batch
         self.model.train()
-        for epoch in range(self.epochs):
+        for epoch in range(n_epochs):
             for (batch_x,) in dataloader:
                 optimizer.zero_grad()
                 output = self.model(batch_x)
@@ -218,9 +241,10 @@ class LSTMAutoencoderDetector:
                 loss.backward()
                 optimizer.step()
 
-        # Calcolo errore di ricostruzione per ogni finestra tramite eval_loader
+        # Valutazione errore di ricostruzione su TUTTE le finestre (inferenza vettoriale veloce senza gradiente)
         self.model.eval()
-        eval_loader = torch.utils.data.DataLoader(dataset, batch_size=4096, shuffle=False)
+        eval_dataset = torch.utils.data.TensorDataset(X_tensor)
+        eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=4096, shuffle=False)
         mse_list = []
         with torch.no_grad():
             for (batch_x,) in eval_loader:
@@ -229,11 +253,12 @@ class LSTMAutoencoderDetector:
                 mse_list.append(batch_mse.numpy())
         mse_per_window = np.concatenate(mse_list)
 
-        # Mappa l'errore da finestre → punti temporali originali
-        mse_per_point = np.full(len(df), 0.0)
-        for i, err in enumerate(mse_per_window):
-            mse_per_point[i + self.window_size] = max(mse_per_point[i + self.window_size], float(err))
-        threshold = np.percentile(mse_per_window, self.percentile)
+        # Mappatura vettorizzata istantanea finestre -> punti temporali
+        mse_per_point = np.zeros(len(df))
+        end_idx = min(len(df), len(mse_per_window) + self.window_size)
+        mse_per_point[self.window_size:end_idx] = mse_per_window[:end_idx - self.window_size]
+
+        threshold = float(np.percentile(mse_per_window, self.percentile))
         self.threshold_ = threshold
         self.reconstruction_error_ = mse_per_point
         return mse_per_point > threshold
@@ -322,18 +347,23 @@ def run_detection_pipeline(db, case_ids, statistical_z=3.0, if_contamination=0.0
     df['HR_delta']        = df[HR_KEY].diff()
     feature_cols = [c for c in [HR_KEY, SPO2_KEY, SBP_KEY, DBP_KEY, MBP_KEY,'HR_rolling_mean', 'HR_rolling_std', 'HR_delta']
                     if c in df.columns]
+    print(f"=== AVVIO ANOMALY DETECTION SU {len(case_ids)} CASI ({len(df)} RECORD) ===")
     # 1. Regole Cliniche
+    print("  [1/4] Calcolo Regole Cliniche (Shock Index & Ipotensione Severa)...")
     df = apply_clinical_rules(df)
-    
+
     # 2. Metodo Statistico Z-Score
+    print("  [2/4] Calcolo Outlier Statistici (Z-Score)...")
     df['statistical_anomaly'] = AnomalyDetector(method='statistical', z_threshold=statistical_z) \
         .fit_predict(df, feature_cols)
-        
+
     # 3. Isolation Forest ML
+    print("  [3/4] Addestramento ed inferenza Isolation Forest...")
     df['isolation_forest_anomaly'] = AnomalyDetector(method='isolation_forest', contamination=if_contamination) \
         .fit_predict(df, feature_cols)
-        
+
     # 4. LSTM Autoencoder Neurale ML
+    print("  [4/4] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
     df['autoencoder_anomaly'] = AnomalyDetector(method='lstm_autoencoder', percentile=ae_percentile) \
         .fit_predict(df, feature_cols)
 
