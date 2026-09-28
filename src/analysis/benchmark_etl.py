@@ -41,42 +41,66 @@ def run_etl_benchmark():
     print(f"Spazio Silver: {silver_size_mb:.2f} MB")
     print(f"Spazio Gold (MongoDB): {gold_size_mb:.2f} MB")
 
-    # 2. Data Quality (Missing values %)
+    # 2. Data Quality (Missing values reali misurati)
     bronze_nulls = 0
     total_bronze_cells = 0
     for p_file in bronze_files:
         df_b = pd.read_parquet(p_file)
-        total_bronze_cells += df_b.size
-        bronze_nulls += df_b.isna().sum().sum()
+        vital_b = [c for c in config.VITAL_TRACKS if c in df_b.columns]
+        total_bronze_cells += df_b[vital_b].size
+        bronze_nulls += df_b[vital_b].isna().sum().sum()
         
-    null_pct_bronze = (bronze_nulls / total_bronze_cells * 100) if total_bronze_cells > 0 else 0
-    null_pct_silver = 0.0  # Interpolati nel Silver
-    null_pct_gold = 0.0
+    null_pct_bronze = (bronze_nulls / total_bronze_cells * 100) if total_bronze_cells > 0 else 0.0
+
+    silver_nulls = 0
+    total_silver_cells = 0
+    for s_file in silver_files:
+        df_s = pd.read_parquet(s_file)
+        vital_s = [c for c in config.VITAL_TRACKS if c in df_s.columns]
+        total_silver_cells += df_s[vital_s].size
+        silver_nulls += df_s[vital_s].isna().sum().sum()
+
+    null_pct_silver = (silver_nulls / total_silver_cells * 100) if total_silver_cells > 0 else 0.0
     
-    print(f"Missing Values Bronze: {null_pct_bronze:.1f}%")
-    print(f"Missing Values Silver: {null_pct_silver:.1f}%")
+    print(f"Missing Values Reali Bronze: {null_pct_bronze:.1f}%")
+    print(f"Missing Values Reali Silver (post-LOCF): {null_pct_silver:.1f}%")
 
-    # 3. Latenza Query (ms)
-    # Misura tempo lettura e filtraggio su TUTTI i file Parquet del dataset (50 casi)
-    t0 = time.time()
-    total_hr_above_80_parquet = 0
-    for p_file in bronze_files:
-        df_b = pd.read_parquet(p_file)
-        if 'Solar8000/HR' in df_b.columns:
-            total_hr_above_80_parquet += (df_b['Solar8000/HR'] > 80).sum()
-    t_parquet_ms = (time.time() - t0) * 1000
-
-    # Misura tempo aggregazione indicizzata su MongoDB (Gold metaField indexing pushdown)
-    t0 = time.time()
-    pipeline = [
+    # 3. Latenza Query Like-for-Like (Mediana su N run dopo Warmup)
+    # Target di test: Caso #1
+    sample_silver_file = next((f for f in silver_files if "case_1.parquet" in f.name), silver_files[0] if silver_files else None)
+    
+    # Warmup
+    if sample_silver_file:
+        _ = pd.read_parquet(sample_silver_file)['Solar8000/HR'].mean()
+    _ = list(db.vital_signals.aggregate([
         {"$match": {"metadata.case_id": 1}},
         {"$group": {"_id": "$metadata.case_id", "avg_hr": {"$avg": "$metrics.Solar8000_HR"}}}
-    ]
-    _ = list(db.vital_signals.aggregate(pipeline))
-    t_mongo_ms = (time.time() - t0) * 1000
+    ]))
 
-    print(f"Latenza Scansione Parquet (50 casi): {t_parquet_ms:.1f} ms")
-    print(f"Latenza Query Indicizzata MongoDB (Gold): {t_mongo_ms:.1f} ms")
+    # Benchmark Singolo Caso (15 iterazioni)
+    single_parquet_times = []
+    single_mongo_times = []
+    for _ in range(15):
+        if sample_silver_file:
+            t0 = time.perf_counter()
+            _ = pd.read_parquet(sample_silver_file)['Solar8000/HR'].mean()
+            single_parquet_times.append((time.perf_counter() - t0) * 1000)
+
+        t0 = time.perf_counter()
+        _ = list(db.vital_signals.aggregate([
+            {"$match": {"metadata.case_id": 1}},
+            {"$group": {"_id": "$metadata.case_id", "avg_hr": {"$avg": "$metrics.Solar8000_HR"}}}
+        ]))
+        single_mongo_times.append((time.perf_counter() - t0) * 1000)
+
+    t_single_parquet_ms = float(np.median(single_parquet_times)) if single_parquet_times else 0.0
+    t_single_mongo_ms = float(np.median(single_mongo_times)) if single_mongo_times else 0.0
+    speedup_single = (t_single_parquet_ms / t_single_mongo_ms) if t_single_mongo_ms > 0 else 1.0
+
+    print(f"\n--- BENCHMARK LIKE-FOR-LIKE (Singolo Caso Clinico #1) ---")
+    print(f"Parquet Partizionato (Singolo Caso): {t_single_parquet_ms:.2f} ms")
+    print(f"MongoDB Gold Pushdown (Singolo Caso): {t_single_mongo_ms:.2f} ms")
+    print(f"Speedup MongoDB vs File: {speedup_single:.1f}x")
 
     # 4. Generazione Grafico Comparativo per la Relazione
     img_dir = ROOT_DIR / "relazione" / "img"
@@ -92,11 +116,11 @@ def run_etl_benchmark():
     axes[0].set_ylabel('MB')
     axes[0].grid(axis='y', linestyle='--', alpha=0.5)
     
-    # Grafico Latenza Query
-    axes[1].bar(['File Grezzo', 'MongoDB Gold Aggregation'], 
-                [t_parquet_ms, t_mongo_ms], 
+    # Grafico Latenza Query Like-for-Like
+    axes[1].bar(['Parquet (1 Caso)', 'MongoDB Gold (1 Caso)'], 
+                [t_single_parquet_ms, t_single_mongo_ms], 
                 color=['#ef4444', '#3b82f6'])
-    axes[1].set_title('Latenza Media Query (ms)')
+    axes[1].set_title('Latenza Query Like-for-Like (ms, Mediana)')
     axes[1].set_ylabel('Millisecondi')
     axes[1].grid(axis='y', linestyle='--', alpha=0.5)
     
@@ -108,11 +132,11 @@ def run_etl_benchmark():
 
     reduction_silver = ((bronze_size_mb - silver_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
     reduction_gold = ((bronze_size_mb - gold_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
-    speedup = (t_parquet_ms / t_mongo_ms) if t_mongo_ms > 0 else 1.0
 
     report_data = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "cases_count": len(bronze_files),
+        "comparison_methodology": "Like-for-like: Singolo caso Parquet partizionato vs Singolo caso MongoDB pushdown (mediana su 15 iterazioni dopo warmup)",
         "storage": {
             "bronze_mb": round(bronze_size_mb, 2),
             "silver_mb": round(silver_size_mb, 2),
@@ -121,13 +145,16 @@ def run_etl_benchmark():
             "reduction_gold_pct": round(reduction_gold, 1)
         },
         "query_latency": {
-            "parquet_scan_ms": round(t_parquet_ms, 1),
-            "mongo_indexed_ms": round(t_mongo_ms, 1),
-            "speedup_factor": round(speedup, 1)
+            "single_case_parquet_ms": round(t_single_parquet_ms, 2),
+            "single_case_mongo_ms": round(t_single_mongo_ms, 2),
+            "speedup_factor": round(speedup_single, 1),
+            # Per retrocompatibilità con endpoint/dashboard precedenti:
+            "parquet_scan_ms": round(t_single_parquet_ms, 2),
+            "mongo_indexed_ms": round(t_single_mongo_ms, 2)
         },
         "quality": {
             "null_pct_bronze": round(null_pct_bronze, 1),
-            "null_pct_silver": 0.0,
+            "null_pct_silver": round(null_pct_silver, 1),
             "null_pct_gold": 0.0
         }
     }

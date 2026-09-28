@@ -4,8 +4,15 @@ Carica le variabili d'ambiente dal file .env e definisce
 path e costanti usate in tutta la pipeline.
 """
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Assicura supporto UTF-8 per console Windows (evita UnicodeEncodeError su charmap cp1252)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Carica variabili d'ambiente dal file .env nella root del progetto
 ROOT_DIR = Path(__file__).resolve().parent.parent

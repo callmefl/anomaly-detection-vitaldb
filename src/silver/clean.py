@@ -80,17 +80,33 @@ def clean_case(df, case_id):
 
     Fasi di trasformazione:
     1. Scarta le righe in cui tutte le tracce vitali sono nulle contemporaneamente.
-    2. Interpola linearmente le piccole interruzioni di segnale (fino a 5 valori consecutivi).
-    3. Calcola i flag booleani per identificare eventuali outlier fuori dai range fisiologici.
+    2. Interpolazione continua su HR e SpO2 (lineare, limit=5).
+    3. Last Observation Carried Forward (LOCF) su NIBP (limit=300s, 5 min) con calcolo colonna nibp_age_s.
+    4. Calcola i flag booleani per identificare eventuali outlier fuori dai range fisiologici.
     """
     # 1. Filtra le righe completamente vuote sulle metriche vitali
     tracks = [c for c in df.columns if c != 'Time']
     df_clean = df.dropna(subset=tracks, how='all').copy()
     
-    # 2. Esegue l'interpolazione lineare su vuoti di misurazione brevi (limit=5 secondi)
-    df_clean[tracks] = df_clean[tracks].interpolate(method='linear', limit=5)
-    
-    # 3. Identifica e marca gli outlier fisiologici (range medici di validità)
+    # 2. Segnali continui (HR e SpO2): interpolazione lineare breve (max 5 sec)
+    cont_tracks = [c for c in ['Solar8000/HR', 'Solar8000/PLETH_SPO2'] if c in df_clean.columns]
+    if cont_tracks:
+        df_clean[cont_tracks] = df_clean[cont_tracks].interpolate(method='linear', limit=5)
+
+    # 3. Segnali emodinamici a intervalli (NIBP): LOCF con tetto di staleness a 300s (5 minuti)
+    nibp_tracks = [c for c in ['Solar8000/NIBP_SBP', 'Solar8000/NIBP_DBP', 'Solar8000/NIBP_MBP'] if c in df_clean.columns]
+    if nibp_tracks:
+        time_series = df_clean['Time'] if 'Time' in df_clean.columns else pd.Series(df_clean.index, index=df_clean.index, dtype=float)
+        # Identifica quando è avvenuta una misurazione reale con bracciale
+        nibp_measured = df_clean[nibp_tracks[0]].notna()
+        last_measure_time = time_series.where(nibp_measured).ffill()
+        df_clean['nibp_age_s'] = (time_series - last_measure_time).fillna(9999.0).astype(float)
+        # LOCF su NIBP (fino a 300 secondi di validità clinica)
+        df_clean[nibp_tracks] = df_clean[nibp_tracks].ffill(limit=300)
+    else:
+        df_clean['nibp_age_s'] = 9999.0
+
+    # 4. Identifica e marca gli outlier fisiologici (range medici di validità)
     if 'Solar8000/HR' in df_clean.columns:
         df_clean['HR_outlier'] = (df_clean['Solar8000/HR'] < 20) | (df_clean['Solar8000/HR'] > 250)
         
@@ -154,9 +170,23 @@ def process_all_cases(bronze_dir, silver_dir):
             for flag in ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']:
                 if flag in df_clean.columns:
                     case_report["outliers_count"][flag] = int(df_clean[flag].sum())
+
+            # Misurazione reale dei valori nulli residui post-bonifica (LOCF + interpolazione)
+            vital_cols = [c for c in config.VITAL_TRACKS if c in df_clean.columns]
+            nulls_remaining = int(df_clean[vital_cols].isna().sum().sum()) if vital_cols else 0
+            total_cells = int(df_clean[vital_cols].size) if vital_cols else 1
+            case_report["nulls_remaining"] = nulls_remaining
+            case_report["null_pct_cleaned"] = round((nulls_remaining / total_cells) * 100, 2)
+
             quality_metrics.append(case_report)
         except Exception as e:
             print(f"❌ Errore durante la bonifica di {p_file.name}: {e}")
+
+    # Calcolo metriche aggregate reali
+    total_cells_all = sum(c.get("rows_cleaned", 0) * len(config.VITAL_TRACKS) for c in quality_metrics)
+    total_nulls_all = sum(c.get("nulls_remaining", 0) for c in quality_metrics)
+    overall_null_pct = round((total_nulls_all / total_cells_all * 100), 2) if total_cells_all > 0 else 0.0
+
     # Salva il report di Data Governance globale in un file JSON
     report_file = silver_dir.parent / "quality_report.json"
 
@@ -171,15 +201,15 @@ def process_all_cases(bronze_dir, silver_dir):
     with open(report_file, "w", encoding="utf-8") as f:
         json.dump({
             "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            # Tracciabilità configurazione: niente più ambiguità tra numeri nella relazione
-            # e numeri effettivi dell'ultimo run
             "max_cases_configured": config.MAX_CASES,
             "cases_found_in_bronze": len(parquet_files),
             "total_cases_processed": len(quality_metrics),
+            "overall_null_pct_silver": overall_null_pct,
+            "total_null_cells_silver": total_nulls_all,
             "cases_detail": quality_metrics
         }, f, indent=2)
 
-    print(f"✓ Quality Report salvato con successo in: {report_file}")
+    print(f"✓ Quality Report salvato con successo in: {report_file} (Null residui Silver: {overall_null_pct}%)")
 
 
 if __name__ == '__main__':

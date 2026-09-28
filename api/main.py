@@ -69,7 +69,7 @@ def get_db():
 
 
 @app.get("/health")
-async def health():
+def health():
     """Endpoint di Health Check per verificare l'operatività del container e dell'API con statistiche del database."""
     db = get_db()
     try:
@@ -89,7 +89,7 @@ async def health():
 
 
 @app.get("/quality")
-async def get_quality():
+def get_quality():
     """Restituisce il Data Quality Report generato dal layer Silver (metriche di bonifica, drop e outlier)."""
     report_file = config.DATA_DIR / "quality_report.json"
     if not report_file.exists():
@@ -103,7 +103,7 @@ async def get_quality():
 
 
 @app.get("/benchmark")
-async def get_benchmark():
+def get_benchmark():
     """Restituisce il Benchmark prestazionale e di compressione generato da src/analysis/benchmark_etl.py."""
     benchmark_file = config.DATA_DIR / "benchmark_report.json"
     if not benchmark_file.exists():
@@ -116,8 +116,22 @@ async def get_benchmark():
         raise HTTPException(status_code=500, detail=f"Errore lettura benchmark report: {e}")
 
 
+@app.get("/evaluation")
+def get_evaluation():
+    """Restituisce il report di valutazione quantitativa e metrica dei modelli ML (Isolation Forest, Autoencoder)."""
+    eval_file = config.DATA_DIR / "ml_evaluation.json"
+    if not eval_file.exists():
+        raise HTTPException(status_code=404, detail="ML evaluation report non ancora generato. Eseguire src/analysis/evaluate_models.py.")
+    try:
+        with open(eval_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore lettura ml evaluation report: {e}")
+
+
 @app.get("/cases")
-async def get_cases():
+def get_cases():
     """Restituisce l'elenco di tutti i casi clinici caricati nel layer Gold, arricchiti con i metadati di paziente."""
     db = get_db()
     df = list_loaded_cases(db)
@@ -130,11 +144,11 @@ async def get_cases():
         sample_doc = db['vital_signals'].find_one({"metadata.case_id": c_id}, {"metadata": 1})
         if sample_doc and "metadata" in sample_doc:
             meta = sample_doc["metadata"]
-            rec["department"] = meta.get("department") or "Chirurgia Generale"
+            rec["department"] = meta.get("department") or "Unknown"
             rec["age"] = meta.get("age")
             rec["sex"] = meta.get("sex")
         else:
-            rec["department"] = "Chirurgia Generale"
+            rec["department"] = "Unknown"
             rec["age"] = None
             rec["sex"] = None
 
@@ -142,7 +156,7 @@ async def get_cases():
 
 
 @app.get("/cases/{case_id}/series")
-async def get_series(case_id: int, window_seconds: Optional[int] = None):
+def get_series(case_id: int, window_seconds: Optional[int] = None):
     """Restituisce la serie temporale dei parametri vitali di un dato paziente.
 
     Args:
@@ -169,7 +183,7 @@ async def get_series(case_id: int, window_seconds: Optional[int] = None):
 
 
 @app.post("/cases/{case_id}/detect")
-async def detect_case(case_id: int):
+def detect_case(case_id: int):
     """Esegue l'algoritmo multilivello di Anomaly Detection sul caso specificato.
 
     Calcola le Regole Cliniche (Shock Index ed Ipotensione Severa) e gli algoritmi di Machine Learning

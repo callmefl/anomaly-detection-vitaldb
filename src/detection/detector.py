@@ -34,10 +34,18 @@ SBP_KEY = "Solar8000_NIBP_SBP"
 DBP_KEY = "Solar8000_NIBP_DBP"
 MBP_KEY = "Solar8000_NIBP_MBP"
 
+# Lista centralizzata delle feature biometriche utilizzate sia nella pipeline che nella valutazione
+FEATURE_COLS = [
+    HR_KEY, SPO2_KEY, SBP_KEY, DBP_KEY, MBP_KEY,
+    'HR_rolling_mean', 'HR_rolling_std', 'HR_delta'
+]
+
 
 def load_from_gold(db, case_ids):
     """Estrae le serie temporali dei casi richiesti dalla Time Series Collection 'vital_signals' di MongoDB.
     
+    Ordinamento deterministico per paziente e timestamp per evitare interleaving di serie temporali.
+
     Args:
         db: Istanza PyMongo del database.
         case_ids (list): Lista degli identificativi numerici dei casi clinici da filtrare.
@@ -48,7 +56,7 @@ def load_from_gold(db, case_ids):
     cursor = db['vital_signals'].find(
         {"metadata.case_id": {"$in": case_ids}},
         {"_id": 0, "timestamp": 1, "metadata": 1, "metrics": 1}
-    ).sort("timestamp", 1)
+    ).sort([("metadata.case_id", 1), ("timestamp", 1)])
     
     data = []
     for doc in cursor:
@@ -150,14 +158,20 @@ def _make_lstm_autoencoder_class():
         return None
 
     class _LSTMAutoencoder(nn.Module):
-        """Architettura LSTM Autoencoder (nn.Module) per anomaly detection su serie temporali."""
+        """Architettura LSTM Autoencoder (nn.Module) per anomaly detection su serie temporali.
+
+        Comprende un layer Linear di proiezione sull'output del decoder per poter ricostruire
+        valori standardizzati Z-score al di fuori dell'intervallo (-1, 1) imposto dalla tanh.
+        """
 
         def __init__(self, n_features, hidden_size=32, n_layers=1):
             super().__init__()
             # Encoder LSTM: comprime la sequenza in un vettore latente
             self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
-            # Decoder LSTM: ricostruisce la sequenza originale dal vettore latente
-            self.decoder = nn.LSTM(hidden_size, n_features, n_layers, batch_first=True)
+            # Decoder LSTM: decodifica il vettore latente nello spazio nascosto
+            self.decoder = nn.LSTM(hidden_size, hidden_size, n_layers, batch_first=True)
+            # Layer di proiezione lineare: mappa l'output dello stato nascosto nello spazio continuo R^n
+            self.out = nn.Linear(hidden_size, n_features)
 
         def forward(self, x):
             # x ha forma (batch, T, n_features)
@@ -165,7 +179,7 @@ def _make_lstm_autoencoder_class():
             # Ripete il vettore latente per ogni timestep della sequenza
             context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
             output, _ = self.decoder(context)
-            return output  # stessa forma di x
+            return self.out(output)  # dimensione: (batch, T, n_features)
 
     return _LSTMAutoencoder
 
@@ -175,7 +189,7 @@ LSTMAutoencoder = _make_lstm_autoencoder_class()
     
     
 class LSTMAutoencoderDetector:
-    """Detector basato su vero LSTM Autoencoder — addestrato su finestre temporali."""
+    """Detector basato su vero LSTM Autoencoder con proiettore lineare — addestrato su finestre temporali."""
     
     def __init__(self, window_size=30, hidden_size=32, epochs=10, percentile=95.0):
         self.window_size = window_size   # N campioni consecutivi per finestra
@@ -185,15 +199,43 @@ class LSTMAutoencoderDetector:
         self.scaler = StandardScaler()
         self.model = None
 
-    def _make_windows(self, X_scaled):
-        """Divide la serie in finestre scorrevoli di dimensione window_size."""
-        T = len(X_scaled)
-        if T <= self.window_size:
-            return np.empty((0, self.window_size, X_scaled.shape[1] if X_scaled.ndim > 1 else 1))
-        windows = []
-        for i in range(T - self.window_size):
-            windows.append(X_scaled[i : i + self.window_size])
-        return np.array(windows)  # (N_windows, window_size, n_features)
+    def _make_windows_per_case(self, df, feature_cols):
+        """Divide la serie in finestre scorrevoli raggruppate per paziente (senza crossover tra casi)."""
+        # Imputazione locale e scalatura globale
+        if 'case_id' in df.columns:
+            X_df = df.groupby('case_id')[feature_cols].transform(lambda g: g.ffill().bfill()).fillna(0.0)
+        else:
+            X_df = df[feature_cols].ffill().bfill().fillna(0.0)
+
+        X_scaled = self.scaler.fit_transform(X_df.values)
+        df_scaled = pd.DataFrame(X_scaled, columns=feature_cols, index=df.index)
+
+        windows_list = []
+        target_indices = []
+
+        if 'case_id' in df.columns:
+            df_scaled['case_id'] = df['case_id'].values
+            groups = df_scaled.groupby('case_id', sort=False)
+        else:
+            groups = [(0, df_scaled)]
+
+        for _, group in groups:
+            cols = [c for c in group.columns if c != 'case_id']
+            vals = group[cols].values
+            T = len(vals)
+            if T < self.window_size:
+                continue
+            # sliding_window_view: creazione finestre a costo di allocazione zero (zero-copy)
+            wins = np.lib.stride_tricks.sliding_window_view(vals, window_shape=(self.window_size, vals.shape[1])).squeeze(axis=1)
+            windows_list.append(wins)
+            # Mappa ogni finestra i all'indice del suo ultimo punto compreso (i + ws - 1)
+            case_idx = group.index.values
+            target_indices.extend(case_idx[self.window_size - 1 :])
+
+        if not windows_list:
+            return np.empty((0, self.window_size, len(feature_cols))), np.array([], dtype=int)
+
+        return np.concatenate(windows_list, axis=0), np.array(target_indices, dtype=int)
 
     def fit_predict(self, df, feature_cols):
         if not _TORCH_AVAILABLE or LSTMAutoencoder is None:
@@ -201,9 +243,11 @@ class LSTMAutoencoderDetector:
                 "PyTorch non è installato. Aggiungere 'torch>=2.0' a requirements.txt "
                 "ed eseguire 'pip install torch' per usare LSTMAutoencoderDetector."
             )
-        X = df[feature_cols].fillna(df[feature_cols].mean()).values
-        X_scaled = self.scaler.fit_transform(X)
-        windows = self._make_windows(X_scaled)
+        # Fissazione deterministica dei seed per riproducibilità scientifica
+        torch.manual_seed(42)
+        np.random.seed(42)
+
+        windows, target_indices = self._make_windows_per_case(df, feature_cols)
         
         if len(windows) == 0:
             self.threshold_ = 0.0
@@ -211,13 +255,12 @@ class LSTMAutoencoderDetector:
             return np.zeros(len(df), dtype=bool)
 
         n_features = len(feature_cols)
-        self.model = LSTMAutoencoder(n_features=n_features, hidden_size=self.hidden_size)
+        self.model = _make_lstm_autoencoder_class()(n_features=n_features, hidden_size=self.hidden_size)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         loss_fn = nn.MSELoss()
         X_tensor = torch.tensor(windows, dtype=torch.float32)
 
-        # Seleziona un sottoinsieme rappresentativo uniforme per il training dei pesi (max 15.000 finestre)
-        # per garantire convergenza rapida in ~8-12 secondi senza latenze durante le demo
+        # Sottoinsieme rappresentativo uniforme per il training (max 15.000 finestre)
         max_train = 15000
         if len(windows) > max_train:
             indices = np.linspace(0, len(windows) - 1, max_train, dtype=int)
@@ -231,7 +274,7 @@ class LSTMAutoencoderDetector:
         train_dataset = torch.utils.data.TensorDataset(train_tensor)
         dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_sz, shuffle=True)
 
-        # Training rapido a mini-batch
+        # Training rapido
         self.model.train()
         for epoch in range(n_epochs):
             for (batch_x,) in dataloader:
@@ -241,7 +284,7 @@ class LSTMAutoencoderDetector:
                 loss.backward()
                 optimizer.step()
 
-        # Valutazione errore di ricostruzione su TUTTE le finestre (inferenza vettoriale veloce senza gradiente)
+        # Valutazione errore di ricostruzione su TUTTE le finestre
         self.model.eval()
         eval_dataset = torch.utils.data.TensorDataset(X_tensor)
         eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=4096, shuffle=False)
@@ -253,10 +296,9 @@ class LSTMAutoencoderDetector:
                 mse_list.append(batch_mse.numpy())
         mse_per_window = np.concatenate(mse_list)
 
-        # Mappatura vettorizzata istantanea finestre -> punti temporali
+        # Mappatura corretta: assegna l'errore di ciascuna finestra esattamente al punto target (i + ws - 1)
         mse_per_point = np.zeros(len(df))
-        end_idx = min(len(df), len(mse_per_window) + self.window_size)
-        mse_per_point[self.window_size:end_idx] = mse_per_window[:end_idx - self.window_size]
+        mse_per_point[target_indices] = mse_per_window
 
         threshold = float(np.percentile(mse_per_window, self.percentile))
         self.threshold_ = threshold
@@ -342,11 +384,12 @@ def run_detection_pipeline(db, case_ids, statistical_z=3.0, if_contamination=0.0
     if df.empty:
         print("⚠️ Nessun dato temporale recuperato per i casi richiesti.")
         return df
-    df['HR_rolling_mean'] = df[HR_KEY].rolling(5).mean()
-    df['HR_rolling_std']  = df[HR_KEY].rolling(5).std()
-    df['HR_delta']        = df[HR_KEY].diff()
-    feature_cols = [c for c in [HR_KEY, SPO2_KEY, SBP_KEY, DBP_KEY, MBP_KEY,'HR_rolling_mean', 'HR_rolling_std', 'HR_delta']
-                    if c in df.columns]
+    # Calcolo feature dinamiche strettamente raggruppate per singolo paziente (evita cross-contamination tra casi)
+    g = df.groupby("case_id")[HR_KEY]
+    df['HR_rolling_mean'] = g.transform(lambda s: s.rolling(5, min_periods=1).mean())
+    df['HR_rolling_std']  = g.transform(lambda s: s.rolling(5, min_periods=1).std()).fillna(0.0)
+    df['HR_delta']        = g.diff().fillna(0.0)
+    feature_cols = [c for c in FEATURE_COLS if c in df.columns]
     print(f"=== AVVIO ANOMALY DETECTION SU {len(case_ids)} CASI ({len(df)} RECORD) ===")
     # 1. Regole Cliniche
     print("  [1/4] Calcolo Regole Cliniche (Shock Index & Ipotensione Severa)...")
