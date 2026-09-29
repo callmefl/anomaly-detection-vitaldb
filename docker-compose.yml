@@ -12,11 +12,24 @@ services:
         - mongo_data:/data/db
         - ./mongo:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate() }" | mongosh --quiet
+      test: >
+        echo "
+          try {
+            var status = rs.status();
+            var self = status.members.find(m => m.self);
+            if (!self || self.stateStr === 'UNKNOWN' || self.stateStr === 'REMOVED') {
+              var cfg = rs.conf();
+              cfg.members[0].host = 'mongo:27017';
+              rs.reconfig(cfg, { force: true });
+            }
+          } catch(err) {
+            rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] });
+          }
+        " | mongosh --quiet
       interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 30s
     networks:
       - vitaldb_net
 
