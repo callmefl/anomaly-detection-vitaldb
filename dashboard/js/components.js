@@ -149,7 +149,16 @@ const components = {
     if (elHRRange) elHRRange.textContent = `Min ${minHR} • Max ${maxHR} bpm`;
 
     if (elSpO2) elSpO2.textContent = avgSpO2;
-    if (elSpO2Min) elSpO2Min.textContent = `Nadir: ${minSpO2}% (Target > 95%)`;
+    if (elSpO2Min) {
+      let spO2Color = 'var(--text-secondary)';
+      if (minSpO2 !== '—') {
+        const val = parseFloat(minSpO2);
+        if (val < 90) spO2Color = 'var(--telemetry-shock)';
+        else if (val < 95) spO2Color = 'var(--telemetry-amber)';
+        else spO2Color = 'var(--telemetry-emerald)';
+      }
+      elSpO2Min.innerHTML = `<span style="color: ${spO2Color}; font-family: 'Clarity City', sans-serif;">Nadir: ${minSpO2}% (Target > 95%)</span>`;
+    }
 
     if (elNIBP) elNIBP.textContent = `${avgSBP}/${avgDBP}`;
     if (elMBP) elMBP.textContent = `MAP Media: ${avgMBP} mmHg`;

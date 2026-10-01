@@ -59,8 +59,8 @@ function renderCharts(data, anomalyResult = null, highlightMethod = null) {
   const textColor = isDark ? '#94A3B8' : '#64748B';
   const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)';
   const crosshairColor = isDark ? 'rgba(34, 211, 238, 0.35)' : 'rgba(15, 173, 190, 0.35)';
-  const fontBody = "'Space Grotesk', sans-serif";
-  const fontMono = "'JetBrains Mono', monospace";
+  const fontBody = "'Clarity City', sans-serif";
+  const fontMono = "'Clarity City', sans-serif";
 
   const labels = data.map(d => d.timestamp);
 

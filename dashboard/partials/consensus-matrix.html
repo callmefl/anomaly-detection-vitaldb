@@ -13,13 +13,13 @@
   <div class="consensus-chips-grid">
     
     <!-- Chip 1: Shock Index -->
-    <div class="algo-chip" data-method="shock_index" onclick="app.toggleAlgoHighlight('shock_index')" style="border-left: 3px solid var(--telemetry-shock);">
+    <div class="algo-chip" data-method="shock_index" onclick="app.toggleAlgoHighlight('shock_index')" style="border-left: 3px solid var(--brand-primary);">
       <div class="algo-chip-info">
         <h4>Shock Index Clinico</h4>
         <p>Clinica: HR / SBP &gt; 0.9</p>
       </div>
       <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span class="algo-count-badge num-mono" id="countShockIndex" style="color: var(--telemetry-shock);">0</span>
+        <span class="algo-count-badge num-mono" id="countShockIndex" style="color: var(--brand-primary);">0</span>
         <button class="icon-btn" style="width:24px; height:24px;" onclick="event.stopPropagation(); app.openExplanation('shock_index')" title="Dettagli Clinici">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>
@@ -27,13 +27,13 @@
     </div>
 
     <!-- Chip 2: Severe Hypotension -->
-    <div class="algo-chip" data-method="severe_hypotension" onclick="app.toggleAlgoHighlight('severe_hypotension')" style="border-left: 3px solid var(--telemetry-amber);">
+    <div class="algo-chip" data-method="severe_hypotension" onclick="app.toggleAlgoHighlight('severe_hypotension')" style="border-left: 3px solid var(--brand-primary);">
       <div class="algo-chip-info">
         <h4>Ipotensione Severa</h4>
         <p>Clinica: MBP &lt; 65 &amp; SpO₂ &lt; 90%</p>
       </div>
       <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span class="algo-count-badge num-mono" id="countSevereHyp" style="color: var(--telemetry-amber);">0</span>
+        <span class="algo-count-badge num-mono" id="countSevereHyp" style="color: var(--brand-primary);">0</span>
         <button class="icon-btn" style="width:24px; height:24px;" onclick="event.stopPropagation(); app.openExplanation('severe_hypotension')" title="Dettagli Clinici">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>
@@ -41,13 +41,13 @@
     </div>
 
     <!-- Chip 3: Isolation Forest -->
-    <div class="algo-chip" data-method="isolation_forest" onclick="app.toggleAlgoHighlight('isolation_forest')" style="border-left: 3px solid var(--telemetry-cyan);">
+    <div class="algo-chip" data-method="isolation_forest" onclick="app.toggleAlgoHighlight('isolation_forest')" style="border-left: 3px solid var(--brand-primary);">
       <div class="algo-chip-info">
         <h4>Isolation Forest</h4>
         <p>ML Multivariato (Outlier Isolation)</p>
       </div>
       <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span class="algo-count-badge num-mono" id="countIsoForest" style="color: var(--telemetry-cyan);">0</span>
+        <span class="algo-count-badge num-mono" id="countIsoForest" style="color: var(--brand-primary);">0</span>
         <button class="icon-btn" style="width:24px; height:24px;" onclick="event.stopPropagation(); app.openExplanation('isolation_forest')" title="Dettagli Matematici">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>
@@ -55,13 +55,13 @@
     </div>
 
     <!-- Chip 4: Autoencoder -->
-    <div class="algo-chip" data-method="autoencoder" onclick="app.toggleAlgoHighlight('autoencoder')" style="border-left: 3px solid var(--telemetry-purple);">
+    <div class="algo-chip" data-method="autoencoder" onclick="app.toggleAlgoHighlight('autoencoder')" style="border-left: 3px solid var(--brand-primary);">
       <div class="algo-chip-info">
         <h4>Autoencoder Neurale</h4>
         <p>Deep Learning (Ricostruzione MSE)</p>
       </div>
       <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span class="algo-count-badge num-mono" id="countAutoencoder" style="color: var(--telemetry-purple);">0</span>
+        <span class="algo-count-badge num-mono" id="countAutoencoder" style="color: var(--brand-primary);">0</span>
         <button class="icon-btn" style="width:24px; height:24px;" onclick="event.stopPropagation(); app.openExplanation('autoencoder')" title="Dettagli Matematici">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
         </button>

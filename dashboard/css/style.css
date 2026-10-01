@@ -132,9 +132,9 @@
    § 1c  COMMON TOKENS
    —————————————————————————————————————————————————————— */
 :root {
-  --font-body:          'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display:       'Figtree', var(--font-body);
-  --font-mono:          'JetBrains Mono', 'SF Mono', monospace;
+  --font-body:          'Clarity City', sans-serif;
+  --font-display:       'Clarity City', sans-serif;
+  --font-mono:          'Clarity City', sans-serif;
 
   --font-sans:          var(--font-body);
 

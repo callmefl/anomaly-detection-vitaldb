@@ -143,7 +143,9 @@ def detect_isolation_forest(df, contamination=0.05):
     Returns:
         np.array: Array booleano (True = anomalia rilevata).
     """
-    df_clean = df.fillna(df.mean())
+    # Usa ffill per propagare l'ultimo stato valido ed evitare che il riempimento con la media
+    # sposti i punti anomali verso il centro della distribuzione nascondendoli.
+    df_clean = df.ffill().bfill().fillna(0.0)
     
     clf = IsolationForest(contamination=contamination, random_state=42)
     preds = clf.fit_predict(df_clean)
@@ -292,7 +294,17 @@ class LSTMAutoencoderDetector:
         with torch.no_grad():
             for (batch_x,) in eval_loader:
                 reconstructed = self.model(batch_x)
-                batch_mse = torch.mean((batch_x - reconstructed) ** 2, dim=(1, 2))
+                # Calcola l'errore quadratico per ogni punto: (batch, T, features)
+                sq_err = (batch_x - reconstructed) ** 2
+                
+                # Media temporale per ogni feature
+                mean_time_err = torch.mean(sq_err, dim=1) # (batch, features)
+                
+                # Per evitare la diluizione causata da feature mancanti (che essendo costanti
+                # tramite ffill avrebbero errore 0), calcoliamo l'errore della finestra 
+                # come il MASSIMO errore tra tutte le feature, non la media.
+                batch_mse, _ = torch.max(mean_time_err, dim=1)
+                
                 mse_list.append(batch_mse.numpy())
         mse_per_window = np.concatenate(mse_list)
 
@@ -407,8 +419,13 @@ def run_detection_pipeline(db, case_ids, if_contamination=0.05, ae_percentile=95
         .fit_predict(df, feature_cols)
 
     # 3. LSTM Autoencoder Neurale ML
-    print("  [3/3] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
+    print("  [3/4] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
     df['autoencoder_anomaly'] = AnomalyDetector(method='lstm_autoencoder', percentile=ae_percentile) \
+        .fit_predict(df, feature_cols)
+
+    # 4. Statistical Univariate (Z-Score) per resilienza sui buchi di misurazione
+    print("  [4/4] Addestramento ed inferenza Analisi Statistica Univariata (Z-Score)...")
+    df['statistical_anomaly'] = AnomalyDetector(method='statistical', z_threshold=2.5) \
         .fit_predict(df, feature_cols)
 
     # Persistenza risultati su MongoDB
