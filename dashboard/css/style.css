@@ -8,12 +8,12 @@
    —————————————————————————————————————————————————————— */
 :root, [data-theme="light"] {
   /* Surfaces */
-  --surface-bg:         #F3F6F8; /* Soft cool grey background */
+  --surface-bg:         #E4EAEF; /* Slightly darker cool grey background to make white cards pop */
   --surface-canvas:     #FFFFFF; /* White cards */
   --surface-card:       #FFFFFF;
   --surface-elevated:   #FFFFFF;
   --surface-hover:      #F8FAFC;
-  --surface-sunken:     #F3F6F8;
+  --surface-sunken:     #E4EAEF;
   --surface-active:     #E0F2FE;
   
   /* Sidebar (Dark by default in this theme style) */
@@ -80,7 +80,7 @@
   --shadow-sm:          0 2px 4px rgba(15, 23, 42, 0.04);
   --shadow-md:          0 4px 12px rgba(15, 23, 42, 0.05);
   --shadow-lg:          0 12px 24px rgba(15, 23, 42, 0.06);
-  --shadow-card:        0 4px 20px rgba(15, 23, 42, 0.03); /* Soft Figma card shadow */
+  --shadow-card:        0 8px 30px rgba(15, 23, 42, 0.08); /* More visible shadow */
   --shadow-inset-card:  none; 
 }
 
@@ -187,13 +187,13 @@ body {
 }
 
 /* Rounded, soft scrollbars */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); border-radius: var(--radius-full); }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-default);
+  background: var(--border-strong);
   border-radius: var(--radius-full);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-primary); }
 
 button, input, select, textarea {
   font-family: inherit;
@@ -376,6 +376,7 @@ aside.telemetry-rail {
   flex-direction: column;
   flex-shrink: 0;
   z-index: 20;
+  overflow: hidden;
 }
 
 .rail-header {
@@ -867,7 +868,7 @@ main.main-content {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -878,27 +879,114 @@ main.main-content {
   background: var(--surface-card);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 650px;
-  box-shadow: var(--shadow-lg);
+  max-width: 580px;
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.05) inset;
   animation: fadeIn var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
 }
-.modal-header {
-  padding: 1.5rem;
+.modal-premium-header {
+  padding: 2.5rem 2.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  background: linear-gradient(180deg, var(--brand-primary-dim) 0%, transparent 100%);
   border-bottom: 1px solid var(--border-subtle);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
-.modal-body { padding: 1.5rem; font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); }
-.modal-footer {
-  padding: 1.25rem 1.5rem;
-  background: var(--surface-bg);
-  border-top: 1px solid var(--border-subtle);
-  border-bottom-left-radius: var(--radius-lg);
-  border-bottom-right-radius: var(--radius-lg);
+.modal-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--brand-primary);
+  color: #fff;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 16px -4px rgba(15, 173, 190, 0.3);
+}
+.modal-title-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.modal-eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+#modalTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.modal-premium-body {
+  padding: 2rem 2.5rem 2.5rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.modal-close-icon-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+.modal-close-icon-btn:hover {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+  transform: rotate(90deg);
+}
+.modal-section-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 1.5rem 0 0.5rem;
+}
+.formula-callout-card {
+  background: var(--surface-bg);
+  border-left: 4px solid var(--brand-primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.formula-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.formula-text {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.modal-premium-body p {
+  margin: 0;
+  color: var(--text-secondary);
 }
 
 /* Lakehouse Pipelines */
