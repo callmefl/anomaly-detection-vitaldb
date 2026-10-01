@@ -1,0 +1,203 @@
+/* ==========================================================================
+   LAKEHOUSE & DATA GOVERNANCE VIEW - MEDALLION PIPELINE VISUALIZATION
+   Bronze -> Silver -> Gold Architecture, Benchmarks, Data Quality Report
+   ========================================================================== */
+
+.lakehouse-dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* 1. Medallion Architecture Visualizer Nodes */
+.pipeline-flow-container {
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.pipeline-flow-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pipeline-flow-header p {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+.pipeline-nodes-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  position: relative;
+}
+
+.pipeline-node-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.pipeline-node-card:hover {
+  border-color: var(--border-default);
+  background: var(--surface-hover);
+}
+
+.node-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.layer-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-xs);
+}
+
+.layer-bronze {
+  background: rgba(217, 119, 6, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.layer-silver {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.layer-gold {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.node-title {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.node-feature-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.node-feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.node-feature-list li svg {
+  width: 13px;
+  height: 13px;
+  color: var(--telemetry-emerald);
+  flex-shrink: 0;
+}
+
+/* 2. Benchmark Metrics Comparative Panels */
+.benchmarks-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.benchmark-card {
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.benchmark-card-header h4 {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.benchmark-card-header p {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+}
+
+.metric-bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metric-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.metric-bar-label-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.metric-bar-name {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.metric-bar-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.metric-progress-track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  position: relative;
+}
+
+.metric-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}

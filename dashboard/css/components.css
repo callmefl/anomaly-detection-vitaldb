@@ -1,0 +1,410 @@
+/* ==========================================================================
+   COMPONENTS - CLINICAL HUD, BENTO VITALS, BUTTONS, BADGES & CHIPS
+   Professional Medical Telemetry Aesthetic
+   ========================================================================== */
+
+/* 1. Case Item in Sidebar Rail */
+.case-item-card {
+  padding: 0.65rem 0.8rem;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.case-item-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-default);
+  transform: translateX(2px);
+}
+
+.case-item-card.active {
+  background: var(--surface-active);
+  border-color: var(--telemetry-cyan);
+  box-shadow: 0 0 10px var(--telemetry-cyan-glow);
+}
+
+.case-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.case-item-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.case-item-meta {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.badge-gold {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-xs);
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--telemetry-amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  text-transform: uppercase;
+}
+
+/* 2. Patient Telemetry HUD Banner */
+.patient-hud-banner {
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.patient-identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.patient-avatar-box {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--telemetry-cyan);
+}
+
+.patient-avatar-box svg {
+  width: 22px;
+  height: 22px;
+}
+
+.patient-meta-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.patient-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.patient-heading {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.patient-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--telemetry-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.patient-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.patient-specs-row {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.patient-spec-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.patient-spec-item svg {
+  width: 13px;
+  height: 13px;
+  color: var(--text-tertiary);
+}
+
+/* HUD Action Controls */
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.custom-select-control {
+  appearance: none;
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 2rem 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.custom-select-control:focus {
+  border-color: var(--border-focus);
+}
+
+/* Modern Buttons */
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.48rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-primary-action {
+  background: linear-gradient(135deg, var(--telemetry-cyan), #0284c7);
+  color: #ffffff;
+  box-shadow: 0 2px 8px var(--telemetry-cyan-glow);
+}
+
+.btn-primary-action:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 14px var(--telemetry-cyan-glow);
+  transform: translateY(-1px);
+}
+
+.btn-primary-action:active {
+  transform: translateY(0);
+}
+
+.btn-secondary-action {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.btn-secondary-action:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+/* 3. Bento Grid of Clinical HUD Vitals */
+.bento-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+
+.vital-card {
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.vital-card:hover {
+  border-color: var(--border-default);
+}
+
+.vital-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.vital-card-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.vital-card-label svg {
+  width: 14px;
+  height: 14px;
+}
+
+.vital-card-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
+}
+
+.vital-metric-large {
+  font-family: var(--font-mono);
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.vital-metric-unit {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.vital-bounds-tag {
+  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-xs);
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  margin-top: auto;
+}
+
+.vital-card-spark-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  bottom: 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+/* 4. Algorithm Consensus Bar */
+.consensus-matrix-card {
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.consensus-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.consensus-title {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.consensus-chips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.algo-chip {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.algo-chip:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.algo-chip.active-highlight {
+  border-color: var(--telemetry-cyan);
+  box-shadow: 0 0 12px var(--telemetry-cyan-glow);
+}
+
+.algo-chip-info h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.algo-chip-info p {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+}
+
+.algo-count-badge {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-bg);
+}

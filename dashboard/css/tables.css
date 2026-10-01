@@ -1,0 +1,171 @@
+/* ==========================================================================
+   TABLES & ANOMALY EVENT LOG - HIGH DENSITY CLINICAL DATA
+   Sticky headers, tabular numerals, consensus severity badges, CSV export
+   ========================================================================== */
+
+.table-section-card {
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.table-toolbar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.table-title-block h3 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.table-title-block p {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+}
+
+.table-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.table-container-scroll {
+  max-height: 440px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.telemetry-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.78rem;
+}
+
+.telemetry-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--surface-card);
+  z-index: 10;
+  box-shadow: 0 1px 0 var(--border-default);
+}
+
+.telemetry-table th {
+  padding: 0.65rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.telemetry-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.telemetry-table tbody tr:hover {
+  background-color: var(--surface-hover);
+}
+
+.telemetry-table tbody tr.row-selected {
+  background-color: var(--surface-active);
+}
+
+.telemetry-table td {
+  padding: 0.6rem 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.telemetry-table td.cell-primary {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Severity Pill Badges */
+.severity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sev-high {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--alert-critical);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.sev-med {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--alert-warning);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.sev-low {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--telemetry-consensus);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+/* Method Tags */
+.method-tags-cell {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.m-tag {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-xs);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.m-tag-shock {
+  color: var(--telemetry-shock);
+  border-color: rgba(255, 23, 68, 0.3);
+}
+
+.m-tag-hyp {
+  color: var(--telemetry-amber);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.m-tag-iso {
+  color: var(--telemetry-cyan);
+  border-color: rgba(0, 210, 255, 0.3);
+}
+
+.m-tag-ae {
+  color: var(--telemetry-purple);
+  border-color: rgba(179, 136, 255, 0.3);
+}

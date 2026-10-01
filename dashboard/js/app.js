@@ -1,368 +1,376 @@
 /**
- * Entrypoint principale dell'applicazione Frontend VitalDB Anomaly Analytics
+ * VITALDB APPLICATION CONTROLLER - MAIN ENTRYPOINT
+ * State coordination, router events, user interactions & shortcuts
  */
 
-const API_BASE = 'http://localhost:8000';
+const app = {
+  /**
+   * Avvio dell'applicazione
+   */
+  async init() {
+    this.initTheme();
+    this.setupEventListeners();
+    this.setupKeyboardShortcuts();
+    
+    await this.checkHealth();
+    await this.loadCases();
 
-let casesCache = [];
-let currentCaseId = null;
-let currentSeriesData = [];
-let lastDetectionResult = null;
+    // Sottoscrizione allo store
+    store.subscribe((state) => {
+      this.onStateChange(state);
+    });
+  },
 
-/**
- * Gestisce lo switch del Tema (Modalità Notturna vs Chiara) e ne mantiene la preferenza in localStorage
- */
-function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  
-  document.documentElement.setAttribute('data-theme', newTheme);
-  localStorage.setItem('vitaldb_theme', newTheme);
-  
-  const btnText = document.getElementById('themeToggleText');
-  if (btnText) {
-    btnText.textContent = newTheme === 'dark' ? '🌙 Notturna' : '☀️ Chiara';
-  }
+  /**
+   * Inizializzazione tema salvato
+   */
+  initTheme() {
+    const savedTheme = localStorage.getItem('vitaldb_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    this.updateThemeIcon(savedTheme);
+  },
 
-  // Ridisegna i grafici se ci sono dati caricati per aggiornare la griglia ed i colori delle assi
-  if (currentSeriesData.length > 0) {
-    const anomalyTimestamps = lastDetectionResult ? lastDetectionResult.anomalies.map(a => a.timestamp) : [];
-    renderCharts(currentSeriesData, anomalyTimestamps);
-  }
-}
+  /**
+   * Switch tema Dark / Light
+   */
+  toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('vitaldb_theme', next);
+    this.updateThemeIcon(next);
+    store.setState({ theme: next });
 
-/**
- * Inizializza il tema salvato al caricamento della pagina
- */
-function initTheme() {
-  const savedTheme = localStorage.getItem('vitaldb_theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  
-  const btnText = document.getElementById('themeToggleText');
-  if (btnText) {
-    btnText.textContent = savedTheme === 'dark' ? '🌙 Notturna' : '☀️ Chiara';
-  }
-}
-
-/**
- * Controlla lo stato dell'API FastAPI
- */
-async function checkApiHealth() {
-  try {
-    const res = await fetch(`${API_BASE}/health`);
-    if (res.ok) {
-      document.getElementById('statusDot').classList.remove('offline');
-      document.getElementById('statusText').textContent = 'API Docker & MongoDB Connessi (Porta 8000)';
-    } else {
-      throw new Error();
+    // Ridisegna grafici se ci sono dati caricati
+    const { seriesData, anomalyResults, activeAlgoHighlight } = store.getState();
+    if (seriesData.length > 0) {
+      renderCharts(seriesData, anomalyResults, activeAlgoHighlight);
     }
-  } catch {
-    document.getElementById('statusDot').classList.add('offline');
-    document.getElementById('statusText').textContent = 'API Non Raggiungibile su localhost:8000';
-  }
-}
+  },
 
-/**
- * Carica l'elenco dei casi dal backend
- */
-async function loadCases() {
-  try {
-    const res = await fetch(`${API_BASE}/cases`);
-    if (!res.ok) throw new Error('Errore risposta HTTP');
-    casesCache = await res.json();
+  updateThemeIcon(theme) {
+    const btn = document.getElementById('btnThemeToggle');
+    if (btn) {
+      btn.innerHTML = theme === 'dark' ? getIcon('sun') : getIcon('moon');
+      btn.setAttribute('title', theme === 'dark' ? 'Passa a Modalità Chiara (Tasto D)' : 'Passa a Modalità Scura (Tasto D)');
+    }
+  },
+
+  /**
+   * Health check periodico del backend Docker e MongoDB
+   */
+  async checkHealth() {
+    const dot = document.getElementById('healthDot');
+    const label = document.getElementById('healthLabel');
     
-    populateDeptMenu(casesCache);
-    renderCaseMenu(casesCache);
-    renderCases(casesCache, currentCaseId);
-  } catch (err) {
-    document.getElementById('caseList').innerHTML = `
-      <div style="color: var(--danger); text-align: center; padding: 1.5rem; font-size: 0.85rem;">
-        ❌ Impossibile caricare i casi dal registro MongoDB.
-      </div>`;
-  }
-}
+    const res = await api.checkHealth();
+    if (res && res.status === 'ok') {
+      if (dot) dot.classList.remove('offline');
+      if (label) label.textContent = `MongoDB 8.0 • ${(res.total_points || 311173).toLocaleString()} p.ti`;
+    } else {
+      if (dot) dot.classList.add('offline');
+      if (label) label.textContent = 'API Offline su :8000';
+    }
+  },
 
-/**
- * Popola il menù a tendina di filtro per reparto chirurgico (Data Governance Metadata)
- */
-function populateDeptMenu(cases) {
-  const menu = document.getElementById('deptFilterMenu');
-  if (!menu) return;
-  const depts = Array.from(new Set(cases.map(c => c.department).filter(Boolean))).sort();
-  const currentVal = menu.value;
-  menu.innerHTML = '<option value="">Tutti i Reparti</option>' +
-    depts.map(d => `<option value="${d}">${d}</option>`).join('');
-  if (depts.includes(currentVal)) {
-    menu.value = currentVal;
-  }
-}
+  /**
+   * Carica la lista di casi clinici da MongoDB
+   */
+  async loadCases() {
+    try {
+      const cases = await api.getCases();
+      store.setState({ cases });
 
-/**
- * Gestisce la selezione dal menù a tendina
- */
-function onCaseMenuSelect(val) {
-  if (!val) return;
-  const caseId = parseInt(val, 10);
-  const target = casesCache.find(c => c.case_id === caseId);
-  selectCase(caseId, target ? target.record_count : 0);
-}
+      // Popola i filtri dei reparti
+      components.renderDeptPills(cases, store.getState().departmentFilter);
 
-/**
- * Filtra la lista dei casi sia per ID sia per Reparto Chirurgico
- */
-function filterCases() {
-  const query = document.getElementById('caseSearch').value.trim().toLowerCase();
-  const deptFilter = document.getElementById('deptFilterMenu') ? document.getElementById('deptFilterMenu').value : '';
+      // Renderizza la lista nella sidebar
+      components.renderCaseList(store.getFilteredCases(), store.getState().currentCaseId);
 
-  const filtered = casesCache.filter(c => {
-    const matchesQuery = query === '' || c.case_id.toString().includes(query);
-    const matchesDept = deptFilter === '' || (c.department && c.department === deptFilter);
-    return matchesQuery && matchesDept;
-  });
-
-  renderCases(filtered, currentCaseId);
-  renderCaseMenu(filtered);
-}
-
-/**
- * Seleziona un caso clinico
- */
-function selectCase(caseId, recordCount) {
-  currentCaseId = caseId;
-  lastDetectionResult = null;
-  currentFilteredAnomalies = [];
-  document.getElementById('caseSelectMenu').value = caseId;
-  renderCases(casesCache, currentCaseId);
-  
-  document.getElementById('emptyState').classList.add('hidden');
-  document.getElementById('caseDashboard').classList.remove('hidden');
-  
-  document.getElementById('dispCaseTitle').textContent = `Caso Clinico #${caseId}`;
-  document.getElementById('kpiRecordCount').textContent = recordCount ? recordCount.toLocaleString() : '—';
-  document.getElementById('kpiAnomalies').textContent = '0';
-  
-  document.getElementById('methodBreakdownContainer').classList.add('hidden');
-  document.getElementById('anomalySection').classList.add('hidden');
-  const tbody = document.getElementById('anomalyTableBody');
-  if (tbody) tbody.innerHTML = '';
-  document.getElementById('chart1AnomalyBadge').textContent = '';
-  document.getElementById('chart2AnomalyBadge').textContent = '';
-
-  loadSeriesData();
-}
-
-/**
- * Richiede la serie temporale al backend
- */
-async function loadSeriesData() {
-  if (!currentCaseId) return;
-  
-  const windowSeconds = document.getElementById('windowSelect').value;
-  let url = `${API_BASE}/cases/${currentCaseId}/series`;
-  if (windowSeconds) url += `?window_seconds=${windowSeconds}`;
-
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Errore nel recupero della serie');
-    currentSeriesData = await res.json();
-    
-    updateKPIs(currentSeriesData);
-    renderCharts(currentSeriesData, []);
-  } catch (err) {
-    alert(`Errore caricamento dati: ${err.message}`);
-  }
-}
-
-/**
- * Esegue l'Anomaly Detection
- */
-async function runDetection() {
-  if (!currentCaseId) return;
-  
-  const btn = document.getElementById('btnRunDetection');
-  btn.disabled = true;
-  btn.textContent = '⏳ Analisi in corso...';
-
-  try {
-    document.getElementById('windowSelect').value = "";
-    await loadSeriesData();  // ricarica currentSeriesData a granularità 1s
-    const res = await fetch(`${API_BASE}/cases/${currentCaseId}/detect`, { method: 'POST' });
-    if (!res.ok) throw new Error('Errore durante la detection');
-    lastDetectionResult = await res.json();
-
-    document.getElementById('kpiAnomalies').textContent = lastDetectionResult.anomaly_count.toLocaleString();
-
-    if (lastDetectionResult.summary_by_method) {
-      document.getElementById('cntShockIndex').textContent = (lastDetectionResult.summary_by_method.shock_index || 0).toLocaleString();
-      document.getElementById('cntSevereHyp').textContent = (lastDetectionResult.summary_by_method.severe_hypotension || 0).toLocaleString();
-      document.getElementById('cntIsoForest').textContent = (lastDetectionResult.summary_by_method.isolation_forest || 0).toLocaleString();
-      document.getElementById('cntAutoencoder').textContent = (lastDetectionResult.summary_by_method.autoencoder || 0).toLocaleString();
-      document.getElementById('methodBreakdownContainer').classList.remove('hidden');
-
-      // Calcola dinamicamente la somma dei metodi e aggiorna il testo della nota
-      const sumMethods = Object.values(lastDetectionResult.summary_by_method).reduce((a, b) => a + b, 0);
-      const noteBox = document.getElementById('overlapNoteText');
-      if (noteBox) {
-        noteBox.innerHTML = `Il contatore "Anomalie Totali Uniche" misura i secondi distinti in cui è stata riscontrata un'anomalia. La somma dei singoli algoritmi (<strong>${sumMethods.toLocaleString()}</strong>) è maggiore di <strong>${lastDetectionResult.anomaly_count.toLocaleString()}</strong> poiché uno stesso istante temporale può essere segnalato contemporaneamente sia dalle Regole Cliniche sia dai Modelli di Machine Learning.`;
+      // Seleziona il primo caso se disponibile
+      if (cases.length > 0 && !store.getState().currentCaseId) {
+        this.selectCase(cases[0].case_id);
+      }
+    } catch (err) {
+      const listContainer = document.getElementById('caseScrollList');
+      if (listContainer) {
+        listContainer.innerHTML = `
+          <div style="color:var(--alert-critical); padding:1rem; font-size:0.8rem; text-align:center;">
+            Errore di connessione a MongoDB.
+          </div>`;
       }
     }
+  },
 
-    const anomalyTimestamps = lastDetectionResult.anomalies.map(a => a.timestamp);
-    renderCharts(currentSeriesData, anomalyTimestamps);
+  /**
+   * Seleziona un caso clinico e ne carica la serie temporale
+   */
+  async selectCase(caseId) {
+    const { cases, downsampleWindow } = store.getState();
+    const caseObj = cases.find(c => c.case_id === caseId) || { case_id: caseId, department: 'Chirurgia' };
 
-    document.getElementById('chart1AnomalyBadge').textContent = `🔴 ${lastDetectionResult.anomaly_count} Punti Anomali Evidenziati`;
-    document.getElementById('chart2AnomalyBadge').textContent = `🔴 ${lastDetectionResult.anomaly_count} Punti Anomali Evidenziati`;
+    store.setState({
+      currentCaseId: caseId,
+      currentCase: caseObj,
+      anomalyResults: null,
+      activeAlgoHighlight: null
+    });
 
-    renderAnomalyTable(lastDetectionResult.anomalies, 'all');
+    // Aggiorna classe attiva nella lista
+    components.renderCaseList(store.getFilteredCases(), caseId);
 
-  } catch (err) {
-    alert(`Errore esecuzione Anomaly Detection: ${err.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🔍 Rileva Anomalie';
+    // Mostra canvas e nasconde empty state
+    const emptyState = document.getElementById('emptyStatePlaceholder');
+    const workbenchCanvas = document.getElementById('workbenchCanvas');
+    if (emptyState) emptyState.classList.add('hidden');
+    if (workbenchCanvas) workbenchCanvas.classList.remove('hidden');
+
+    await this.loadSeries(caseId, downsampleWindow);
+  },
+
+  /**
+   * Carica la serie temporale per il caso specificato
+   */
+  async loadSeries(caseId, windowSeconds) {
+    try {
+      const seriesData = await api.getSeries(caseId, windowSeconds);
+      store.setState({ seriesData });
+
+      const caseObj = store.getState().currentCase;
+      components.renderPatientHUD(caseObj, seriesData.length);
+      components.renderBentoVitals(seriesData, null);
+      components.renderConsensusBar(null, null);
+
+      // Reset della tabella anomalie
+      const tableWrapper = document.getElementById('anomalyTableWrapper');
+      if (tableWrapper) tableWrapper.classList.add('hidden');
+
+      // Renderizza grafici
+      renderCharts(seriesData, null, null);
+    } catch (err) {
+      alert(`Errore nel caricamento della serie temporale per il caso #${caseId}`);
+    }
+  },
+
+  /**
+   * Esegue l'Anomaly Detection sul caso attivo
+   */
+  async runDetection() {
+    const { currentCaseId, seriesData } = store.getState();
+    if (!currentCaseId) return;
+
+    const btn = document.getElementById('btnRunDetection');
+    if (btn) {
+      btn.innerHTML = `${getIcon('refresh', 'animate-spin')} Rilevamento in corso...`;
+      btn.disabled = true;
+    }
+
+    try {
+      const anomalyResults = await api.runDetect(currentCaseId);
+      store.setState({ anomalyResults, activeAlgoHighlight: null });
+
+      components.renderBentoVitals(seriesData, anomalyResults);
+      components.renderConsensusBar(anomalyResults, null);
+      components.renderAnomalyTable(anomalyResults.anomalies, 'all', store.getState().anomalyLimit);
+
+      // Aggiorna grafici con gli overlay delle anomalie
+      renderCharts(seriesData, anomalyResults, null);
+    } catch (err) {
+      alert(`Errore durante l'elaborazione dell'Anomaly Detection: ${err.message}`);
+    } finally {
+      if (btn) {
+        btn.innerHTML = `${getIcon('shieldAlert')} Rileva Anomalie`;
+        btn.disabled = false;
+      }
+    }
+  },
+
+  /**
+   * Cambia la risoluzione temporale (Downsampling)
+   */
+  onWindowChange(val) {
+    store.setState({ downsampleWindow: val });
+    const { currentCaseId } = store.getState();
+    if (currentCaseId) {
+      this.loadSeries(currentCaseId, val);
+    }
+  },
+
+  /**
+   * Filtra per reparto chirurgico
+   */
+  setDeptFilter(dept) {
+    store.setState({ departmentFilter: dept });
+    const filtered = store.getFilteredCases();
+    components.renderDeptPills(store.getState().cases, dept);
+    components.renderCaseList(filtered, store.getState().currentCaseId);
+  },
+
+  /**
+   * Cerca per ID caso o nome reparto
+   */
+  onSearchInput(val) {
+    store.setState({ searchQuery: val });
+    const filtered = store.getFilteredCases();
+    components.renderCaseList(filtered, store.getState().currentCaseId);
+  },
+
+  /**
+   * Cambia la tab principale (Serie Temporali vs Lakehouse & Governance)
+   */
+  switchTab(tabKey) {
+    store.setState({ activeTab: tabKey });
+
+    const btnSeries = document.getElementById('tabSeriesBtn');
+    const btnLake = document.getElementById('tabLakehouseBtn');
+    const viewSeries = document.getElementById('viewSeries');
+    const viewLake = document.getElementById('viewLakehouse');
+
+    if (tabKey === 'series') {
+      btnSeries.classList.add('active');
+      btnLake.classList.remove('active');
+      viewSeries.classList.remove('hidden');
+      viewLake.classList.add('hidden');
+    } else {
+      btnLake.classList.add('active');
+      btnSeries.classList.remove('active');
+      viewLake.classList.remove('hidden');
+      viewSeries.classList.add('hidden');
+      
+      // Inizializza o aggiorna le viste Lakehouse
+      lakehouseView.init();
+    }
+  },
+
+  /**
+   * Evidenzia le anomalie di un singolo algoritmo sui grafici
+   */
+  toggleAlgoHighlight(methodKey) {
+    const { activeAlgoHighlight, seriesData, anomalyResults } = store.getState();
+    const nextHighlight = activeAlgoHighlight === methodKey ? null : methodKey;
+    
+    store.setState({ activeAlgoHighlight: nextHighlight });
+    components.renderConsensusBar(anomalyResults, nextHighlight);
+    renderCharts(seriesData, anomalyResults, nextHighlight);
+  },
+
+  /**
+   * Filtra la tabella delle anomalie per severità o metodo
+   */
+  onTableFilterChange(filterVal) {
+    store.setState({ anomalyMethodFilter: filterVal });
+    const { anomalyResults, anomalyLimit } = store.getState();
+    if (anomalyResults) {
+      components.renderAnomalyTable(anomalyResults.anomalies, filterVal, anomalyLimit);
+    }
+  },
+
+  /**
+   * Cambia il limite delle righe visibili in tabella
+   */
+  onTableLimitChange(limitVal) {
+    store.setState({ anomalyLimit: limitVal });
+    const { anomalyResults, anomalyMethodFilter } = store.getState();
+    if (anomalyResults) {
+      components.renderAnomalyTable(anomalyResults.anomalies, anomalyMethodFilter, limitVal);
+    }
+  },
+
+  /**
+   * Esporta gli eventi anomali filtrati in CSV
+   */
+  exportCSV() {
+    const { currentCaseId, anomalyResults, anomalyMethodFilter } = store.getState();
+    if (!anomalyResults || !anomalyResults.anomalies) return;
+
+    let items = anomalyResults.anomalies;
+    if (anomalyMethodFilter === 'high_severity') {
+      items = items.filter(a => a.methods.length >= 3);
+    } else if (anomalyMethodFilter !== 'all') {
+      items = items.filter(a => a.methods.includes(anomalyMethodFilter));
+    }
+
+    components.exportAnomaliesCSV(currentCaseId, items);
+  },
+
+  /**
+   * Ispezione timestamp anomalo da riga tabella
+   */
+  inspectAnomalyTimestamp(ts) {
+    // Evidenzia riga e sposta il mirino
+    console.log(`Focus su timestamp anomalo: ${ts}`);
+  },
+
+  /**
+   * Apre spiegazione clinica in modale
+   */
+  openExplanation(methodKey) {
+    components.openModalExplanation(methodKey);
+  },
+
+  /**
+   * Chiude la modale attiva
+   */
+  closeModal() {
+    const modal = document.getElementById('explanationModal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  /**
+   * Configura scorciatoie da tastiera
+   */
+  setupKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      // Tasto / per cercare
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        const searchInput = document.getElementById('caseSearchInput');
+        if (searchInput) searchInput.focus();
+      }
+      // Tasto Esc per chiudere modali
+      if (e.key === 'Escape') {
+        this.closeModal();
+      }
+      // Tasto D per commutare tema
+      if ((e.key === 'd' || e.key === 'D') && document.activeElement.tagName !== 'INPUT') {
+        this.toggleTheme();
+      }
+      // Tasti 1 e 2 per navigazione tabs
+      if (e.key === '1' && document.activeElement.tagName !== 'INPUT') {
+        this.switchTab('series');
+      }
+      if (e.key === '2' && document.activeElement.tagName !== 'INPUT') {
+        this.switchTab('lakehouse');
+      }
+      // Tasto R per eseguire rilevamento
+      if ((e.key === 'r' || e.key === 'R') && document.activeElement.tagName !== 'INPUT') {
+        this.runDetection();
+      }
+    });
+  },
+
+  setupEventListeners() {
+    // Chiudi modale cliccando sul backdrop
+    const modal = document.getElementById('explanationModal');
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) this.closeModal();
+      });
+    }
+  },
+
+  onStateChange(state) {
+    // Hook per eventuali reazioni globali
   }
-}
+};
 
-/**
- * Filtra la tabella delle anomalie in base alla selezione del metodo e del limite di righe
- */
-function applyAnomalyFilter() {
-  if (!lastDetectionResult || !lastDetectionResult.anomalies) return;
-  const filterValue = document.getElementById('tableFilterSelect').value;
-  const limitValue = document.getElementById('tableLimitSelect').value;
-  renderAnomalyTable(lastDetectionResult.anomalies, filterValue, limitValue);
-}
+window.app = app;
 
-/**
- * Carica dinamicamente il Quality Report dall'endpoint /quality e popola la tabella nel tab Benchmark.
- * Mostra anche la configurazione del run (MAX_CASES) per tracciabilità.
- */
-async function loadQualityReport() {
-  const tbody = document.getElementById('qualityTableBody');
-  const subtitle = document.getElementById('qualityReportSubtitle');
-  if (!tbody) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/quality`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    if (subtitle && data.generated_at) {
-      const dateStr = new Date(data.generated_at).toLocaleString();
-      const maxCases = data.max_cases_configured != null ? data.max_cases_configured : '—';
-      const foundInBronze = data.cases_found_in_bronze != null ? data.cases_found_in_bronze : data.total_cases_processed;
-      subtitle.innerHTML = `
-        Report generato il <strong>${dateStr}</strong> —
-        MAX_CASES configurato: <strong style="color:var(--accent);">${maxCases}</strong> |
-        File trovati in Bronze: <strong style="color:var(--accent);">${foundInBronze}</strong> |
-        Processati con successo: <strong style="color:var(--success);">${data.total_cases_processed}</strong>.
-      `;
-    }
-
-    if (!data.cases_detail || data.cases_detail.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nessun dato di qualità registrato.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = data.cases_detail.map(c => {
-      const pctDrop = c.rows_original > 0 ? ((c.rows_dropped / c.rows_original) * 100).toFixed(1) : '0.0';
-      const totalOutliers = c.outliers_count ? Object.values(c.outliers_count).reduce((a, b) => a + b, 0) : 0;
-      const outlierBadge = totalOutliers === 0
-        ? '<span style="color:var(--success); font-weight:600;">0 (Tracciati Validi)</span>'
-        : `<span style="color:var(--danger); font-weight:600;">${totalOutliers}</span>`;
-
-      return `
-        <tr>
-          <td><strong>Caso #${c.case_id}</strong></td>
-          <td>${c.department || 'Non specificato'}</td>
-          <td>${c.rows_original.toLocaleString()}</td>
-          <td><strong style="color:var(--accent);">${c.rows_cleaned.toLocaleString()}</strong></td>
-          <td>${c.rows_dropped.toLocaleString()}</td>
-          <td><strong style="color:var(--warning);">${pctDrop}%</strong></td>
-          <td>${outlierBadge}</td>
-        </tr>
-      `;
-    }).join('');
-
-  } catch (err) {
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Quality report non ancora generato sul backend.</td></tr>`;
-    }
+// Avvio al caricamento del DOM
+document.addEventListener('DOMContentLoaded', async () => {
+  // Carica i template parziali in modo asincrono prima di avviare l'app
+  if (typeof loadPartials === 'function') {
+    await loadPartials();
   }
-}
-
-/**
- * Navigazione tra i Tab della Dashboard
- */
-function switchTab(tabName) {
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`tab-${tabName}`).classList.add('active');
-
-  if (tabName === 'series') {
-    document.getElementById('viewSeries').classList.remove('hidden');
-    document.getElementById('viewBenchmark').classList.add('hidden');
-  } else if (tabName === 'benchmark') {
-    document.getElementById('viewSeries').classList.add('hidden');
-    document.getElementById('viewBenchmark').classList.remove('hidden');
-    loadQualityReport();
-    loadBenchmarkReport();
-  }
-}
-
-/**
- * Carica dinamicamente il Benchmark prestazionale e di storage dall'endpoint /benchmark.
- */
-async function loadBenchmarkReport() {
-  const tbody = document.getElementById('benchmarkTableBody');
-  const subtitle = document.getElementById('benchmarkSubtitle');
-  if (!tbody) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/benchmark`);
-    if (!res.ok) return;
-    const data = await res.json();
-
-    if (subtitle && data.generated_at) {
-      const dateStr = new Date(data.generated_at).toLocaleString();
-      subtitle.innerHTML = `
-        Benchmark calcolato il <strong>${dateStr}</strong> su <strong>${data.cases_count} casi</strong> (Layer Bronze → Silver → Gold).
-      `;
-    }
-
-    if (data.storage && data.query_latency) {
-      const s = data.storage;
-      const q = data.query_latency;
-      tbody.innerHTML = `
-        <tr>
-          <td><strong>Layer BRONZE (Grezzo Parquet)</strong></td>
-          <td>${s.bronze_mb} MB</td>
-          <td>0 % (Riferimento)</td>
-          <td>${q.parquet_scan_ms} ms (Scansione File)</td>
-        </tr>
-        <tr>
-          <td><strong>Layer SILVER (Bonificato Parquet)</strong></td>
-          <td>${s.silver_mb} MB</td>
-          <td><strong style="color:var(--warning);">${s.reduction_silver_pct > 0 ? '-' : ''}${s.reduction_silver_pct} %</strong></td>
-          <td>~${(q.parquet_scan_ms * 0.6).toFixed(1)} ms</td>
-        </tr>
-        <tr>
-          <td><strong>Layer GOLD (MongoDB Time Series)</strong></td>
-          <td><strong style="color: var(--success);">${s.gold_mb} MB</strong></td>
-          <td><strong style="color: var(--success);">${s.reduction_gold_pct > 0 ? '-' : ''}${s.reduction_gold_pct} %</strong></td>
-          <td><strong style="color: var(--success);">${q.mongo_indexed_ms} ms (${q.speedup_factor}x più veloce)</strong></td>
-        </tr>
-      `;
-    }
-  } catch (err) {
-    // Mantieni valori esistenti
-  }
-}
-
-// Inizializzazione dell'applicazione al caricamento del DOM
-document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  checkApiHealth();
-  loadCases();
-  loadQualityReport();
-  loadBenchmarkReport();
+  app.init();
 });

@@ -1,0 +1,36 @@
+<!-- HEADER — Mission Control Top Bar -->
+<header class="app-header">
+  <div class="brand-section">
+    <div class="brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      </svg>
+    </div>
+    <div class="brand-titles">
+      <div class="brand-main">
+        <span>VitalDB</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Central View Navigation Tabs -->
+  <nav class="header-center-nav" aria-label="Main Navigation">
+    <button class="nav-tab-btn active" id="tabSeriesBtn" onclick="app.switchTab('series')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <span>Telemetria & Rilevamento</span>
+    </button>
+    <button class="nav-tab-btn" id="tabLakehouseBtn" onclick="app.switchTab('lakehouse')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      <span>Benchmarks</span>
+    </button>
+  </nav>
+
+  <!-- Header Actions -->
+  <div class="header-actions">
+    <div class="system-health-badge" id="systemHealthBadge" title="Stato connessione cluster MongoDB TimeSeries">
+      <div class="health-pulse-dot" id="healthDot"></div>
+      <span id="healthLabel">Connessione in corso...</span>
+    </div>
+    <button class="icon-btn" id="btnThemeToggle" onclick="app.toggleTheme()" aria-label="Cambia tema"></button>
+  </div>
+</header>

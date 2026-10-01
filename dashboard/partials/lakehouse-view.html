@@ -1,0 +1,167 @@
+<!-- LAKEHOUSE VIEW — Governance & Benchmarks Tab -->
+<div class="lakehouse-dashboard-grid">
+  
+  <!-- Visual Medallion Architecture Flow -->
+  <div class="pipeline-flow-container">
+    <div class="pipeline-flow-header">
+      <h3>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span>Architettura Medallion &amp; Governance Lakehouse (VitalDB Data Pipeline)</span>
+      </h3>
+      <p>Implementazione ingegneristica con transazioni atomiche multi-documento e partizionamento dimensionale.</p>
+    </div>
+    <div class="pipeline-nodes-track" id="pipelineNodesTrack"></div>
+  </div>
+
+  <!-- Quantitative Benchmarks -->
+  <div class="benchmarks-comparison-grid">
+    
+    <!-- Storage Compression -->
+    <div class="benchmark-card">
+      <div class="benchmark-card-header">
+        <h4>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+          <span>Ottimizzazione Storage su Disco</span>
+        </h4>
+        <p>Compressione nativa MongoDB Time Series vs Formato Parquet Grezzo</p>
+      </div>
+      <div class="metric-bar-group">
+        <div class="metric-bar-row">
+          <div class="metric-bar-label-line">
+            <span class="metric-bar-name">Layer BRONZE (Grezzo)</span>
+            <span class="metric-bar-val" id="benchBronzeMB">3.88 MB</span>
+          </div>
+          <div class="metric-progress-track">
+            <div class="metric-progress-fill" id="fillBronzeStorage" style="background: var(--telemetry-amber); width: 100%;"></div>
+          </div>
+        </div>
+        <div class="metric-bar-row">
+          <div class="metric-bar-label-line">
+            <span class="metric-bar-name">Layer SILVER (Bonificato)</span>
+            <span class="metric-bar-val" id="benchSilverMB">2.24 MB (-42.3%)</span>
+          </div>
+          <div class="metric-progress-track">
+            <div class="metric-progress-fill" id="fillSilverStorage" style="background: var(--text-tertiary); width: 57.7%;"></div>
+          </div>
+        </div>
+        <div class="metric-bar-row">
+          <div class="metric-bar-label-line">
+            <span class="metric-bar-name" style="color:var(--telemetry-emerald); font-weight:700;">Layer GOLD (MongoDB Time Series)</span>
+            <span class="metric-bar-val" style="color:var(--telemetry-emerald);" id="benchGoldMB">0.42 MB (<span id="benchGoldReduction">-89.1%</span>)</span>
+          </div>
+          <div class="metric-progress-track">
+            <div class="metric-progress-fill" id="fillGoldStorage" style="background: var(--telemetry-emerald); width: 10.9%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Query Latency -->
+    <div class="benchmark-card">
+      <div class="benchmark-card-header">
+        <h4>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Latenza di Scansione Query (Pushdown)</span>
+        </h4>
+        <p>Confronto empirico Like-for-Like su singolo caso clinico (Mediana 15 iterazioni)</p>
+      </div>
+      <div class="metric-bar-group">
+        <div class="metric-bar-row">
+          <div class="metric-bar-label-line">
+            <span class="metric-bar-name">Scansione Parquet Partizionato</span>
+            <span class="metric-bar-val" id="benchParquetLatency">13.48 ms</span>
+          </div>
+          <div class="metric-progress-track">
+            <div class="metric-progress-fill" id="fillParquetLatency" style="background: var(--text-tertiary); width: 100%;"></div>
+          </div>
+        </div>
+        <div class="metric-bar-row">
+          <div class="metric-bar-label-line">
+            <span class="metric-bar-name" style="color:var(--telemetry-cyan); font-weight:700;">MongoDB Pushdown con Indici</span>
+            <span class="metric-bar-val" style="color:var(--telemetry-cyan);" id="benchMongoLatency">3.63 ms (<span id="benchSpeedupFactor">3.7x</span> più veloce)</span>
+          </div>
+          <div class="metric-progress-track">
+            <div class="metric-progress-fill" id="fillMongoLatency" style="background: var(--telemetry-cyan); width: 27%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML Evaluation Table -->
+  <div class="table-section-card">
+    <div class="table-toolbar-header">
+      <div class="table-title-block">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+          <span>Valutazione Quantitativa Modelli ML (311.173 Record Temporali)</span>
+        </h3>
+        <p>Confronto con le Regole Cliniche (15.240 instabilità reali, Baseline positiva 4.90%)</p>
+      </div>
+    </div>
+    <div class="table-container-scroll">
+      <table class="telemetry-table">
+        <thead>
+          <tr>
+            <th>Modello di Rilevamento</th>
+            <th>Accuratezza Globale</th>
+            <th>Precision (Classe Anomalia)</th>
+            <th>Recall (Sensibilità Clinica)</th>
+            <th>F1-Score Armonico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="cell-primary"><strong>Isolation Forest (Scikit-Learn)</strong></td>
+            <td class="num-mono" id="mlIsoAcc" style="color:var(--telemetry-cyan); font-weight:700;">92.1 %</td>
+            <td class="num-mono" id="mlIsoPrec">0.140</td>
+            <td class="num-mono" id="mlIsoRec">0.143</td>
+            <td class="num-mono cell-primary" id="mlIsoF1">0.141</td>
+          </tr>
+          <tr>
+            <td class="cell-primary"><strong>LSTM Autoencoder (PyTorch)</strong></td>
+            <td class="num-mono" id="mlAeAcc" style="font-weight:700;">91.4 %</td>
+            <td class="num-mono" id="mlAePrec">0.083</td>
+            <td class="num-mono" id="mlAeRec">0.085</td>
+            <td class="num-mono cell-primary" id="mlAeF1">0.084</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Data Quality Table -->
+  <div class="table-section-card">
+    <div class="table-toolbar-header">
+      <div class="table-title-block">
+        <h3>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span>Data Quality &amp; Governance Report (Sincronizzato da /quality)</span>
+        </h3>
+        <p>Monitoraggio delle bonifiche, interpolazioni e scarti per singolo caso clinico</p>
+      </div>
+    </div>
+    <div class="table-container-scroll">
+      <table class="telemetry-table">
+        <thead>
+          <tr>
+            <th>Caso Clinico</th>
+            <th>Reparto Chirurgico</th>
+            <th>Campioni Grezzi (Bronze)</th>
+            <th>Campioni Bonificati (Silver)</th>
+            <th>Righe Eliminate (Rumore)</th>
+            <th>Outlier Fisiologici Rilevati</th>
+          </tr>
+        </thead>
+        <tbody id="qualityTableBody">
+          <tr>
+            <td colspan="6" style="text-align: center; color: var(--text-tertiary); padding: 1.25rem;">
+              Caricamento metriche di qualità dal layer Silver...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>

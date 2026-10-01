@@ -1,282 +1,377 @@
 /**
- * Modulo di rendering dei componenti dell'interfaccia utente (UI Components)
+ * VITALDB CLINICAL TELEMETRY - UI PRESENTATION COMPONENTS
+ * Clean architecture renderers for Cases, HUD Vitals, Consensus Bar, Tables and Modals
  */
 
-let currentFilteredAnomalies = [];
+const components = {
+  /**
+   * Renderizza la lista dei casi nella sidebar rail
+   */
+  renderCaseList(cases, currentCaseId) {
+    const container = document.getElementById('caseScrollList');
+    if (!container) return;
 
-/**
- * Renderizza la lista dei casi nella sidebar con il reparto chirurgico
- */
-function renderCases(cases, currentCaseId) {
-  const container = document.getElementById('caseList');
-  if (cases.length === 0) {
-    container.innerHTML = '<div style="text-align:center; color:var(--text-dim); padding:1rem;">Nessun caso trovato.</div>';
-    return;
-  }
-
-  container.innerHTML = cases.map(c => `
-    <div class="case-card ${c.case_id === currentCaseId ? 'active' : ''}" onclick="selectCase(${c.case_id}, ${c.record_count})">
-      <div>
-        <div class="case-card-title">Caso Clinico #${c.case_id}</div>
-        <div class="case-card-sub">${c.department || 'Chirurgia Generale'} · ${(c.record_count || 0).toLocaleString()} p.ti</div>
-      </div>
-      <div class="case-badge">Gold</div>
-    </div>
-  `).join('');
-}
-
-/**
- * Popola il menù a tendina dropdown
- */
-function renderCaseMenu(cases) {
-  const menu = document.getElementById('caseSelectMenu');
-  menu.innerHTML = '<option value="">-- Scegli Caso dal Menù --</option>' +
-    cases.map(c => `<option value="${c.case_id}">Caso #${c.case_id} (${c.department || 'Chirurgia'}) — ${(c.record_count || 0).toLocaleString()} p.ti</option>`).join('');
-}
-
-/**
- * Aggiorna i valori nei cartelli KPI ed i metadati del paziente
- */
-function updateKPIs(data) {
-  if (!data || data.length === 0) return;
-
-  const validHR = data.map(d => d.Solar8000_HR).filter(v => v !== null && v !== undefined);
-  const validSpO2 = data.map(d => d.Solar8000_PLETH_SPO2).filter(v => v !== null && v !== undefined);
-
-  const avgHR = validHR.length ? (validHR.reduce((a, b) => a + b, 0) / validHR.length).toFixed(1) : '—';
-  const avgSpO2 = validSpO2.length ? (validSpO2.reduce((a, b) => a + b, 0) / validSpO2.length).toFixed(1) : '—';
-
-  document.getElementById('kpiAvgHR').textContent = `${avgHR} bpm`;
-  document.getElementById('kpiAvgSpO2').textContent = `${avgSpO2} %`;
-}
-
-/**
- * Renderizza la tabella delle anomalie con supporto ai filtri ed al numero personalizzabile di righe visibili
- */
-function renderAnomalyTable(anomalies, filterMethod = 'all', limitSize = 'all') {
-  const section = document.getElementById('anomalySection');
-  const tbody = document.getElementById('anomalyTableBody');
-
-  if (!anomalies || anomalies.length === 0) {
-    section.classList.add('hidden');
-    return;
-  }
-
-  let filtered = anomalies;
-  if (filterMethod === 'high_severity') {
-    filtered = anomalies.filter(a => a.methods.length >= 3);
-  } else if (filterMethod !== 'all') {
-    filtered = anomalies.filter(a => a.methods.includes(filterMethod));
-  }
-
-  currentFilteredAnomalies = filtered;
-
-  let displayRows = filtered;
-  if (limitSize !== 'all') {
-    const maxRows = parseInt(limitSize, 10);
-    displayRows = filtered.slice(0, maxRows);
-  }
-
-  document.getElementById('anomalyTableSubtitle').textContent = 
-    `Mostrando ${displayRows.length} eventi anomali su ${filtered.length} filtrati (${anomalies.length} totali nel caso) — Clicca su una riga per la spiegazione medica`;
-
-  tbody.innerHTML = displayRows.map((item, idx) => {
-    const methodCount = item.methods.length;
-    let severityBadge = '';
-    if (methodCount >= 3) {
-      severityBadge = '<span class="badge-severity sev-high">Alta Confidenza (3+ Metodi)</span>';
-    } else if (methodCount === 2) {
-      severityBadge = '<span class="badge-severity sev-med">Media Confidenza (2 Metodi)</span>';
-    } else {
-      severityBadge = '<span class="badge-severity sev-low">Moderata (1 Metodo)</span>';
+    if (!cases || cases.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; color: var(--text-tertiary); padding: 2rem 1rem; font-size: 0.8rem;">
+          Nessun caso trovato per i filtri selezionati.
+        </div>`;
+      return;
     }
 
-    const tags = item.methods.map(m => {
-      if (m === 'shock_index') return '<span class="tag-method tag-shock">Shock Index</span>';
-      if (m === 'severe_hypotension') return '<span class="tag-method tag-hyp">Ipotensione Severa</span>';
-      if (m === 'isolation_forest') return '<span class="tag-method tag-iso">Isolation Forest</span>';
-      if (m === 'autoencoder') return '<span class="tag-method tag-ae">Autoencoder</span>';
-      return `<span class="tag-method">${m}</span>`;
+    container.innerHTML = cases.map(c => {
+      const isActive = c.case_id === currentCaseId;
+      const dept = c.department || 'Chirurgia Generale';
+      const pts = (c.record_count || 0).toLocaleString();
+
+      return `
+        <div class="case-item-card ${isActive ? 'active' : ''}" onclick="app.selectCase(${c.case_id})">
+          <div class="case-item-info">
+            <div class="case-item-title">
+              <span>Caso Clinico #${c.case_id}</span>
+            </div>
+            <div class="case-item-meta">
+              <span>${dept}</span>
+              <span>•</span>
+              <span class="num-mono">${pts} p.ti</span>
+            </div>
+          </div>
+        </div>
+      `;
     }).join('');
+  },
 
-    const hrStr = item.hr !== null ? `${item.hr} bpm` : '—';
-    const spo2Str = item.spo2 !== null ? `${item.spo2} %` : '—';
+  /**
+   * Renderizza i pulsanti a pillola per i reparti chirurgici (Data Governance)
+   */
+  renderDeptPills(cases, currentDept) {
+    const track = document.getElementById('deptPillTrack');
+    if (!track) return;
+
+    const depts = Array.from(new Set(cases.map(c => c.department).filter(Boolean))).sort();
     
-    let nibpStr = '—';
-    if (item.sbp !== null && item.dbp !== null && item.mbp !== null) {
-      nibpStr = `${item.sbp}/${item.dbp} (${item.mbp})`;
-    }
-
-    const siClass = (item.shock_index !== null && item.shock_index > 0.9) ? 'val-critical' : '';
-    const siStr = item.shock_index !== null ? `<span class="${siClass}">${item.shock_index}</span>` : '—';
-
-    return `
-      <tr onclick="openRowExplanationModal(${idx})">
-        <td style="color: var(--text-dim);">${idx + 1}</td>
-        <td>${item.timestamp}</td>
-        <td>${severityBadge}</td>
-        <td>${hrStr}</td>
-        <td>${spo2Str}</td>
-        <td>${nibpStr}</td>
-        <td>${siStr}</td>
-        <td>${tags}</td>
-      </tr>
+    let html = `
+      <button class="dept-pill ${!currentDept ? 'active' : ''}" onclick="app.setDeptFilter('')">
+        Tutti i Reparti (${cases.length})
+      </button>
     `;
-  }).join('');
 
-  section.classList.remove('hidden');
-}
-
-/**
- * Apre la modale di spiegazione medica per uno specifico metodo di Anomaly Detection
- */
-function openMethodExplanationModal(methodKey) {
-  const modal = document.getElementById('explanationModal');
-  const title = document.getElementById('modalTitle');
-  const body = document.getElementById('modalBody');
-
-  const explanations = {
-    shock_index: {
-      title: "Spiegazione Clinica: Shock Index (SI)",
-      formula: "Shock Index (SI) = Frequenza Cardiaca (HR) / Pressione Sistolica (SBP) > 0.9",
-      desc: "Lo Shock Index è un indicatore clinico essenziale nella medicina d'urgenza e nella cardioanestesia. Misura il rapporto tra la frequenza cardiaca ed la pressione sistolica.",
-      meaning: "Un valore superiore a 0.9 indica un compenso emodinamico insufficiente ed un rischio imminente di shock ipovolemico o cardiogeno, prima che la sola pressione scenda sotto i limiti clinici normali.",
-      action: "Monitoraggio invasivo della portata cardiaca, controllo dell'assestamento dei volumi ematici (fluidoterapia), somministrazione di inotropi/vasopressori."
-    },
-    severe_hypotension: {
-      title: "Spiegazione Clinica: Ipotensione Severa",
-      formula: "Pressione Media (MBP) < 65 mmHg  E  Saturazione (SpO2) < 90%",
-      desc: "Questa regola combinata identifica la sofferenza perfusiva e tissutale globale durante l'anestesia generale o gli interventi di chirurgia complessa.",
-      meaning: "La combinazione di ipotensione arteriosa media e desaturazione periferica compromette la perfusione d'organo (reni, cervello, miocardio), aumentando il rischio di insufficienza multiorgano intraoperatoria.",
-      action: "Regolazione immediata della frazione inspirata d'ossigeno (FiO2), riduzione dei dosaggi di anestetico volatile, somministrazione rapida di vasopressori (es. Efedrina o Noradrenalina)."
-    },
-    isolation_forest: {
-      title: "Spiegazione Algoritmica: Isolation Forest (Machine Learning)",
-      formula: "Score di Isolamento Spaziale nello Spazio Vettoriale 5D (HR, SpO2, SBP, DBP, MBP)",
-      desc: "L'Isolation Forest è un algoritmo di Machine Learning non supervisionato che isola le osservazioni costruendo in modo casuale alberi di decisione.",
-      meaning: "Rileva anomalie multivariate complesse (es. una combinazione di battito accelerato e pressione diastolica insolitamente bassa) che non supererebbero mai i limiti fisse univariati tradizionali ma rappresentano stati fisiologici rari e sospetti.",
-      action: "Valutazione complessiva del trend temporale e confronto con le tendenze storiche del paziente."
-    },
-    autoencoder: {
-      title: "Spiegazione Algoritmica: Autoencoder Neurale (Deep Learning)",
-      formula: "Reconstruction Error MSE = Mean((X_input - X_reconstructed)^2) > 95° Percentile",
-      desc: "L'Autoencoder Neurale (MLPRegressor) impara la rappresentazione compressa del segnale biometrico fisiologico normale del paziente durante la fase pre-operatoria.",
-      meaning: "Quando il segnale biometrico devia dal pattern fisiologico appreso, la rete neurale non riesce a ricostruire l'input in modo accurato, generando una 'coda lunga' nell'errore quadratico medio (MSE).",
-      action: "Analisi della forma d'onda del segnale sensoristico per escludere artefatti da movimento o verificare l'insorgenza di aritmie/instabilità."
+    for (const d of depts) {
+      const count = cases.filter(c => c.department === d).length;
+      html += `
+        <button class="dept-pill ${currentDept === d ? 'active' : ''}" onclick="app.setDeptFilter('${d}')">
+          ${d} (${count})
+        </button>
+      `;
     }
-  };
 
-  const exp = explanations[methodKey];
-  if (!exp) return;
+    track.innerHTML = html;
+  },
 
-  title.textContent = exp.title;
-  body.innerHTML = `
-    <div style="color: var(--text-muted); font-size: 0.85rem;">${exp.desc}</div>
-    
-    <div>
-      <strong style="font-size:0.75rem; text-transform:uppercase; color:var(--text-dim);">Formula / Logica Matematica:</strong>
-      <div class="formula-box">${exp.formula}</div>
-    </div>
+  /**
+   * Aggiorna l'HUD del paziente in cima alla dashboard
+   */
+  renderPatientHUD(caseObj, pointCount) {
+    const title = document.getElementById('hudPatientTitle');
+    const dept = document.getElementById('hudPatientDept');
+    const ageSex = document.getElementById('hudPatientAgeSex');
+    const points = document.getElementById('hudPatientPoints');
 
-    <div>
-      <strong style="font-size:0.75rem; text-transform:uppercase; color:var(--text-dim);">Significato Fisiopatologico:</strong>
-      <div style="margin-top:0.25rem;">${exp.meaning}</div>
-    </div>
+    if (title) title.textContent = `Paziente Intraoperatorio #${caseObj.case_id}`;
+    if (dept) dept.textContent = caseObj.department || 'Chirurgia Generale';
+    if (ageSex) {
+      const ageStr = caseObj.age ? `${caseObj.age} anni` : 'Età N/D';
+      const sexStr = caseObj.sex ? (caseObj.sex === 'M' ? 'Maschio' : 'Femmina') : 'Sesso N/D';
+      ageSex.textContent = `${ageStr} • ${sexStr}`;
+    }
+    if (points) points.textContent = `${(pointCount || 0).toLocaleString()} campioni Gold`;
+  },
 
-    <div class="clinical-action-box">
-      <strong>Azione Clinica Consigliata:</strong><br>
-      ${exp.action}
-    </div>
-  `;
+  /**
+   * Renderizza i 5 cartellini Bento Vitals con indicatori clinici
+   */
+  renderBentoVitals(seriesData, anomalyResult) {
+    if (!seriesData || seriesData.length === 0) return;
 
-  modal.classList.remove('hidden');
-}
+    const validHR = seriesData.map(d => d.Solar8000_HR).filter(v => v !== null && v !== undefined);
+    const validSpO2 = seriesData.map(d => d.Solar8000_PLETH_SPO2).filter(v => v !== null && v !== undefined);
+    const validSBP = seriesData.map(d => d.Solar8000_NIBP_SBP).filter(v => v !== null && v !== undefined);
+    const validDBP = seriesData.map(d => d.Solar8000_NIBP_DBP).filter(v => v !== null && v !== undefined);
+    const validMBP = seriesData.map(d => d.Solar8000_NIBP_MBP).filter(v => v !== null && v !== undefined);
 
-/**
- * Apre la modale di spiegazione al click su una riga della tabella anomalie
- */
-function openRowExplanationModal(idx) {
-  const item = currentFilteredAnomalies[idx];
-  if (!item) return;
+    const avgHR = validHR.length ? (validHR.reduce((a, b) => a + b, 0) / validHR.length).toFixed(0) : '—';
+    const minHR = validHR.length ? Math.min(...validHR).toFixed(0) : '—';
+    const maxHR = validHR.length ? Math.max(...validHR).toFixed(0) : '—';
 
-  const modal = document.getElementById('explanationModal');
-  const title = document.getElementById('modalTitle');
-  const body = document.getElementById('modalBody');
+    const avgSpO2 = validSpO2.length ? (validSpO2.reduce((a, b) => a + b, 0) / validSpO2.length).toFixed(1) : '—';
+    const minSpO2 = validSpO2.length ? Math.min(...validSpO2).toFixed(0) : '—';
 
-  title.textContent = `Analisi Evento Anomalo — Timestamp: ${item.timestamp}`;
+    const avgSBP = validSBP.length ? (validSBP.reduce((a, b) => a + b, 0) / validSBP.length).toFixed(0) : '—';
+    const avgDBP = validDBP.length ? (validDBP.reduce((a, b) => a + b, 0) / validDBP.length).toFixed(0) : '—';
+    const avgMBP = validMBP.length ? (validMBP.reduce((a, b) => a + b, 0) / validMBP.length).toFixed(0) : '—';
 
-  const tags = item.methods.map(m => {
-    if (m === 'shock_index') return '<span class="tag-method tag-shock">Shock Index</span>';
-    if (m === 'severe_hypotension') return '<span class="tag-method tag-hyp">Ipotensione Severa</span>';
-    if (m === 'isolation_forest') return '<span class="tag-method tag-iso">Isolation Forest</span>';
-    if (m === 'autoencoder') return '<span class="tag-method tag-ae">Autoencoder</span>';
-    return `<span class="tag-method">${m}</span>`;
-  }).join(' ');
+    // Calcolo Shock Index medio
+    let avgSI = '—';
+    let siStatusText = 'In attesa calcolo';
+    let siStatusClass = '';
+    if (avgHR !== '—' && avgSBP !== '—' && parseFloat(avgSBP) > 0) {
+      const siVal = parseFloat(avgHR) / parseFloat(avgSBP);
+      avgSI = siVal.toFixed(2);
+      if (siVal > 0.9) {
+        siStatusText = 'Allarme Shock (> 0.9)';
+        siStatusClass = 'style="color: var(--telemetry-shock);"';
+      } else if (siVal >= 0.7) {
+        siStatusText = 'Borderline (0.7 – 0.9)';
+        siStatusClass = 'style="color: var(--telemetry-amber);"';
+      } else {
+        siStatusText = 'Stabilità Emodinamica (< 0.7)';
+        siStatusClass = 'style="color: var(--telemetry-emerald);"';
+      }
+    }
 
-  body.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-main); padding:0.75rem; border-radius:8px; border:1px solid var(--border-color);">
-      <div><strong>Frequenza Cardiaca:</strong> ${item.hr !== null ? item.hr + ' bpm' : '—'}</div>
-      <div><strong>Saturazione SpO₂:</strong> ${item.spo2 !== null ? item.spo2 + ' %' : '—'}</div>
-      <div><strong>Pressione SBP/DBP:</strong> ${item.sbp !== null ? item.sbp + '/' + item.dbp + ' mmHg' : '—'}</div>
-    </div>
+    // Totale anomalie uniche
+    const uniqueAnomalies = anomalyResult ? anomalyResult.anomaly_count : 0;
+    const hasDetected = anomalyResult !== null;
 
-    <div>
-      <strong style="font-size:0.75rem; text-transform:uppercase; color:var(--text-dim);">Metodi di Rilevazione Attivati per Questo Secondo:</strong>
-      <div style="margin-top:0.4rem;">${tags}</div>
-    </div>
+    // Popolamento elementi DOM
+    const elHR = document.getElementById('vitalHR');
+    const elHRRange = document.getElementById('vitalHRRange');
+    const elSpO2 = document.getElementById('vitalSpO2');
+    const elSpO2Min = document.getElementById('vitalSpO2Min');
+    const elNIBP = document.getElementById('vitalNIBP');
+    const elMBP = document.getElementById('vitalMBP');
+    const elSI = document.getElementById('vitalShockIndex');
+    const elSIStatus = document.getElementById('vitalSIStatus');
+    const elAnom = document.getElementById('vitalAnomaliesCount');
+    const elAnomStatus = document.getElementById('vitalAnomaliesStatus');
 
-    <div>
-      <strong style="font-size:0.75rem; text-transform:uppercase; color:var(--text-dim);">Diagnosi Automatica:</strong>
-      <div style="margin-top:0.25rem;">
-        ${item.methods.includes('shock_index') ? '⚠️ <strong>Shock Index Elevato (> 0.9):</strong> Il rapporto tra frequenza cardiaca e pressione sistolica evidenzia uno sforzo emodinamico del miocardio.<br>' : ''}
-        ${item.methods.includes('severe_hypotension') ? '🚨 <strong>Ipotensione Severa & Desaturazione:</strong> Rischio di ipossia tissutale d\'organo.<br>' : ''}
-        ${item.methods.includes('isolation_forest') || item.methods.includes('autoencoder') ? '🔍 <strong>Anomalia Multivariata ML:</strong> Il profilo fisiologico in questo istante temporale si discosta significativamente dalla distribuzione di normalità del paziente.' : ''}
+    if (elHR) elHR.textContent = avgHR;
+    if (elHRRange) elHRRange.textContent = `Min ${minHR} • Max ${maxHR} bpm`;
+
+    if (elSpO2) elSpO2.textContent = avgSpO2;
+    if (elSpO2Min) elSpO2Min.textContent = `Nadir: ${minSpO2}% (Target > 95%)`;
+
+    if (elNIBP) elNIBP.textContent = `${avgSBP}/${avgDBP}`;
+    if (elMBP) elMBP.textContent = `MAP Media: ${avgMBP} mmHg`;
+
+    if (elSI) elSI.textContent = avgSI;
+    if (elSIStatus) {
+      elSIStatus.innerHTML = `<span ${siStatusClass}>${siStatusText}</span>`;
+    }
+
+    if (elAnom) elAnom.textContent = hasDetected ? uniqueAnomalies.toLocaleString() : '—';
+    if (elAnomStatus) {
+      if (hasDetected) {
+        elAnomStatus.textContent = `${uniqueAnomalies} istanti temporali critici`;
+      } else {
+        elAnomStatus.textContent = 'Premi "Rileva Anomalie"';
+      }
+    }
+  },
+
+  /**
+   * Renderizza la barra di consensus con i 4 algoritmi
+   */
+  renderConsensusBar(anomalyResult, activeHighlight) {
+    const summary = anomalyResult ? (anomalyResult.summary_by_method || {}) : {};
+
+    const cntSI = summary.shock_index || 0;
+    const cntHyp = summary.severe_hypotension || 0;
+    const cntIso = summary.isolation_forest || 0;
+    const cntAe = summary.autoencoder || 0;
+
+    const elSI = document.getElementById('countShockIndex');
+    const elHyp = document.getElementById('countSevereHyp');
+    const elIso = document.getElementById('countIsoForest');
+    const elAe = document.getElementById('countAutoencoder');
+
+    if (elSI) elSI.textContent = cntSI.toLocaleString();
+    if (elHyp) elHyp.textContent = cntHyp.toLocaleString();
+    if (elIso) elIso.textContent = cntIso.toLocaleString();
+    if (elAe) elAe.textContent = cntAe.toLocaleString();
+
+    // Gestione stato chip attivo
+    document.querySelectorAll('.algo-chip').forEach(chip => {
+      const method = chip.getAttribute('data-method');
+      if (activeHighlight && activeHighlight === method) {
+        chip.classList.add('active-highlight');
+      } else {
+        chip.classList.remove('active-highlight');
+      }
+    });
+  },
+
+  /**
+   * Renderizza la tabella ad alta densità per l'ispezione dei punti critici
+   */
+  renderAnomalyTable(anomalies, filterMethod = 'all', limitSize = 'all') {
+    const container = document.getElementById('anomalyTableWrapper');
+    const tbody = document.getElementById('anomalyTableBody');
+    const subtitle = document.getElementById('anomalyTableSubtitle');
+
+    if (!tbody || !anomalies) return;
+
+    if (anomalies.length === 0) {
+      if (container) container.classList.add('hidden');
+      return;
+    }
+
+    if (container) container.classList.remove('hidden');
+
+    let filtered = anomalies;
+    if (filterMethod === 'high_severity') {
+      filtered = anomalies.filter(a => a.methods.length >= 3);
+    } else if (filterMethod !== 'all') {
+      filtered = anomalies.filter(a => a.methods.includes(filterMethod));
+    }
+
+    let displayRows = filtered;
+    if (limitSize !== 'all') {
+      const maxRows = parseInt(limitSize, 10);
+      displayRows = filtered.slice(0, maxRows);
+    }
+
+    if (subtitle) {
+      subtitle.textContent = `Visualizzazione di ${displayRows.length} eventi su ${filtered.length} filtrati (${anomalies.length} totali nel caso)`;
+    }
+
+    tbody.innerHTML = displayRows.map((item, idx) => {
+      const methodCount = item.methods.length;
+      let severityBadge = '';
+      if (methodCount >= 3) {
+        severityBadge = '<span class="severity-pill sev-high">Critica (3+ Algoritmi)</span>';
+      } else if (methodCount === 2) {
+        severityBadge = '<span class="severity-pill sev-med">Moderata (2 Algoritmi)</span>';
+      } else {
+        severityBadge = '<span class="severity-pill sev-low">Advisory (1 Algoritmo)</span>';
+      }
+
+      const tags = item.methods.map(m => {
+        if (m === 'shock_index') return '<span class="m-tag m-tag-shock">Shock Index</span>';
+        if (m === 'severe_hypotension') return '<span class="m-tag m-tag-hyp">Ipotensione</span>';
+        if (m === 'isolation_forest') return '<span class="m-tag m-tag-iso">IsoForest</span>';
+        if (m === 'autoencoder') return '<span class="m-tag m-tag-ae">Autoencoder</span>';
+        return `<span class="m-tag">${m}</span>`;
+      }).join(' ');
+
+      const hrVal = item.hr !== null ? `<span class="num-mono cell-primary">${item.hr.toFixed(0)}</span>` : '—';
+      const spo2Val = item.spo2 !== null ? `<span class="num-mono" style="color:var(--telemetry-cyan); font-weight:600;">${item.spo2.toFixed(0)}%</span>` : '—';
+      const nibpVal = (item.sbp !== null && item.dbp !== null) 
+        ? `<span class="num-mono">${item.sbp.toFixed(0)} / ${item.dbp.toFixed(0)}</span>` 
+        : '—';
+      const siVal = item.shock_index !== null 
+        ? `<span class="num-mono" style="color:${item.shock_index > 0.9 ? 'var(--telemetry-shock)' : 'var(--text-primary)'}; font-weight:700;">${item.shock_index.toFixed(2)}</span>` 
+        : '—';
+
+      return `
+        <tr onclick="app.inspectAnomalyTimestamp('${item.timestamp}')">
+          <td class="num-mono" style="color:var(--text-tertiary);">${idx + 1}</td>
+          <td class="num-mono cell-primary">${item.timestamp}</td>
+          <td>${severityBadge}</td>
+          <td>${hrVal}</td>
+          <td>${spo2Val}</td>
+          <td>${nibpVal}</td>
+          <td>${siVal}</td>
+          <td><div class="method-tags-cell">${tags}</div></td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Spiegazione clinica e matematica dei 4 metodi di Anomaly Detection
+   */
+  openModalExplanation(methodKey) {
+    const modal = document.getElementById('explanationModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalBody');
+
+    if (!modal || !title || !body) return;
+
+    const data = {
+      shock_index: {
+        title: "Shock Index Clinico (SI)",
+        formula: "SI = Frequenza Cardiaca (HR) / Pressione Sistolica (SBP) > 0.9",
+        rationale: "Lo Shock Index è un consolidato indicatore prognostico in terapia intensiva e medicina d'urgenza. In condizioni fisiologiche a riposo, il valore normale oscilla tra 0.5 e 0.7. Un rapporto superiore a 0.9 identifica una discrepanza tra la richiesta metabolica e la capacità contrattile ventricolare, precedendo clinicamente il collasso emodinamico da shock emorragico, settico o cardiogeno prima che la sola ipotensione diventi manifesta.",
+        classification: "Regola Clinica Emodinamica Guidata (Rule-Based White-Box)"
+      },
+      severe_hypotension: {
+        title: "Ipotensione Severa & Desaturazione Arteriosa",
+        formula: "MBP < 65 mmHg  E  SpO₂ < 90%",
+        rationale: "La pressione arteriosa media (MBP) al di sotto dei 65 mmHg compromette drasticamente l'autoregolazione e la perfusione d'organo cerebrale e renale. Quando tale ipoperfusione si associa a desaturazione sistemica dell'ossigeno (SpO₂ < 90%), il paziente sperimenta uno stato di ipossia tissutale critica. La combinazione di queste due soglie delimita un evento sentinella che richiede tempestivo intervento rianimatorio.",
+        classification: "Regola Clinica Multi-Parametrica (Soglie Fisiologiche Validate)"
+      },
+      isolation_forest: {
+        title: "Isolation Forest (Machine Learning Non Supervisionato)",
+        formula: "Score(x) = 2^(- E(h(x)) / c(n))  [Isolamento Spaziale degli Outlier]",
+        rationale: "Algoritmo basato su ensemble di alberi di decisione aleatori (Random Trees). A differenza di altri metodi che calcolano la densità o la distanza dei punti, l'Isolation Forest 'isola' le osservazioni anomale partizionando ricorsivamente lo spazio delle feature (HR, SpO₂, SBP, DBP, MBP). Poiché i punti patologici o artefatti sono rari e dimensionalmente distanti dalla normale traiettoria intraoperatoria, richiedono un numero sensibilmente inferiore di split per essere isolati rispetto ai punti fisiologici ordinari.",
+        classification: "Algoritmo ML di Isolamento Spaziale (Scikit-Learn, Complessità O(n log n))"
+      },
+      autoencoder: {
+        title: "Autoencoder Neurale Profondo (Deep Learning)",
+        formula: "MSE = (1/N) * ∑ (X_t - X̂_t)² > 95° Percentile",
+        rationale: "Rete neurale artificiale addestrata a comprimere la sequenza temporale biometrica in uno spazio latente compatto a bassa dimensionalità (bottleneck) e a ricostruire l'input originario. Durante il monitoraggio stabile, l'errore quadratico medio di ricostruzione (MSE) è ridotto. Quando insorge un pattern disarmonico, aritmico o di repentino collasso emodinamico non previsto dalla varietà latente appresa, l'errore di ricostruzione subisce un'impennata che supera la soglia di allerta del 95° percentile.",
+        classification: "Modello Neurale di Ricostruzione d'Errore (MLP/LSTM, PyTorch/Scikit-Learn)"
+      }
+    };
+
+    const info = data[methodKey] || data.shock_index;
+
+    title.textContent = info.title;
+    body.innerHTML = `
+      <div class="formula-callout-card">
+        <span class="formula-label">Criterio Matematico di Soglia:</span>
+        <div class="formula-text num-mono">${info.formula}</div>
       </div>
-    </div>
-  `;
 
-  modal.classList.remove('hidden');
-}
+      <div>
+        <h4 class="modal-section-title">Inquadramento Metodologico</h4>
+        <p>${info.classification}</p>
+      </div>
 
-/**
- * Chiude la modale attiva
- */
-function closeModal() {
-  document.getElementById('explanationModal').classList.add('hidden');
-}
+      <div>
+        <h4 class="modal-section-title">Razionale Fisiopatologico & Clinico</h4>
+        <p>${info.rationale}</p>
+      </div>
+    `;
 
-/**
- * Esporta le anomalie correnti in un file CSV scaricabile
- */
-function exportAnomaliesCSV() {
-  if (!currentFilteredAnomalies || currentFilteredAnomalies.length === 0) {
-    alert("Nessun dato anomalo da esportare.");
-    return;
+    modal.classList.remove('hidden');
+  },
+
+  /**
+   * Esporta gli eventi anomali in formato CSV
+   */
+  exportAnomaliesCSV(caseId, anomalies) {
+    if (!anomalies || anomalies.length === 0) {
+      alert('Nessun evento anomalo disponibile da esportare.');
+      return;
+    }
+
+    const headers = ['Timestamp', 'Livello_Severita', 'HR_bpm', 'SpO2_pct', 'NIBP_SBP', 'NIBP_DBP', 'NIBP_MBP', 'Shock_Index', 'Metodi_Rilevati'];
+    const rows = anomalies.map(a => [
+      `"${a.timestamp}"`,
+      `"${a.methods.length >= 3 ? 'Alta' : a.methods.length === 2 ? 'Media' : 'Bassa'}"`,
+      a.hr !== null ? a.hr : '',
+      a.spo2 !== null ? a.spo2 : '',
+      a.sbp !== null ? a.sbp : '',
+      a.dbp !== null ? a.dbp : '',
+      a.mbp !== null ? a.mbp : '',
+      a.shock_index !== null ? a.shock_index : '',
+      `"${a.methods.join(';')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + 
+      [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `VitalDB_Anomalie_Caso_${caseId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    document.body.removeChild(link);
   }
+};
 
-  const headers = ["Timestamp", "HR_bpm", "SpO2_pct", "SBP_mmHg", "DBP_mmHg", "MBP_mmHg", "ShockIndex", "Metodi"];
-  const csvRows = [headers.join(",")];
-
-  for (const item of currentFilteredAnomalies) {
-    const row = [
-      `"${item.timestamp}"`,
-      item.hr ?? "",
-      item.spo2 ?? "",
-      item.sbp ?? "",
-      item.dbp ?? "",
-      item.mbp ?? "",
-      item.shock_index ?? "",
-      `"${item.methods.join(";")}"`
-    ];
-    csvRows.push(row.join(","));
-  }
-
-  const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `anomalie_caso_${currentCaseId || 'export'}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
+window.components = components;

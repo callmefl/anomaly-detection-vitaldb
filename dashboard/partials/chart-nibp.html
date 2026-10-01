@@ -1,0 +1,36 @@
+<!-- CHART 2 — Arterial Pressures (NIBP) -->
+<div class="chart-waveform-card">
+  <div class="chart-header-row">
+    <div class="chart-title-group">
+      <div class="chart-lead-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+        <span>Traccia II: Pressione Arteriosa Non Invasiva (NIBP: SBP, DBP, MBP)</span>
+      </div>
+      <span class="chart-status-badge">Unità: mmHg</span>
+    </div>
+
+    <div class="legend-tags-list">
+      <div class="legend-tag-item">
+        <div class="legend-color-dot" style="background: var(--telemetry-amber);"></div>
+        <span style="font-weight:600;">Sistolica (SBP)</span>
+      </div>
+      <div class="legend-tag-item">
+        <div class="legend-color-dot" style="background: var(--telemetry-emerald);"></div>
+        <span style="font-weight:600;">Diastolica (DBP)</span>
+      </div>
+      <div class="legend-tag-item">
+        <div class="legend-color-dot" style="background: var(--telemetry-purple);"></div>
+        <span style="font-weight:600;">Media Arteriosa (MBP)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-canvas-wrapper">
+    <canvas id="chartNibp"></canvas>
+  </div>
+
+  <div class="chart-footer-legend">
+    <span>Soglia di Ipotensione Critica: MBP &lt; 65 mmHg con rischio di ipoperfusione d'organo</span>
+    <span class="num-mono" style="color:var(--text-tertiary);">Curva pressoria integrata Solar8000</span>
+  </div>
+</div>

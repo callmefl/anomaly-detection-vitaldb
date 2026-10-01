@@ -1,0 +1,28 @@
+<!-- SIDEBAR — Case Explorer Rail -->
+<aside class="telemetry-rail" id="telemetryRail">
+  <div class="rail-header">
+    <div class="rail-title-row">
+      <div class="rail-title">
+        <span>Casi Clinici</span>
+      </div>
+      <span class="rail-count-badge" id="railCaseCountBadge">50 Registrati</span>
+    </div>
+
+    <!-- Search Bar [/] -->
+    <div class="search-box-wrapper">
+      <svg class="search-icon-inside" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" class="rail-search-input" id="caseSearchInput" placeholder="Cerca ID o Reparto..." oninput="app.onSearchInput(this.value)" />
+      <kbd class="search-shortcut-kbd">/</kbd>
+    </div>
+
+    <!-- Reparto Filter Pills -->
+    <div class="dept-pill-track" id="deptPillTrack"></div>
+  </div>
+  
+  <!-- Scrollable Case List -->
+  <div class="case-scroll-list" id="caseScrollList">
+    <div style="text-align: center; color: var(--text-tertiary); padding: 2rem 0; font-size: 0.8rem;">
+      Caricamento casi da MongoDB...
+    </div>
+  </div>
+</aside>

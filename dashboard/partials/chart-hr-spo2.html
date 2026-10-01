@@ -1,0 +1,36 @@
+<!-- CHART 1 — HR & SpO2 Waveform -->
+<div class="chart-waveform-card">
+  <div class="chart-header-row">
+    <div class="chart-title-group">
+      <div class="chart-lead-label">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span>Traccia I: Frequenza Cardiaca (HR) &amp; Saturazione Ossigeno (SpO₂)</span>
+      </div>
+      <span class="chart-status-badge">Risoluzione Sincronizzata 1s</span>
+    </div>
+
+    <div class="legend-tags-list">
+      <div class="legend-tag-item">
+        <div class="legend-color-dot" style="background: var(--telemetry-heart);"></div>
+        <span style="font-weight:600;">HR (bpm)</span>
+      </div>
+      <div class="legend-tag-item">
+        <div class="legend-color-dot" style="background: var(--telemetry-cyan);"></div>
+        <span style="font-weight:600;">SpO₂ (%)</span>
+      </div>
+      <div class="legend-tag-item">
+        <div class="legend-color-dot" style="background: var(--telemetry-shock);"></div>
+        <span style="font-weight:600;">Anomalie Rilevate</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-canvas-wrapper">
+    <canvas id="chartHrSpo2"></canvas>
+  </div>
+
+  <div class="chart-footer-legend">
+    <span>Fasce di Riferimento Clinico: Frequenza cardiaca normale 60–100 bpm • Ipossia moderata &lt; 95%</span>
+    <span class="num-mono" style="color:var(--text-tertiary);">Tracciato continuo con interpolazione cubica</span>
+  </div>
+</div>
