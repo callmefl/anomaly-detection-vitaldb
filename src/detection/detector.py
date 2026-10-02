@@ -35,6 +35,8 @@ DBP_KEY = "Solar8000_NIBP_DBP"
 MBP_KEY = "Solar8000_NIBP_MBP"
 
 # Lista centralizzata delle feature biometriche utilizzate sia nella pipeline che nella valutazione
+# Nota: 'nibp_age_s' (staleness NIBP in secondi, calcolata nel Silver) è deliberatamente esclusa:
+# è un metadato di governance per auditing della qualità del dato pressorio, non una feature ML.
 FEATURE_COLS = [
     HR_KEY, SPO2_KEY, SBP_KEY, DBP_KEY, MBP_KEY,
     'HR_rolling_mean', 'HR_rolling_std', 'HR_delta'

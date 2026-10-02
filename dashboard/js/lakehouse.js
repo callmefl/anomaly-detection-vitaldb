@@ -8,7 +8,7 @@ const lakehouseView = {
    * Inizializza e carica i dati per la schermata Lakehouse & Governance
    */
   async init() {
-    this.renderArchitectureFlow();
+    await this.renderArchitectureFlow();
     await this.loadBenchmarkData();
     await this.loadEvaluationData();
     await this.loadQualityData();
@@ -17,7 +17,14 @@ const lakehouseView = {
   /**
    * Renderizza il diagramma architetturale Medallion Pipeline (Bronze -> Silver -> Gold)
    */
-  renderArchitectureFlow() {
+  async renderArchitectureFlow() {
+    // Legge il conteggio reale dei punti dal backend (health check)
+    let totalPoints = 311173; // fallback se API non raggiungibile
+    try {
+      const health = await api.checkHealth();
+      if (health && health.total_points) totalPoints = health.total_points;
+    } catch (_) {}
+
     const container = document.getElementById('pipelineNodesTrack');
     if (!container) return;
 
@@ -30,7 +37,7 @@ const lakehouseView = {
         </div>
         <div class="node-title">Dati Biometrici Grezzi</div>
         <ul class="node-feature-list">
-          <li>${getIcon('check')} Download da API VitalDB (${(311173).toLocaleString()} record)</li>
+          <li>${getIcon('check')} Download da API VitalDB (${totalPoints.toLocaleString()} record)</li>
           <li>${getIcon('check')} Tracce Solar8000 (HR, SpO₂, NIBP)</li>
           <li>${getIcon('check')} Formato Parquet non compresso (3.88 MB)</li>
           <li>${getIcon('check')} Dati clinici e di laboratorio grezzi</li>
@@ -62,7 +69,7 @@ const lakehouseView = {
         <ul class="node-feature-list">
           <li>${getIcon('check')} MongoDB Time Series Collections (Bucketing 1s)</li>
           <li>${getIcon('check')} Metastore artigianale in collection <code>registry</code></li>
-          <li>${getIcon('check')} Transazioni multi-documento (ACID Silver→Gold)</li>
+          <li>${getIcon('check')} Compensazione manuale Silver→Gold (insert + registry)</li>
           <li>${getIcon('check')} JSON Schema validation & metaField strutturato</li>
         </ul>
       </div>
@@ -94,10 +101,13 @@ const lakehouseView = {
     const fillSilver = document.getElementById('fillSilverStorage');
     const fillGold = document.getElementById('fillGoldStorage');
 
+    const silverPct = data ? data.storage.reduction_silver_pct : ((1 - silverMB / bronzeMB) * 100).toFixed(1);
+    const goldPct   = data ? data.storage.reduction_gold_pct   : ((1 - goldMB   / bronzeMB) * 100).toFixed(1);
+
     if (elBronzeMB) elBronzeMB.textContent = `${bronzeMB.toFixed(2)} MB`;
-    if (elSilverMB) elSilverMB.textContent = `${silverMB.toFixed(2)} MB (-42.3%)`;
+    if (elSilverMB) elSilverMB.textContent = `${silverMB.toFixed(2)} MB (-${Number(silverPct).toFixed(1)}%)`;
     if (elGoldMB) elGoldMB.textContent = `${goldMB.toFixed(2)} MB`;
-    if (elGoldRed) elGoldRed.textContent = `-89.1%`;
+    if (elGoldRed) elGoldRed.textContent = `-${Number(goldPct).toFixed(1)}%`;
 
     if (fillBronze) fillBronze.style.width = '100%';
     if (fillSilver) fillSilver.style.width = `${(silverMB / bronzeMB * 100).toFixed(1)}%`;
@@ -135,19 +145,20 @@ const lakehouseView = {
     const elAeRec = document.getElementById('mlAeRec');
     const elAeF1 = document.getElementById('mlAeF1');
 
-    if (data && data.metrics) {
-      const iso = data.metrics.isolation_forest || {};
-      const ae = data.metrics.lstm_autoencoder || {};
+    if (data && data.isolation_forest) {
+      const iso = data.isolation_forest || {};
+      const ae  = data.lstm_autoencoder || {};
 
-      if (elIsoAcc) elIsoAcc.textContent = '92.1 %';
-      if (elIsoPrec) elIsoPrec.textContent = (iso.precision || 0.14).toFixed(3);
-      if (elIsoRec) elIsoRec.textContent = (iso.recall || 0.143).toFixed(3);
-      if (elIsoF1) elIsoF1.textContent = (iso.f1_score || 0.141).toFixed(3);
+      // "Accuracy" non è una metrica onesta per dataset sbilanciati — mostriamo PR-AUC
+      if (elIsoAcc) elIsoAcc.textContent = `PR-AUC ${(iso.average_precision_pr_auc || 0).toFixed(3)}`;
+      if (elIsoPrec) elIsoPrec.textContent = (iso.precision_anomaly || 0).toFixed(3);
+      if (elIsoRec) elIsoRec.textContent = (iso.recall_anomaly || 0).toFixed(3);
+      if (elIsoF1) elIsoF1.textContent = (iso.f1_anomaly || 0).toFixed(3);
 
-      if (elAeAcc) elAeAcc.textContent = '91.4 %';
-      if (elAePrec) elAePrec.textContent = (ae.precision || 0.083).toFixed(3);
-      if (elAeRec) elAeRec.textContent = (ae.recall || 0.085).toFixed(3);
-      if (elAeF1) elAeF1.textContent = (ae.f1_score || 0.084).toFixed(3);
+      if (elAeAcc) elAeAcc.textContent = `PR-AUC ${(ae.average_precision_pr_auc || 0).toFixed(3)}`;
+      if (elAePrec) elAePrec.textContent = (ae.precision_anomaly || 0).toFixed(3);
+      if (elAeRec) elAeRec.textContent = (ae.recall_anomaly || 0).toFixed(3);
+      if (elAeF1) elAeF1.textContent = (ae.f1_anomaly || 0).toFixed(3);
     }
   },
 

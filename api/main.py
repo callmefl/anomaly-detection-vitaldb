@@ -132,25 +132,37 @@ def get_evaluation():
 
 @app.get("/cases")
 def get_cases():
-    """Restituisce l'elenco di tutti i casi clinici caricati nel layer Gold, arricchiti con i metadati di paziente."""
+    """Restituisce l'elenco di tutti i casi clinici caricati nel layer Gold, arricchiti con i metadati di paziente.
+    
+    Usa una singola aggregazione MongoDB ($group con $first) invece di N find_one separati,
+    portando da N+1 query a 2 query totali (1 su registry + 1 aggregazione su vital_signals).
+    """
     db = get_db()
     df = list_loaded_cases(db)
     if df.empty:
         return []
-    
+
+    # Singola aggregazione: estrae il primo documento metadata per ogni case_id
+    meta_pipeline = [
+        {"$group": {
+            "_id": "$metadata.case_id",
+            "department": {"$first": "$metadata.department"},
+            "age":        {"$first": "$metadata.age"},
+            "sex":        {"$first": "$metadata.sex"},
+        }}
+    ]
+    meta_by_case = {
+        doc["_id"]: doc
+        for doc in db["vital_signals"].aggregate(meta_pipeline)
+    }
+
     records = df.replace({np.nan: None}).to_dict(orient="records")
     for rec in records:
         c_id = rec.get("case_id")
-        sample_doc = db['vital_signals'].find_one({"metadata.case_id": c_id}, {"metadata": 1})
-        if sample_doc and "metadata" in sample_doc:
-            meta = sample_doc["metadata"]
-            rec["department"] = meta.get("department") or "Unknown"
-            rec["age"] = meta.get("age")
-            rec["sex"] = meta.get("sex")
-        else:
-            rec["department"] = "Unknown"
-            rec["age"] = None
-            rec["sex"] = None
+        meta = meta_by_case.get(c_id, {})
+        rec["department"] = meta.get("department") or "Unknown"
+        rec["age"]        = meta.get("age")
+        rec["sex"]        = meta.get("sex")
 
     return records
 

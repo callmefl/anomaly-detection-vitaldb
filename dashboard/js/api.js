@@ -53,7 +53,7 @@ const api = {
     const res = await fetch(`${API_BASE}/cases/${caseId}/detect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(60000)
     });
     if (!res.ok) throw new Error(`Errore esecuzione detection per case #${caseId}`);
     return await res.json();

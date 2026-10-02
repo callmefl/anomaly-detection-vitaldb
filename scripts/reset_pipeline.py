@@ -69,11 +69,16 @@ def reset_all(confirm: bool = False):
         except Exception as e:
             print(f"   ⚠️  Errore su '{d}': {e}")
 
-    # ── 3. Rimuove il quality_report corrente (sarà rigenerato dal Silver) ────
-    report_file = config.DATA_DIR / "quality_report.json"
-    if report_file.exists():
-        report_file.unlink()
-        print(f"   ✓ '{report_file.name}' rimosso.")
+    # ── 3. Rimuove i report di analisi (saranno rigenerati da Silver/evaluate/benchmark) ──
+    reports_to_remove = [
+        config.DATA_DIR / "quality_report.json",
+        config.DATA_DIR / "ml_evaluation.json",
+        config.DATA_DIR / "benchmark_report.json",
+    ]
+    for report_file in reports_to_remove:
+        if report_file.exists():
+            report_file.unlink()
+            print(f"   ✓ '{report_file.name}' rimosso.")
 
     print()
     print("=" * 60)
