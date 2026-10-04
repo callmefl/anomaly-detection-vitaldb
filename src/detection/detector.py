@@ -421,13 +421,8 @@ def run_detection_pipeline(db, case_ids, if_contamination=0.05, ae_percentile=95
         .fit_predict(df, feature_cols)
 
     # 3. LSTM Autoencoder Neurale ML
-    print("  [3/4] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
+    print("  [3/3] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
     df['autoencoder_anomaly'] = AnomalyDetector(method='lstm_autoencoder', percentile=ae_percentile) \
-        .fit_predict(df, feature_cols)
-
-    # 4. Statistical Univariate (Z-Score) per resilienza sui buchi di misurazione
-    print("  [4/4] Addestramento ed inferenza Analisi Statistica Univariata (Z-Score)...")
-    df['statistical_anomaly'] = AnomalyDetector(method='statistical', z_threshold=2.5) \
         .fit_predict(df, feature_cols)
 
     # Persistenza risultati su MongoDB

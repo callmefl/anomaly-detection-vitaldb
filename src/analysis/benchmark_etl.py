@@ -33,9 +33,11 @@ def run_etl_benchmark():
     try:
         coll_stats = db.command("collStats", "vital_signals")
         gold_size_mb = coll_stats.get("totalSize", coll_stats.get("storageSize", 0)) / (1024 * 1024)
+        gold_size_source = "collStats"
     except Exception as e:
-        print(f"Nota su collStats: {e}, stima da dimensione documenti")
-        gold_size_mb = silver_size_mb * 0.3  # Stima compressione TimeSeries
+        print(f"⚠️ collStats non disponibile: {e}. Utilizzo stima basata su Silver (×0.3).")
+        gold_size_mb = silver_size_mb * 0.3  # Stima: compressione tipica Time Series ~70%
+        gold_size_source = "estimated_silver_ratio"
         
     print(f"Spazio Bronze: {bronze_size_mb:.2f} MB")
     print(f"Spazio Silver: {silver_size_mb:.2f} MB")
@@ -141,6 +143,7 @@ def run_etl_benchmark():
             "bronze_mb": round(bronze_size_mb, 2),
             "silver_mb": round(silver_size_mb, 2),
             "gold_mb": round(gold_size_mb, 2),
+            "gold_size_source": gold_size_source,
             "reduction_silver_pct": round(reduction_silver, 1),
             "reduction_gold_pct": round(reduction_gold, 1)
         },
