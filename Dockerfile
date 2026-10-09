@@ -3,7 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # 1. Pre-installa PyTorch CPU-only (~180 MB anziché ~4 GB con runtime CUDA)
-RUN pip install --no-cache-dir torch>=2.0 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir "torch>=2.0" --index-url https://download.pytorch.org/whl/cpu
 
 # 2. Copia e installa le restanti dipendenze applicative
 COPY requirements.txt .

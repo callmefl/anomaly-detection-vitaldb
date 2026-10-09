@@ -354,6 +354,9 @@ class AnomalyDetector:
 def save_anomalies_to_mongo(db, df_anomalies):
     """Persiste i punti anomali identificati all'interno della collezione MongoDB `anomalies_detected`.
 
+    Garantisce idempotenza: cancella sempre le anomalie precedenti per tutti i casi analizzati,
+    anche se il run attuale trova 0 anomalie (evita anomalie stale per casi tornati normali).
+
     Args:
         db: Istanza PyMongo del database.
         df_anomalies (pd.DataFrame): DataFrame contenente le colonne di anomalia calcolate.
@@ -364,6 +367,16 @@ def save_anomalies_to_mongo(db, df_anomalies):
     flag_cols = [c for c in df_anomalies.columns if c.endswith('_anomaly')]
     if not flag_cols:
         return 0
+
+    # Ricava tutti i case_id elaborati in questa esecuzione
+    if 'case_id' in df_anomalies.columns:
+        analyzed_cases = [int(cid) for cid in df_anomalies['case_id'].dropna().unique()]
+    else:
+        analyzed_cases = []
+
+    # Cancella sempre le vecchie anomalie per i casi esaminati (anche se ora hanno 0 anomalie)
+    if analyzed_cases:
+        db['anomalies_detected'].delete_many({"case_id": {"$in": analyzed_cases}})
 
     any_anomaly = df_anomalies[flag_cols].any(axis=1)
     rows = df_anomalies[any_anomaly]
@@ -382,9 +395,6 @@ def save_anomalies_to_mongo(db, df_anomalies):
         })
 
     if documents:
-        # Idempotenza multi-caso: rimuove TUTTE le anomalie dei casi coinvolti prima di riscrivere
-        affected_cases = list({d["case_id"] for d in documents})
-        db['anomalies_detected'].delete_many({"case_id": {"$in": affected_cases}})
         db['anomalies_detected'].insert_many(documents)
     return len(documents)
 

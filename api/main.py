@@ -73,15 +73,21 @@ def health():
     """Endpoint di Health Check per verificare l'operatività del container e dell'API con statistiche del database."""
     db = get_db()
     try:
+        db.command("ping")
         cases_count = int(db['registry'].count_documents({}))
         points_count = int(db['vital_signals'].count_documents({}))
         anomalies_count = int(db['anomalies_detected'].count_documents({}))
-    except Exception:
+        status = "ok"
+        db_status = "connected"
+    except Exception as e:
         cases_count, points_count, anomalies_count = 0, 0, 0
+        status = "degraded"
+        db_status = f"unreachable: {e}"
 
     return {
-        "status": "ok",
+        "status": status,
         "database": config.DB_NAME,
+        "database_status": db_status,
         "cases_count": cases_count,
         "total_points": points_count,
         "anomalies_count": anomalies_count
