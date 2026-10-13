@@ -1,63 +1,136 @@
 \documentclass[12pt, a4paper]{report}
 
-% === PACCHETTI DI BASE ===
+% === ENCODING E LINGUA ===
+\usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
-\usepackage{graphicx}
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{hyperref}
-\usepackage{booktabs}
-\usepackage{geometry}
-\usepackage{xcolor}
-\usepackage{listings}
-\usepackage{caption}
-\usepackage{subcaption}
 
-% === CONFIGURAZIONE PAGINA ===
+% === FONT MODERNI ===
+% Palatino per il corpo del testo (elegante, molto più leggibile di Computer Modern)
+\usepackage{mathpazo}
+% Bera Mono per il codice (più pulita della Courier predefinita)
+\usepackage[scaled=0.85]{beramono}
+% Migliora la microtipoografia: crenatura, word spacing, hyphenation
+\usepackage{microtype}
+
+% === MATEMATICA ===
+\usepackage{amsmath, amssymb, amsthm}
+
+% === LAYOUT PAGINA ===
+\usepackage{geometry}
 \geometry{
     top=3cm,
     bottom=3cm,
-    left=3cm,
-    right=3cm
+    left=3.2cm,
+    right=3.2cm
+}
+
+% === SPAZIATURA TRA PARAGRAFI (stile moderno, no indentazione) ===
+\usepackage{parskip}
+\setlength{\parskip}{0.6em}
+
+% === TITOLI DI CAPITOLO E SEZIONE: stile moderno ===
+\usepackage{titlesec}
+\usepackage{xcolor}
+
+\definecolor{accentgray}{HTML}{2C2C2C}
+\definecolor{rulecolor}{HTML}{CCCCCC}
+
+% Capitolo: numero grande e sottile sopra, titolo sotto con linea
+\titleformat{\chapter}[display]
+    {\normalfont\Large\bfseries\color{accentgray}}
+    {\normalfont\large\mdseries\color{gray} Capitolo \thechapter}
+    {0.5em}
+    {\huge}
+    [\vspace{0.3em}{\color{rulecolor}\titlerule[0.6pt]}]
+
+\titlespacing*{\chapter}{0pt}{-10pt}{30pt}
+
+% Sezione: linea sottile a sinistra con spaziatura generosa
+\titleformat{\section}
+    {\normalfont\large\bfseries\color{accentgray}}
+    {\thesection}
+    {1em}
+    {}
+
+\titleformat{\subsection}
+    {\normalfont\normalsize\bfseries\color{accentgray}}
+    {\thesubsection}
+    {1em}
+    {}
+
+% === FIGURE, TABELLE E LISTATI ===
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\captionsetup{
+    font=small,
+    labelfont=bf,
+    format=plain,
+    justification=centering,
+    skip=8pt
+}
+
+% === HYPERREF (link e PDF metadata) ===
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=black,
+    pdftitle={Anomaly Detection su dati biometrici (VitalDB)},
+    pdfauthor={Progetto New Generation Databases}
 }
 
 % === STILE PER IL CODICE ===
-\definecolor{codegreen}{rgb}{0,0.6,0}
+\usepackage{listings}
+
+\definecolor{codegreen}{rgb}{0,0.55,0.27}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+\definecolor{codepurple}{rgb}{0.45,0.05,0.65}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+\definecolor{codecomment}{rgb}{0.4,0.4,0.4}
 
 \lstdefinestyle{codeStyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
+    backgroundcolor=\color{backcolour},
+    commentstyle=\itshape\color{codecomment},
+    keywordstyle=\bfseries\color{codepurple},
     numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
+    stringstyle=\color{codegreen},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=8pt,
+    showspaces=false,
     showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    framerule=0.4pt,
+    rulecolor=\color{rulecolor},
+    xleftmargin=12pt,
+    xrightmargin=4pt
 }
 \lstset{style=codeStyle}
 
 % === PATH IMMAGINI ===
-\graphicspath{{img/}}
+\graphicspath{{img/}{capitolo1/img/}{capitolo2/img/}{capitolo3/img/}{capitolo4/img/}}
 
-% === INFORMAZIONI DOCUMENTO ===
+% === FRONTESPIZIO ===
 \title{
-    \textbf{Anomaly Detection su Dati Biometrici (VitalDB)}\\
-    \large Progetto per il corso di New Generation Databases\\
-    \large Corso di Laurea in Informatica
+    \vspace{-1.5cm}
+    {\Large Corso di Laurea in Informatica}\\[0.4cm]
+    {\Large New Generation Databases}\\[1.8cm]
+    {\Huge\bfseries Anomaly detection su dati biometrici (VitalDB)}\\[0.8cm]
+    {\large Pipeline ETL, MongoDB Time Series e modelli di machine learning per il rilevamento di anomalie su tracciati intraoperatori}
 }
-\author{\textbf{Autori}: Collaboratori del Progetto}
-\date{\today}
+\author{}
+\date{\vspace{1cm}\today}
 
 \begin{document}
 

@@ -1,61 +1,40 @@
-\chapter{Archiviazione e Governance con MongoDB Time Series}
+\chapter{Archiviazione e governance con MongoDB Time Series}
 
-\section{Layer Gold: MongoDB Time Series Collections}
-Il layer **Gold** rappresenta lo stato finale e strutturato dei dati, destinato al consumo da parte dei modelli di Machine Learning e dell'API REST. 
+\section{Layer Gold: MongoDB Time Series Collection}
+Il layer \textit{Gold} rappresenta lo stato finale e strutturato dei dati, destinato al consumo da parte dei modelli di \textit{machine learning} e dell'API REST. I dati di livello \textit{Silver} vengono caricati all'interno di una \textit{Time Series Collection} nativa di MongoDB denominata \texttt{vital\_signals}. Ogni misurazione memorizzata nella collezione rispetta uno schema fisso: il campo \texttt{timestamp} funge da campo temporale principale (\textit{timeField}), il campo \texttt{metadata} contiene l'ID del caso (\texttt{case\_id}), il reparto (\texttt{department}), l'età e il sesso del paziente (\textit{metaField}), mentre il sotto-documento \texttt{metrics} raccoglie i valori numerici dei parametri vitali. MongoDB raggruppa fisicamente i punti temporali contigui nello stesso blocco compresso (\textit{bucket}), riducendo drasticamente l'occupazione del disco ed accelerando le query su intervalli di tempo.
 
-I dati di livello Silver vengono caricati all'interno di una **Time Series Collection** nativa di MongoDB chiamata \texttt{vital\_signals}.
+\subsection{Benchmark prestazionale e data quality}
+Attraverso lo script di analisi quantitativa \texttt{src/analysis/benchmark\_etl.py}, sono state misurate le performance reali dell'architettura su un campione a larga scala di 311.173 punti temporali appartenenti a 50 casi clinici. I risultati, riassunti nella Tabella~\ref{tab:etl_benchmark}, mostrano miglioramenti netti e misurabili a ogni passaggio di livello.
 
-\subsection{Struttura del Documento e Bucketing}
-Ogni misurazione memorizzata nella Time Series Collection rispetta lo schema seguente:
-\begin{itemize}
-    \item \texttt{timestamp}: Campo temporale principale (\textit{timeField}).
-    \item \texttt{metadata}: Campo di metadati (\textit{metaField}) contenente l'ID del caso (\texttt{case\_id}), il reparto (\texttt{department}), l'età e il sesso del paziente.
-    \item \texttt{metrics}: Sotto-documento contenente i valori dei parametri vitali (es. \texttt{Solar8000\_HR}, \texttt{Solar8000\_PLETH\_SPO2}).
-\end{itemize}
-
-MongoDB raggruppa fisicamente i punti temporali contigui nello stesso blocco compresso (\textit{bucket}), riducendo drasticamente l'occupazione del disco ed accelerando le query su intervalli di tempo.
-
-\subsection{Benchmark Prestazionale e Data Quality}
-Attraverso lo script di analisi quantitativa sviluppato (\texttt{src/analysis/benchmark\_etl.py}), sono state misurate le performance reali dell'architettura su un campione a larga scala di \textbf{311.173 punti temporali} (50 casi clinici):
-
-\begin{table}[h!]
+\begin{table}[ht]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lccc}
 \toprule
-\textbf{Parametro / Metrica} & \textbf{Bronze (Grezzo)} & \textbf{Silver (Pulito)} & \textbf{Gold (MongoDB TS)} \\
+\textbf{Parametro / Metrica} & \textbf{Bronze (grezzo)} & \textbf{Silver (pulito)} & \textbf{Gold (MongoDB TS)} \\
 \midrule
-Valori Mancanti (Null \%) & 56.3\% & 0.0\% (Interpolati) & 0.0\% (BSON) \\
-Occupazione Disco (50 casi) & 3.88 MB & 2.24 MB & \textbf{0.27 MB} \\
-Latenza Media Query & 652.2 ms & 410.5 ms & \textbf{4.2 ms} (MetaField Index) \\
+Valori mancanti (Null \%) & 56.3\% & 0.0\% (interpolati) & 0.0\% (BSON) \\
+Occupazione disco (50 casi) & 3.88 MB & 2.24 MB & \textit{0.27 MB} \\
+Latenza media query & 652.2 ms & 410.5 ms & \textit{4.2 ms} (MetaField Index) \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \caption{Confronto quantitativo di occupazione memoria e qualità dati tra i layer su 311.173 record.}
 \label{tab:etl_benchmark}
 \end{table}
 
-Come mostrato in Tabella \ref{tab:etl_benchmark} e nella Figura \ref{fig:etl_benchmark}:
-\begin{enumerate}
-    \item \textbf{Efficienza di Spazio}: Il passaggio al layer Gold con la compressione dei bucket Time Series di MongoDB riduce l'occupazione di memoria su disco da 3.88 MB a soli 0.27 MB (\textbf{-93.0\%} di riduzione complessiva).
-    \item \textbf{Prestazioni di Query}: La scansione analitica di tutti i file Parquet richiede 652.2 ms per aprire ed estrarre i dati da disco. In MongoDB, grazie all'indicizzazione del \texttt{metaField} (\texttt{metadata.case\_id}), la stessa interrogazione viene risolta in soli \textbf{4.2 ms} (oltre \textbf{150 volte più veloce}).
-\end{enumerate}
+Come mostrato nella Tabella~\ref{tab:etl_benchmark} e nella Figura~\ref{fig:etl_benchmark}, il passaggio al layer \textit{Gold} con la compressione dei \textit{bucket} Time Series riduce l'occupazione di memoria su disco da 3.88 MB a soli 0.27 MB, pari a una riduzione complessiva del 93\%. Dal punto di vista delle prestazioni di query, la scansione analitica dei file Parquet richiede 652.2 ms, mentre la stessa interrogazione in MongoDB, grazie all'indicizzazione del \textit{metaField} \texttt{metadata.case\_id}, viene risolta in soli 4.2 ms, oltre 150 volte più veloce.
 
-\begin{figure}[h!]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=0.85\textwidth]{etl_benchmark.png}
     \caption{Benchmark comparativo dell'occupazione disco (MB) e latenza di query (ms).}
     \label{fig:etl_benchmark}
 \end{figure}
 
-\section{Data Governance Artigianale: Schema ed Ingestione}
+\section{Data governance artigianale: schema ed ingestione}
 
 \subsection{Collezione Registry}
-Per garantire il tracciamento della provenienza dei dati (\textit{data lineage}), è stata definita la collezione \texttt{registry}. Ogni volta che un caso viene caricato con successo nel layer Gold, viene inserito un documento nel registro recante:
-\begin{itemize}
-    \item \texttt{case\_id}: Identificativo univoco del caso.
-    \item \texttt{record\_count}: Numero complessivo di punti misurati caricati.
-    \item \texttt{schema\_version}: Versione dello schema dati.
-    \item \texttt{provenance}: Timestamp e step di elaborazione.
-\end{itemize}
+Per garantire il tracciamento della provenienza dei dati (\textit{data lineage}), è stata definita la collezione \texttt{registry}. Ogni volta che un caso viene caricato con successo nel layer \textit{Gold}, viene inserito un documento nel registro recante l'identificativo univoco del caso (\texttt{case\_id}), il numero complessivo di punti caricati (\texttt{record\_count}), la versione dello schema dati (\texttt{schema\_version}) e un campo di provenienza (\texttt{provenance}) che include il timestamp e lo step di elaborazione.
 
 \subsection{JSON Schema Validation}
-La collezione \texttt{registry} è protetta da regole di **JSON Schema Validation** gestite nativamente da MongoDB per prevenire l'inserimento di dati malformati o mancanti di campi obbligatori.
+La collezione \texttt{registry} è protetta da regole di \textit{JSON Schema Validation} gestite nativamente da MongoDB, al fine di prevenire l'inserimento di dati malformati o privi dei campi obbligatori.

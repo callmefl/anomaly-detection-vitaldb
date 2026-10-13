@@ -1,62 +1,58 @@
-\chapter{Modelli di Anomaly Detection}
+\chapter{Modelli di anomaly detection}
 
-\section{Approccio Multilivello alla Rilevazione Anomalie}
-Il modulo di Anomaly Detection applica un approccio ibrido multilivello sui dati archiviati nel layer Gold su MongoDB. Il sistema combina regole basate su conoscenza clinica dominio-specifica ed algoritmi di Machine Learning non supervisionato.
+\section{Approccio multilivello alla rilevazione anomalie}
+Il modulo di \textit{anomaly detection} applica un approccio ibrido multilivello sui dati archiviati nel layer \textit{Gold} su MongoDB. Il sistema combina regole basate su conoscenza clinica dominio-specifica ed algoritmi di \textit{machine learning} non supervisionato, consentendo di intercettare sia le instabilità fisiologiche più evidenti sia i pattern anomali multivariati più complessi.
 
-\section{Regole Cliniche Domínio-Specifiche}
+\section{Regole cliniche dominio-specifiche}
 
-\subsection{Shock Index (SI)}
+\subsection{Shock Index}
 Lo \textit{Shock Index} è un indicatore clinico definito come il rapporto tra la frequenza cardiaca ($HR$) e la pressione arteriosa sistolica ($SBP$):
 $$\text{SI} = \frac{\text{HR}}{\text{NIBP\_SBP}}$$
 Valori di $\text{SI} > 0.9$ segnalano potenziale instabilità emodinamica o rischio di shock ipovolemico e vengono contrassegnati come anomalia clinica.
 
-\subsection{Ipotensione Severa}
+\subsection{Ipotensione severa}
 La regola dell'ipotensione severa identifica una grave sofferenza cardiocircolatoria e tissutale quando entrambe le seguenti condizioni si verificano simultaneamente:
 $$\text{NIBP\_MBP} < 65 \text{ mmHg} \quad \land \quad \text{SpO2} < 90\%$$
 
-\section{Algoritmi di Machine Learning}
+\section{Algoritmi di machine learning}
 
 \subsection{Isolation Forest}
-L'algoritmo \textbf{Isolation Forest} isola le osservazioni anomale partizionando casualmente lo spazio delle feature tramite alberi di decisione. Le anomalie richiedono meno tagli per essere isolate rispetto ai punti normali, risultando in un percorso più breve negli alberi.
+L'\textit{Isolation Forest} isola le osservazioni anomale partizionando casualmente lo spazio delle feature tramite alberi di decisione. Le anomalie richiedono meno tagli per essere isolate rispetto ai punti normali, risultando in un percorso più breve negli alberi e quindi in un punteggio di anomalia più elevato.
 
-\subsection{Autoencoder Neurale (MLPRegressor)}
-È stato implementato un \textbf{Autoencoder Neurale} basato su reti multilayer perceptron. La rete viene addestrata a ricostruire il proprio vettore di input $X$. 
-I punti temporali per i quali l'errore di ricostruzione (MSE) supera il $95^\circ$ percentile della distribuzione vengono marcati come anomalie multivariate complesse.
+\subsection{Autoencoder neurale}
+È stato implementato un \textit{autoencoder} neurale basato su reti \textit{multilayer perceptron}. La rete viene addestrata a ricostruire il proprio vettore di ingresso $X$, ed i punti temporali per i quali l'errore di ricostruzione (MSE) supera il $95^\circ$ percentile della distribuzione vengono marcati come anomalie multivariate complesse.
 
-\section{Persistenza delle Anomalie}
-I punti identificati come anomali da ciascun metodo vengono salvati nella collezione MongoDB \texttt{anomalies\_detected}, consentendo rapide consultazioni storiche ed analisi comparative.
+\section{Persistenza delle anomalie}
+I punti identificati come anomali da ciascun metodo vengono salvati nella collezione MongoDB \texttt{anomalies\_detected}, consentendo rapide consultazioni storiche ed analisi comparative tra i diversi approcci.
 
-\section{Valutazione Quantitativa e Metriche di ML}
-Attraverso lo script \texttt{src/analysis/evaluate\_models.py}, l'efficacia dei modelli di Machine Learning è stata valutata quantitativamente su un campione a larga scala di \textbf{311.173 punti temporali} appartenenti a 50 casi clinici.
+\section{Valutazione quantitativa e metriche di ML}
+Attraverso lo script \texttt{src/analysis/evaluate\_models.py}, l'efficacia dei modelli di \textit{machine learning} \`e stata valutata quantitativamente su un campione di 311.173 punti temporali appartenenti a 50 casi clinici. Assumendo le regole cliniche dominio-specifiche (\textit{Shock Index} e \textit{ipotensione severa}) come riferimento di pseudo-ground truth, con 15.240 instabilit\`a cliniche individuate, la Tabella~\ref{tab:ml_evaluation} riassume le metriche ottenute dai due algoritmi.
 
-Assumendo le Regole Cliniche dominio-specifiche (\textit{Shock Index} e \textit{Ipotensione Severa}) come riferimento (\textit{Pseudo-Ground Truth Clinico}, con 15.240 instabilità cliniche individuate), la tabella seguente riassume le metriche di accuratezza, Precision, Recall ed F1-Score ottenute:
-
-\begin{table}[h!]
+\begin{table}[ht]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Algoritmo ML} & \textbf{Accuracy} & \textbf{Precision (Anomalia)} & \textbf{Recall (Anomalia)} & \textbf{F1-Score (Globale)} \\
+\textbf{Algoritmo ML} & \textbf{Accuracy} & \textbf{Precision (anomalia)} & \textbf{Recall (anomalia)} & \textbf{F1-Score (globale)} \\
 \midrule
-\textbf{Isolation Forest} & \textbf{92\%} & 0.19 & 0.20 & \textbf{0.92} \\
-Autoencoder Neurale & 90\% & 0.03 & 0.03 & 0.90 \\
+Isolation Forest & 92\% & 0.19 & 0.20 & 0.92 \\
+Autoencoder neurale & 90\% & 0.03 & 0.03 & 0.90 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \caption{Valutazione quantitativa dei modelli ML su 311.173 record temporali.}
 \label{tab:ml_evaluation}
 \end{table}
 
-L'\textbf{Autoencoder Neurale} dimostra una precisione nettamente superiore rispetto ad Isolation Forest nell'intercettare le instabilità cliniche complesse. La distribuzione del valore di ricostruzione Mean Squared Error (MSE) è illustrata in Figura \ref{fig:autoencoder_mse}.
+La distribuzione del valore di ricostruzione MSE dell'\textit{autoencoder} è illustrata nella Figura~\ref{fig:autoencoder_mse}, dove la coda destra della distribuzione evidenzia chiaramente i punti anomali al di sopra della soglia del $95^\circ$ percentile. La concordanza tra i quattro metodi di detection è invece visualizzata nella matrice di correlazione di Figura~\ref{fig:overlap_matrix}.
 
-\begin{figure}[h!]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=0.8\textwidth]{autoencoder_mse_distribution.png}
-    \caption{Distribuzione dell'Errore di Ricostruzione (MSE) dell'Autoencoder con soglia al $95^\circ$ percentile.}
+    \caption{Distribuzione dell'errore di ricostruzione (MSE) dell'autoencoder con soglia al $95^\circ$ percentile.}
     \label{fig:autoencoder_mse}
 \end{figure}
 
-La concordanza e la sovrapposizione tra i quattro metodi di detection è visualizzata nella matrice di correlazione di Figura \ref{fig:overlap_matrix}.
-
-\begin{figure}[h!]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=0.75\textwidth]{anomaly_overlap_matrix.png}
     \caption{Matrice di concordanza/correlazione tra le regole cliniche e i modelli ML.}
