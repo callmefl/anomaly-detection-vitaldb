@@ -1,16 +1,15 @@
-\documentclass[12pt, a4paper]{report}
+\documentclass[11pt, a4paper]{report}
 
 % === ENCODING E LINGUA ===
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
 
-% === FONT MODERNI ===
-% Palatino per il corpo del testo (elegante, molto più leggibile di Computer Modern)
-\usepackage{mathpazo}
-% Bera Mono per il codice (più pulita della Courier predefinita)
+% === TIPOGRAFIA MODERNA (CANVA / ADOBE TECH REPORT STYLE) ===
+% Helvetica pulita e leggibile per tutto il testo, Beramono per il codice
+\usepackage[scaled=0.92]{helvet}
 \usepackage[scaled=0.85]{beramono}
-% Migliora la microtipoografia: crenatura, word spacing, hyphenation
+\renewcommand{\familydefault}{\sfdefault}
 \usepackage{microtype}
 
 % === MATEMATICA ===
@@ -19,87 +18,109 @@
 % === LAYOUT PAGINA ===
 \usepackage{geometry}
 \geometry{
-    top=3cm,
-    bottom=3cm,
-    left=3.2cm,
-    right=3.2cm
+    top=2.8cm,
+    bottom=2.8cm,
+    left=2.8cm,
+    right=2.8cm,
+    headheight=25pt
 }
 
-% === SPAZIATURA TRA PARAGRAFI (stile moderno, no indentazione) ===
+% === SPAZIATURA TRA PARAGRAFI ===
 \usepackage{parskip}
-\setlength{\parskip}{0.6em}
+\setlength{\parskip}{0.65em}
 
-% === TITOLI DI CAPITOLO E SEZIONE: stile moderno ===
-\usepackage{titlesec}
+% === COLORI ADOBE & CANVA TECH DESIGN SYSTEM ===
 \usepackage{xcolor}
+\definecolor{brandNavy}{HTML}{0B192C}      % Blu notte istituzionale
+\definecolor{brandBlue}{HTML}{1E3E62}      % Slate blue secondario
+\definecolor{brandCyan}{HTML}{0284C7}      % Cyan tech vibrante
+\definecolor{brandEmerald}{HTML}{0D9488}   % Verde clinico
+\definecolor{emerald}{HTML}{0D9488}        % Alias per compatibilità TikZ
+\definecolor{brandCharcoal}{HTML}{1E293B}  % Testo primario ad alto contrasto
+\definecolor{brandMuted}{HTML}{64748B}     % Grigio per didascalie ed intestazioni
+\definecolor{brandSurface}{HTML}{F8FAFC}   % Fondo morbido per schede e listati
+\definecolor{brandBorder}{HTML}{E2E8F0}    % Linee di separazione sottili
 
-\definecolor{accentgray}{HTML}{2C2C2C}
-\definecolor{rulecolor}{HTML}{CCCCCC}
+% === TIKZ E GRAFICA VETTORIALE ===
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, shadows, calc, backgrounds}
 
-% Capitolo: numero grande e sottile sopra, titolo sotto con linea
+% === TITOLI DI CAPITOLO E SEZIONE (STILE EDITORIALE MODERNO) ===
+\usepackage{titlesec}
+
+% Capitolo con pill badge colorato e linea d'accento doppia
 \titleformat{\chapter}[display]
-    {\normalfont\Large\bfseries\color{accentgray}}
-    {\normalfont\large\mdseries\color{gray} Capitolo \thechapter}
-    {0.5em}
-    {\huge}
-    [\vspace{0.3em}{\color{rulecolor}\titlerule[0.6pt]}]
+    {\normalfont\sffamily\bfseries\color{brandNavy}}
+    {\tikz[baseline=(char.base)]{\node[fill=brandCyan!15, text=brandCyan, font=\large\bfseries, rounded corners=4pt, inner xsep=10pt, inner ysep=4pt] (char) {Capitolo \thechapter};}}
+    {0.8em}
+    {\huge\color{brandNavy}}
+    [\vspace{0.4em}{\color{brandCyan}\titlerule[2pt]}\vspace{0.15em}{\color{brandBorder}\titlerule[0.5pt]}]
 
-\titlespacing*{\chapter}{0pt}{-10pt}{30pt}
+\titlespacing*{\chapter}{0pt}{-25pt}{24pt}
 
-% Sezione: linea sottile a sinistra con spaziatura generosa
+% Sezione con box numerico compatto
 \titleformat{\section}
-    {\normalfont\large\bfseries\color{accentgray}}
-    {\thesection}
-    {1em}
+    {\normalfont\Large\sffamily\bfseries\color{brandNavy}}
+    {\tikz[baseline=(n.base)]{\node[fill=brandNavy, text=white, font=\small\bfseries, rounded corners=3pt, inner sep=3.5pt] (n) {\thesection};}}
+    {0.8em}
     {}
 
 \titleformat{\subsection}
-    {\normalfont\normalsize\bfseries\color{accentgray}}
-    {\thesubsection}
-    {1em}
+    {\normalfont\large\sffamily\bfseries\color{brandBlue}}
+    {\color{brandCyan}\thesubsection}
+    {0.7em}
     {}
 
-% === FIGURE, TABELLE E LISTATI ===
+% === HEADER E FOOTER CON FANCYHDR ===
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{brandBorder}\leaders\hrule height \headrulewidth\hfill}}
+\fancyhead[L]{\textcolor{brandMuted}{\footnotesize\nouppercase{\leftmark}}}
+\fancyhead[R]{\textcolor{brandCyan}{\footnotesize\bfseries VitalDB Anomaly Detection}}
+\fancyfoot[R]{\tikz[baseline=-3pt]\node[fill=brandSurface, draw=brandBorder, rounded corners=3pt, inner sep=3.5pt, text=brandNavy]{\scriptsize\bfseries Pag. \thepage};}
+
+% === FIGURE, TABELLE E DIDASCALIE ===
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{colortbl}
 \usepackage{caption}
 \usepackage{subcaption}
 
 \captionsetup{
-    font=small,
-    labelfont=bf,
+    font={small,sf},
+    labelfont={bf,color=brandNavy},
     format=plain,
     justification=centering,
     skip=8pt
 }
 
-% === HYPERREF (link e PDF metadata) ===
+% === HYPERREF (LINK E METADATA PDF) ===
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
-    linkcolor=black,
-    citecolor=black,
-    urlcolor=black,
+    linkcolor=brandBlue,
+    citecolor=brandCyan,
+    urlcolor=brandCyan,
     pdftitle={Anomaly Detection su dati biometrici (VitalDB)},
-    pdfauthor={Progetto New Generation Databases}
+    pdfauthor={Andrea Altieri, Andrea Flaiani}
 }
 
-% === STILE PER IL CODICE ===
+% === STILE LISTATI DI CODICE (CARD MODERNA) ===
 \usepackage{listings}
 
-\definecolor{codegreen}{rgb}{0,0.55,0.27}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.45,0.05,0.65}
-\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
-\definecolor{codecomment}{rgb}{0.4,0.4,0.4}
+\definecolor{codeGreen}{HTML}{16A34A}
+\definecolor{codeGray}{HTML}{64748B}
+\definecolor{codePurple}{HTML}{7C3AED}
 
 \lstdefinestyle{codeStyle}{
-    backgroundcolor=\color{backcolour},
-    commentstyle=\itshape\color{codecomment},
-    keywordstyle=\bfseries\color{codepurple},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codegreen},
-    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{brandSurface},
+    commentstyle=\itshape\color{codeGray},
+    keywordstyle=\bfseries\color{codePurple},
+    numberstyle=\tiny\color{codeGray},
+    stringstyle=\color{codeGreen},
+    basicstyle=\ttfamily\small\color{brandCharcoal},
     breakatwhitespace=false,
     breaklines=true,
     captionpos=b,
@@ -111,39 +132,102 @@
     showtabs=false,
     tabsize=2,
     frame=single,
-    framerule=0.4pt,
-    rulecolor=\color{rulecolor},
+    framerule=0.6pt,
+    rulecolor=\color{brandBorder},
     xleftmargin=12pt,
     xrightmargin=4pt
 }
 \lstset{style=codeStyle}
 
-% === PATH IMMAGINI ===
+% Path per le immagini grafiche raster
 \graphicspath{{img/}{capitolo1/img/}{capitolo2/img/}{capitolo3/img/}{capitolo4/img/}}
-
-% === FRONTESPIZIO ===
-\title{
-    \vspace{-1.5cm}
-    {\Large Corso di Laurea in Informatica}\\[0.4cm]
-    {\Large New Generation Databases}\\[1.8cm]
-    {\Huge\bfseries Anomaly detection su dati biometrici (VitalDB)}\\[0.8cm]
-    {\large Pipeline ETL, MongoDB Time Series e modelli di machine learning per il rilevamento di anomalie su tracciati intraoperatori}
-}
-\author{}
-\date{\vspace{1cm}\today}
 
 \begin{document}
 
-% === FRONTESPIZIO E INDICE ===
-\maketitle
+\hypersetup{pageanchor=false}
+% === FRONTESPIZIO MODERNO ISTITUZIONALE (UNIVPM) ===
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+    % Banner geometrico superiore Deep Navy a tutta larghezza
+    \fill[brandNavy] (current page.north west) rectangle ([yshift=-7.6cm]current page.north east);
+    
+    % Barra d'accento tecnologica Cyan
+    \fill[brandCyan] ([yshift=-7.6cm]current page.north west) rectangle ([yshift=-7.95cm]current page.north east);
+    
+    % Elementi geometrici decorativi (stile Canva / Adobe InDesign)
+    \draw[line width=1.6pt, brandCyan!40] ([xshift=1.2cm, yshift=-1.0cm]current page.north west) -- ([xshift=7.5cm, yshift=-7.4cm]current page.north west);
+    \draw[line width=0.8pt, brandCyan!25] ([xshift=2.2cm, yshift=-0.8cm]current page.north west) -- ([xshift=8.6cm, yshift=-7.4cm]current page.north west);
+    \draw[line width=1.4pt, brandCyan!30] ([xshift=-1.2cm, yshift=-1.0cm]current page.north east) -- ([xshift=-7.5cm, yshift=-7.4cm]current page.north east);
+
+    % Testata istituzionale UNIVPM all'interno del banner
+    \node[anchor=north, align=center, text width=17cm] at ([yshift=-0.9cm]current page.north) {
+        {\fontsize{16}{20}\selectfont\bfseries\color{white} UNIVERSITÀ POLITECNICA DELLE MARCHE\par}
+        \vspace{0.25cm}
+        {\fontsize{12.5}{16}\selectfont\bfseries\color{brandCyan} DIPARTIMENTO DI INGEGNERIA DELL'INFORMAZIONE\par}
+        \vspace{0.22cm}
+        {\fontsize{11}{15}\selectfont\color{white!92} Corso di Laurea Magistrale in Ingegneria Informatica e dell'Automazione\par}
+        \vspace{0.20cm}
+        {\fontsize{10.5}{14}\selectfont\bfseries\color{brandCyan!85} Insegnamento di New Generation Databases\par}
+    };
+
+    % Medaglione circolare bianco con sigillo ufficiale UNIVPM a cavallo del bordo inferiore
+    \node[
+        circle,
+        fill=white,
+        draw=brandBorder,
+        line width=1.2pt,
+        inner sep=4pt,
+        drop shadow={opacity=0.18, shadow xshift=2pt, shadow yshift=-3pt}
+    ] (seal) at ([yshift=-7.95cm]current page.north) {
+        \includegraphics[width=3.8cm]{univpm_seal.png}
+    };
+\end{tikzpicture}
+
+\vspace*{7.8cm}
+
+\begin{center}
+    % Titolo del Progetto (rigorosamente senza VitalDB e senza sottotitolo)
+    {\fontsize{24}{30}\selectfont\bfseries\color{brandNavy} Anomaly detection su dati biometrici\par}
+    \vspace{0.45cm}
+    {\color{brandCyan}\rule{5.5cm}{2.5pt}}\par
+
+    \vfill
+
+    % Studenti (a sinistra) e Docente (a destra, senza Chiar.ma)
+    \noindent
+    \begin{minipage}[t]{0.48\textwidth}
+        {\bfseries\large\color{brandNavy} Studenti:}\\[6pt]
+        {\large\color{brandCharcoal} Andrea Altieri}\\[3pt]
+        {\large\color{brandCharcoal} Andrea Flaiani}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \raggedleft
+        {\bfseries\large\color{brandNavy} Docente:}\\[6pt]
+        {\large\color{brandCharcoal} Prof.ssa Claudia Diamantini}
+    \end{minipage}
+
+    \vspace{1.4cm}
+    {\color{brandBorder}\rule{\linewidth}{0.6pt}}\par
+    \vspace{0.35cm}
+
+    {\large\bfseries\color{brandNavy} Anno Accademico 2026/2027\par}
+
+\end{center}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+% === INDICE DEI CONTENUTI ===
+\pagenumbering{roman}
 \tableofcontents
 \newpage
+\pagenumbering{arabic}
 
 % === CAPITOLI ===
-\input{capitolo1/capitolo1.tex}
-\input{capitolo2/capitolo2.tex}
-\input{capitolo3/capitolo3.tex}
-\input{capitolo4/capitolo4.tex}
-\input{capitolo5/capitolo5.tex}
+\input{capitolo1/capitolo1.tex}\clearpage
+\input{capitolo2/capitolo2.tex}\clearpage
+\input{capitolo3/capitolo3.tex}\clearpage
+\input{capitolo4/capitolo4.tex}\clearpage
+\input{capitolo5/capitolo5.tex}\clearpage
 
 \end{document}

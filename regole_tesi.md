@@ -18,7 +18,7 @@ la grammatica italiana rappresenta la base fondamentale di ogni testo; tuttavia,
 il tono deve mantenersi sempre discorsivo e fluido, evitando una frammentazione eccessiva del testo in sezioni minuscole o superflue; se strettamente necessario, è possibile ricorrere all'uso delle `subsection`. è vietato inventare informazioni non verificate. gli elenchi puntati devono essere utilizzati solo se strettamente necessari.
 
 ### *formattazione visiva e citazioni*
-* l'enfasi non viene mai espressa tramite il grassetto, bensì esclusivamente attraverso l'uso del *corsivo*.
+* l'enfasi viene espressa con l'uso del grassetto
 * i riferimenti a variabili, nomi di file o programmi devono essere formattati con un font monospace, come ad esempio `script.py`.
 * le porzioni di codice estese devono essere inserite all'interno di appositi blocchi di codice (o listati in LaTeX).
 

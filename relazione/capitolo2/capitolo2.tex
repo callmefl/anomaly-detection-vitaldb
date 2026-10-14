@@ -1,19 +1,43 @@
-\chapter{Architettura della data pipeline (Medallion Architecture)}
+\chapter{Architettura della data pipeline}
 
-\section{Panoramica dell'architettura}
-Per la gestione e la trasformazione dei dati biometrici è stata adottata la \textit{Medallion Architecture}, un pattern architetturale consolidato nel \textit{data engineering} che suddivide la pipeline in tre livelli di qualità progressiva: \textit{Bronze}, \textit{Silver} e \textit{Gold}.
+\section{Il paradigma della medallion architecture}
+Nel trattamento di serie temporali complesse, l'adozione di un'architettura dati strutturata risulta indispensabile per assicurare la tracciabilità delle trasformazioni, l'integrità dei valori e la riproducibilità degli esperimenti. Nel presente progetto è stata implementata la \textbf{Medallion Architecture}, un pattern architetturale ampiamente diffuso nell'ingegneria dei \textbf{data lakehouse} che organizza il flusso di elaborazione in tre stadi logici a qualità progressivamente crescente, denominati convenzionalmente \textbf{Bronze}, \textbf{Silver} e \textbf{Gold}.
 
-\section{Layer Bronze (dati grezzi)}
-Il layer \textit{Bronze} rappresenta il punto di ingresso dei dati grezzi estratti dal dataset VitalDB tramite la libreria Python ufficiale. I tracciati biometrici dei casi selezionati vengono scaricati ed estratti nel loro formato originale e salvati in locale in formato binario compresso Parquet all'interno della directory \texttt{data/bronze/}. In questa fase non viene applicata alcuna trasformazione o filtraggio, preservando la completa storicizzazione del dato originario.
+Come illustrato nella Figura~\ref{fig:medallion_architecture}, ciascun livello assolve a un compito ben definito all'interno della catena di raffinamento del dato:
+il livello \textbf{Bronze} accoglie i dati grezzi estratti direttamente dalla sorgente clinica, salvaguardandoli nella loro forma originaria senza alcuna alterazione;
+il livello \textbf{Silver} applica algoritmi di bonifica, normalizzazione, filtraggio degli artefatti sensoristici e partizionamento tematico per reparto;
+il livello \textbf{Gold} struttura i dati in documenti conformi al modello a serie storiche di MongoDB, predisponendoli al consumo efficiente da parte delle interfacce grafiche, dei servizi REST e dei modelli di \textbf{machine learning}.
 
-\section{Layer Silver (data cleaning e partizionamento)}
-Il layer \textit{Silver} ha il compito di bonificare ed organizzare i dati per renderli idonei alle analisi avanzate.
+\begin{figure}[ht]
+    \centering
+    \input{medallion_tikz.tex}
+    \caption{Panoramica dell'architettura Medallion e dei livelli Bronze, Silver e Gold generata in TikZ.}
+    \label{fig:medallion_architecture}
+\end{figure}
 
-\subsection{Pulizia dei dati e outlier fisiologici}
-I segnali sensoristici grezzi possono presentare artefatti dovuti a perdita di contatto del sensore o disturbi di misurazione. Vengono applicate regole di validazione che escludono i valori fisiologicamente non plausibili, come ad esempio valori di frequenza cardiaca inferiori a $20$ o superiori a $250$ bpm oppure saturazioni d'ossigeno al di sotto del $50\%$. I valori mancanti vengono invece gestiti tramite interpolazione lineare e allineamento dei timestamp.
+L'adozione di questa architettura multi-stadio garantisce che gli errori introdotti in un passaggio intermedio possano essere isolati e corretti rieseguendo le trasformazioni a partire dai livelli precedenti, preservando al contempo una netta separazione delle responsabilità tra ingestione, trasformazione analitica e fruizione finale del dato.
 
-\subsection{Confronto visivo prima e dopo la pulizia (Bronze vs Silver)}
-La Figura~\ref{fig:before_after} evidenzia l'impatto concreto del processo di \textit{data cleaning} su un tracciato reale del dataset. Il segnale grezzo del layer \textit{Bronze} presenta discontinuità temporali e punti mancanti dovuti a perdite temporanee di contatto dei sensori, mentre il corrispondente segnale bonificato del layer \textit{Silver} risulta continuo e coerente, adatto all'addestramento dei modelli di \textit{machine learning}.
+\section{Layer Bronze per l'ingestione e la storicizzazione dei dati grezzi}
+Il livello \textbf{Bronze} costituisce il punto di ingresso dell'intera infrastruttura. Il modulo di acquisizione, implementato nello script \texttt{src/bronze/download.py}, interagisce direttamente con l'archivio centrale di VitalDB sfruttando l'API Python ufficiale.
+
+L'ingestione seleziona in modo automatico i casi clinici tramite la funzione \texttt{vitaldb.find\_cases}, che individua i pazienti per i quali risultano registrate contemporaneamente le cinque metriche fisiologiche di interesse: la frequenza cardiaca, la saturazione d'ossigeno e le tre componenti pressorie. Per ciascun caso individuato, la procedura scarica i tracciati temporali mediante \texttt{vitaldb.load\_case} impostando una frequenza nominale di campionamento pari a un secondo (\texttt{interval=1.0}).
+
+I tracciati acquisiti vengono persistiti in locale nella cartella \texttt{data/bronze/} all'interno di file conformi allo standard Apache Parquet, con convenzione di denominazione \texttt{case\_<ID>.parquet}. La scelta del formato Parquet per lo strato grezzo rispetto al testo semplice CSV è motivata dalla natura colonnare e compressa del formato, che riduce in misura rilevante lo spazio occupato su disco e memorizza in modo nativo i tipi di dato numerici a virgola mobile a 64 bit, scongiurando qualsiasi perdita di precisione numerica o ambiguità di codifica.
+
+Contestualmente all'acquisizione dei segnali temporali, la procedura estrae le informazioni cliniche e perioperatorie mediante la funzione \texttt{load\_clinical\_data} resa disponibile dalla libreria di VitalDB, salvandole nel file ausiliario \texttt{data/bronze/clinical\_data.parquet}. Questo file raccoglie attributi fondamentali quali l'età del paziente, il sesso, l'indice di massa corporea e il reparto chirurgico di ricovero.
+
+In conformità con i principi di \textbf{data governance}, il livello \textbf{Bronze} adotta una politica di immutabilità rigorosa: i file vengono memorizzati esattamente nello stato in cui sono stati emessi dalla sorgente remota. Non viene applicata alcuna rimozione di valori nulli, né viene effettuata alcuna correzione di scala o troncamento temporale. Inoltre, per gestire con robustezza eventuali interruzioni di connettività durante il download su larga scala, la procedura aggiorna dinamicamente un file di registro \texttt{download\_manifest.json}, consentendo alla pipeline di riprendere l'esecuzione dal punto esatto in cui era stata sospesa senza duplicare i trasferimenti di rete.
+
+\section{Layer Silver per la bonifica e il partizionamento dei dati}
+I dati clinici immagazzinati nel livello \textbf{Bronze} non possono essere impiegati direttamente per l'addestramento di modelli predittivi o per il monitoraggio in tempo reale a causa della notevole quantità di rumore, discontinuità e valori nulli. Il livello \textbf{Silver}, orchestrato dallo script \texttt{src/silver/clean.py}, si fa carico della bonifica del dato, della gestione dei valori mancanti, dell'etichettatura degli outlier fisiologici e della riorganizzazione fisica dei file su file system.
+
+Il primo passo del processo consiste nell'eliminazione selettiva delle righe totalmente vuote. In molte fasi dell'intervento, ad esempio prima dell'ingresso effettivo del paziente in sala operatoria o dopo il distacco dei monitor, la registrazione produce timestamp privi di qualsiasi misurazione su tutte e cinque le tracce contemporaneamente. Queste righe non apportano alcun contenuto informativo e vengono rimosse per non appesantire inutilmente le strutture dati successive.
+
+Successivamente, il modulo applica una strategia differenziata di imputazione per gestire la disomogeneità fisiologica delle sorgenti sensoristiche:
+per i segnali fisiologici continui, segnatamente la frequenza cardiaca (\texttt{Solar8000/HR}) e la saturazione periferica (\texttt{Solar8000/PLETH\_SPO2}), le brevi perdite di segnale causate da artefatti di movimento vengono sanate mediante interpolazione lineare. Per evitare di creare valori fittizi durante interruzioni prolungate del monitoraggio, l'interpolazione viene rigorosamente limitata a un massimo di cinque campioni consecutivi;
+per i segnali pressori non invasivi (\texttt{NIBP\_SBP}, \texttt{NIBP\_DBP}, \texttt{NIBP\_MBP}), la misurazione è intrinsecamente intermittente, avvenendo a intervalli discreti compresi tipicamente tra due e cinque minuti mediante il gonfiaggio periodico del bracciale pneumatico. In questo caso l'interpolazione lineare risulterebbe priva di senso clinico, poiché creerebbe una falsa transizione continua tra stati distanti nel tempo. Viene pertanto adottata la tecnica \textbf{Last Observation Carried Forward} (LOCF), propagando l'ultimo valore valido fino a una soglia massima di validità fissata a 300 secondi (cinque minuti). Oltre tale finestra temporale, la misura cessa di essere considerata clinicamente affidabile e viene lasciata indefinita.
+
+A supporto della trasparenza analitica, il modulo calcola contestualmente la variabile temporale \texttt{nibp\_age\_s}, che quantifica in ogni secondo l'età della misurazione pressoria corrente, ossia l'intervallo temporale trascorso dall'ultimo gonfiaggio effettivo del bracciale. Questa grandezza costituisce un metadato di qualità essenziale per valutare il grado di freschezza del dato emodinamico.
 
 \begin{figure}[ht]
     \centering
@@ -22,15 +46,34 @@ La Figura~\ref{fig:before_after} evidenzia l'impatto concreto del processo di \t
     \label{fig:before_after}
 \end{figure}
 
-\subsection{Partizionamento per reparto chirurgico}
-Per ottimizzare la lettura successiva ed emulare il \textit{partition pruning}, i dati del layer \textit{Silver} vengono salvati in formato Parquet partizionato fisicamente in sottocartelle basate sul reparto chirurgico di appartenenza del paziente:
-$$\texttt{data/silver/department=\textless REPARTO\textgreater/case\_\textless ID\textgreater.parquet}$$
+La Figura~\ref{fig:before_after} mette a confronto l'andamento del tracciato della frequenza cardiaca di un paziente reale prima e dopo l'intervento di bonifica. Nella parte superiore, il segnale grezzo estratto dal livello \textbf{Bronze} presenta evidenti salti e interruzioni causati da temporanee perdite di aderenza del sensore; nella parte inferiore, il segnale pulito del livello \textbf{Silver} si presenta continuo, omogeneo e pienamente utilizzabile per le analisi predittive.
 
-\section{Evoluzione del formato del dato: da tabella piatta a BSON Gold}
-Oltre alla qualità dei segnali, l'architettura Medallion trasforma la struttura logica del dato. Mentre nei layer \textit{Bronze} e \textit{Silver} i dati risiedono in file tabulari piatti, nel layer \textit{Gold} vengono strutturati in documenti BSON gerarchici contenenti sia il payload sensoristico che la governance del contesto clinico, come mostrato nel Listato~\ref{lst:bson_gold}.
+Accanto all'imputazione dei valori mancanti, il livello \textbf{Silver} effettua un controllo di plausibilità fisiologica identificando i valori palesemente incompatibili con la sopravvivenza umana o attribuibili a malfunzionamenti hardware:
+frequenza cardiaca considerata valida tra $20$ e $250$ bpm;
+saturazione periferica considerata valida tra il $50\%$ e il $100\%$;
+pressione sistolica considerata valida tra $40$ e $250$ mmHg;
+pressione diastolica considerata valida tra $10$ e $180$ mmHg;
+pressione media considerata valida tra $20$ e $220$ mmHg.
 
-\begin{lstlisting}[caption={Trasformazione del dato dal formato Parquet piatto al documento BSON Gold Time Series in MongoDB.}, label={lst:bson_gold}]
-// Documento caricato nella collezione 'vital_signals' (Layer Gold)
+I valori al di fuori di questi intervalli non vengono arbitrariamente cancellati, bensì etichettati tramite appositi flag booleani (\texttt{HR\_outlier}, \texttt{SPO2\_outlier}, \texttt{SBP\_outlier}, \texttt{DBP\_outlier}, \texttt{MBP\_outlier}). In tal modo la pipeline conserva l'evidenza dell'anomalia rilevata a beneficio degli stadi successivi, senza alterare distruttivamente la serie storica.
+
+Infine, i dati bonificati vengono salvati in formato Parquet all'interno di una gerarchia di directory partizionata fisicamente per reparto chirurgico di appartenenza (\texttt{department}):
+$$\texttt{data/silver/department=<REPARTO>/case\_<ID>.parquet}$$
+Questa organizzazione ricalca il principio del \textbf{partition pruning} dei \textbf{data lakehouse}, consentendo alle routine di caricamento e analisi di scandire esclusivamente le partizioni attinenti al reparto clinico d'interesse (ad esempio chirurgia generale o cardiochirurgia) senza dover effettuare la scansione dell'intero archivio su disco.
+
+\section{Evoluzione del modello dati da tabella piatta a documento BSON}
+L'architettura della pipeline non si limita a innalzare la qualità intrinseca dei valori numerici, ma trasforma radicalmente il modello concettuale del dato nel passaggio verso il livello \textbf{Gold}.
+
+Nei livelli \textbf{Bronze} e \textbf{Silver}, i dati risiedono sotto forma di tabelle piatte bidimensionali all'interno di file Parquet. Questo modello tabulare classico, pur risultando ideale per elaborazioni vettoriali in memoria tramite librerie quali \texttt{pandas}, mostra evidenti limiti nel contesto dell'archiviazione distribuita e del monitoraggio clinico in tempo reale: ogni riga ripete pedissequamente gli identificatori del paziente, non consente di esprimere relazioni gerarchiche native tra segnali e metadati, e richiede schemi rigidi poco adatti all'evoluzione dei parametri monitorati.
+
+Nel livello \textbf{Gold}, il dato viene rimodellato come documento gerarchico BSON all'interno di MongoDB. La struttura del documento, mostrata nel Listato~\ref{lst:bson_gold}, è articolata in quattro sezioni logiche:
+il campo radice \texttt{timestamp}, che definisce l'ordinamento temporale ed è memorizzato come oggetto nativo \texttt{ISODate};
+il sotto-documento \texttt{metadata}, che raccoglie in modo compatto tutte le proprietà immutabili del paziente e del sensore, tra cui l'identificativo del caso (\texttt{case\_id}), il nome del monitor sorgente (\texttt{sensor\_name}), il reparto chirurgico, l'età e il sesso;
+il sotto-documento \texttt{metrics}, che incapsula i valori numerici delle misurazioni fisiologiche correnti, opportunamente sanitizzati sostituendo i caratteri di barra con trattini bassi per evitare conflitti con la sintassi a percorsi di MongoDB;
+il sotto-documento \texttt{quality\_flags}, che eredita i flag booleani generati nel livello \textbf{Silver}, preservando la qualifica di affidabilità di ciascuna misurazione.
+
+\begin{lstlisting}[caption={Evoluzione del dato dal formato Parquet piatto al documento BSON nel layer Gold.}, label={lst:bson_gold}]
+// Documento gerarchico BSON archiviato nella collezione 'vital_signals'
 {
   "_id": ObjectId("65d3f1a0e4b01a2b3c4d5e6f"),
   "timestamp": ISODate("2020-01-01T08:15:30Z"),
@@ -47,6 +90,15 @@ Oltre alla qualità dei segnali, l'architettura Medallion trasforma la struttura
     "Solar8000_NIBP_SBP": 120.0,
     "Solar8000_NIBP_DBP": 80.0,
     "Solar8000_NIBP_MBP": 93.3
+  },
+  "quality_flags": {
+    "HR_outlier": false,
+    "SPO2_outlier": false,
+    "SBP_outlier": false,
+    "DBP_outlier": false,
+    "MBP_outlier": false
   }
 }
 \end{lstlisting}
+
+Questa rappresentazione semi-strutturata si rivela decisiva per sfruttare appieno le capacità del motore \textbf{Time Series} di MongoDB, poiché isola i metadati descrittivi dal flusso continuo delle metriche numeriche, abilitando strategie avanzate di compressione e indicizzazione.
