@@ -1,144 +1,115 @@
-% === DIAGRAMMA ARCHITETTURA DI SISTEMA E DOCKER (ZERO SOVRAPPOSIZIONI) ===
+% === DIAGRAMMA ARCHITETTURA DI SISTEMA E DOCKER (STRUTTURATO E PULITO) ===
 \begin{tikzpicture}[
     font=\sffamily,
     >=Stealth,
-    node distance=0.25cm,
-    containerBox/.style={
+    tierBox/.style={
         rectangle,
         rounded corners=8pt,
         draw=#1!70!black,
         line width=1.1pt,
         fill=white,
         drop shadow={opacity=0.08, shadow xshift=1.5pt, shadow yshift=-2pt},
-        inner sep=10pt,
+        inner sep=8pt,
         align=center
     },
-    compBox/.style={
+    compCard/.style={
         rectangle,
-        rounded corners=4pt,
+        rounded corners=5pt,
         draw=brandBorder,
-        line width=0.8pt,
+        line width=0.7pt,
         fill=brandSurface,
-        inner sep=6pt,
-        align=center,
-        font=\scriptsize
+        inner xsep=6pt,
+        inner ysep=5pt,
+        align=center
     },
     connArrow/.style={
         <->,
-        line width=1.4pt,
-        color=brandNavy!80
+        line width=1.6pt,
+        color=brandPrimary
     }
 ]
 
 % ================= TIER 1: CLIENT WEB =================
-\node[containerBox=brandNavy, text width=13.8cm] (tierClient) {
-    \begin{minipage}{13.8cm}
+\node[tierBox=brandNavy, text width=14.0cm] (tierClient) {
+    \begin{minipage}{14.0cm}
         {\sffamily\bfseries\footnotesize\textcolor{brandNavy}{LIVELLO CLIENT: FRONTEND WEB (HTML5 / VANILLA JS / CSS3)}}\\[6pt]
         \begin{tikzpicture}[node distance=0.25cm]
-            \node[compBox, text width=2.6cm] (c1) {
-                \textbf{Loader Modulare}\\[2pt]
-                \texttt{loader.js}\\[1pt]
-                {\tiny Fetch parziali asincrono\\Cache-busting \texttt{?v=3.8}}
+            \node[compCard, text width=3.1cm] (c1) {
+                \textbf{\footnotesize Tracciati Chart.js}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Telemetria sincronizzata a doppio canvas}
             };
-            \node[compBox, text width=3.0cm, right=0.25cm of c1] (c2) {
-                \textbf{Consensus Matrix}\\[2pt]
-                \texttt{consensus-matrix.html}\\[1pt]
-                {\tiny 4 chip con conteggio\\Modali clinici \& formule}
+            \node[compCard, text width=3.2cm, right=0.25cm of c1] (c2) {
+                \textbf{\footnotesize Consensus Matrix}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Badge allarmi multimodello e modali}
             };
-            \node[compBox, text width=3.0cm, right=0.25cm of c2] (c3) {
-                \textbf{Telemetria Chart.js}\\[2pt]
-                \texttt{telemetry-charts.js}\\[1pt]
-                {\tiny 2 canvas sincronizzati\\Crosshair \& zoom comuni}
+            \node[compCard, text width=3.2cm, right=0.25cm of c2] (c3) {
+                \textbf{\footnotesize Patient HUD}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Selezione caso e downsampling temporale}
             };
-            \node[compBox, text width=2.4cm, right=0.25cm of c3] (c4) {
-                \textbf{Patient HUD}\\[2pt]
-                \texttt{patient-hud.html}\\[1pt]
-                {\tiny Bento-grid vitali\\Selettore downsampling}
+            \node[compCard, text width=3.0cm, right=0.25cm of c3] (c4) {
+                \textbf{\footnotesize Modular Loader}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Caricamento asincrono componenti}
             };
         \end{tikzpicture}
     \end{minipage}
 };
 
 % ================= TIER 2: API GATEWAY (DOCKER) =================
-\node[containerBox=brandCyan, text width=13.8cm, below=1.3cm of tierClient] (tierApi) {
-    \begin{minipage}{13.8cm}
-        {\sffamily\bfseries\footnotesize\textcolor{brandCyan!85!black}{LIVELLO APPLICATIVO: CONTAINER DOCKER \texttt{vitaldb\_api} (:8000)}}\\[6pt]
+\node[tierBox=brandPrimary, text width=14.0cm, below=1.2cm of tierClient] (tierApi) {
+    \begin{minipage}{14.0cm}
+        {\sffamily\bfseries\footnotesize\textcolor{brandPrimary}{LIVELLO APPLICATIVO: CONTAINER DOCKER \texttt{vitaldb\_api} (:8000)}}\\[6pt]
         \begin{tikzpicture}[node distance=0.25cm]
-            \node[compBox, text width=2.7cm] (a1) {
-                \textbf{Server ASGI \& Router}\\[2pt]
-                \texttt{FastAPI / Uvicorn}\\[1pt]
-                {\tiny Gestione asincrona\\Middleware CORS attivo}
+            \node[compCard, text width=4.3cm] (a1) {
+                \textbf{\footnotesize FastAPI REST Server}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Routing asincrono (\texttt{/cases}, \texttt{/series}, \texttt{/detect})}
             };
-            \node[compBox, text width=2.9cm, right=0.25cm of a1] (a2) {
-                \textbf{Rotte REST Esposte}\\[2pt]
-                \texttt{api/main.py}\\[1pt]
-                {\tiny \texttt{/health}, \texttt{/cases}, \texttt{/series}\\
-                \texttt{/detect}, \texttt{/quality}, \texttt{/bench}}
+            \node[compCard, text width=4.6cm, right=0.25cm of a1] (a2) {
+                \textbf{\footnotesize Motore Detection Ibrido}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Regole Cliniche $\cdot$ Isolation Forest $\cdot$ LSTM AE}
             };
-            \node[compBox, text width=2.8cm, right=0.25cm of a2] (a3) {
-                \textbf{Serializzazione \& Validaz.}\\[2pt]
-                \texttt{Pydantic / NumPy}\\[1pt]
-                {\tiny Sanitizzazione \texttt{NaN} $\to$ \texttt{null}\\Marcatura ISO 8601}
-            };
-            \node[compBox, text width=2.4cm, right=0.25cm of a3] (a4) {
-                \textbf{Connection Pool}\\[2pt]
-                \texttt{pymongo.MongoClient}\\[1pt]
-                {\tiny Riuso socket TCP\\Istanza singleton globale}
-            };
-        \end{tikzpicture}\\[5pt]
-        \begin{tikzpicture}
-            \node[compBox, fill=brandTeal!8, draw=brandTeal!50, text width=12.4cm] (coreLogic) {
-                \textbf{\scriptsize MOTORE ANALITICO E DI DETECTION (\texttt{src/detection/detector.py} \& \texttt{src/analysis/queries.py})}\\[2pt]
-                {\tiny $\bullet$ Shock Index ($>0.9$) \quad $\bullet$ Ipotensione Severa ($MBP<65 \land \text{SpO}_2<90\%$) \quad $\bullet$ Isolation Forest (5\%) \quad $\bullet$ LSTM Autoencoder ($\max_c \text{MSE}_c$) \quad $\bullet$ Downsampling \texttt{\$dateTrunc}}
+            \node[compCard, text width=4.1cm, right=0.25cm of a2] (a3) {
+                \textbf{\footnotesize Storage Handler \& Pool}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{PyMongo singleton e contratti Pydantic}
             };
         \end{tikzpicture}
     \end{minipage}
 };
 
 % ================= TIER 3: DATABASE & STORAGE (DOCKER) =================
-\node[containerBox=brandTeal, text width=13.8cm, below=1.3cm of tierApi] (tierDb) {
-    \begin{minipage}{13.8cm}
-        {\sffamily\bfseries\footnotesize\textcolor{brandTeal!85!black}{LIVELLO PERSISTENZA: CONTAINER DOCKER \texttt{vitaldb\_mongo} (:27017)}}\\[6pt]
+\node[tierBox=brandTeal, text width=14.0cm, below=1.2cm of tierApi] (tierDb) {
+    \begin{minipage}{14.0cm}
+        {\sffamily\bfseries\footnotesize\textcolor{brandTeal!90!black}{LIVELLO PERSISTENZA: CONTAINER DOCKER \texttt{vitaldb\_mongo} (:27017)}}\\[6pt]
         \begin{tikzpicture}[node distance=0.25cm]
-            \node[compBox, fill=brandCyan!8, draw=brandCyan!60, text width=3.2cm] (d1) {
-                \textbf{Time Series Collection}\\[2pt]
-                \texttt{vital\_signals}\\[1pt]
-                {\tiny Bucket compressi colonnari\\Gorilla Delta-of-Delta\\Compressione Zstandard}
+            \node[compCard, fill=brandTeal!8, draw=brandTeal!40, text width=4.3cm] (d1) {
+                \textbf{\footnotesize Time Series: \texttt{vital\_signals}}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Bucket compressi (Gorilla Delta-of-Delta)}
             };
-            \node[compBox, text width=2.6cm, right=0.25cm of d1] (d2) {
-                \textbf{Metastore Catalogo}\\[2pt]
-                \texttt{registry}\\[1pt]
-                {\tiny JSON Schema \texttt{strict}\\Tracciamento provenienza}
+            \node[compCard, text width=4.6cm, right=0.25cm of d1] (d2) {
+                \textbf{\footnotesize Governance: \texttt{registry} \& \texttt{metadata}}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Catalogo casi, schemi JSON e data quality}
             };
-            \node[compBox, text width=2.6cm, right=0.25cm of d2] (d3) {
-                \textbf{Contratti Dati}\\[2pt]
-                \texttt{track\_metadata}\\[1pt]
-                {\tiny Definizione unità di misura\\Intervalli fisiologici}
+            \node[compCard, text width=4.1cm, right=0.25cm of d2] (d3) {
+                \textbf{\footnotesize Allarmi: \texttt{anomalies\_detected}}\\[2pt]
+                \scriptsize\textcolor{brandDark!80}{Persistenza eventi e metodi concordanti}
             };
-            \node[compBox, text width=2.6cm, right=0.25cm of d3] (d4) {
-                \textbf{Riscontri Anomalie}\\[2pt]
-                \texttt{anomalies\_detected}\\[1pt]
-                {\tiny Timestamp allarme\\Vettore metodi concordanti}
-            };
-        \end{tikzpicture}\\[5pt]
-        {\tiny $\bullet$ Configurazione Replica Set: \texttt{--replSet rs0} \quad $\bullet$ Volume persistente: \texttt{mongo\_data:/data/db} \quad $\bullet$ Inizializzazione automatica in \texttt{initdb.d}}
+        \end{tikzpicture}
     \end{minipage}
 };
 
-% ================= CONNESSIONI E ORCHESTRAZIONE =================
-\draw[connArrow] (tierClient.south) -- node[fill=white, font=\scriptsize\bfseries, text=brandCyan!85!black, draw=brandCyan!40, rounded corners=3pt, inner sep=3pt] {Chiamate HTTP / REST JSON (porta 8000)} (tierApi.north);
-\draw[connArrow] (tierApi.south) -- node[fill=white, font=\scriptsize\bfseries, text=brandTeal!85!black, draw=brandTeal!40, rounded corners=3pt, inner sep=3pt] {Protocollo BSON / Wire Protocol nativo (porta 27017)} (tierDb.north);
+% ================= CONNESSIONI =================
+\draw[connArrow] (tierClient.south) -- node[fill=white, font=\scriptsize\bfseries, text=brandPrimary, draw=brandPrimary!35, rounded corners=4pt, inner sep=3.5pt] {Chiamate HTTP REST / JSON (porta 8000)} (tierApi.north);
+\draw[connArrow] (tierApi.south) -- node[fill=white, font=\scriptsize\bfseries, text=brandTeal!90!black, draw=brandTeal!40, rounded corners=4pt, inner sep=3.5pt] {BSON Wire Protocol nativo (porta 27017)} (tierDb.north);
 
-% Riquadro Docker Compose (posizionato sullo sfondo con etichetta sotto)
+% Riquadro Docker Compose sullo sfondo
 \begin{scope}[on background layer]
     \node[
-        draw=brandBlue!50,
+        draw=brandPrimary!45,
         line width=1.1pt,
         dashed,
         rounded corners=8pt,
-        inner sep=12pt,
+        inner sep=10pt,
         fit=(tierApi) (tierDb),
-        label={[font=\tiny\bfseries, text=brandBlue, fill=white, inner sep=3pt, draw=brandBlue!40, rounded corners=3pt]below:Orchestrazione Docker Compose: Rete isolata \texttt{vitaldb\_net} (Healthcheck Chaining: \texttt{vitaldb\_api} attende \texttt{vitaldb\_mongo})}
+        label={[font=\scriptsize\bfseries, text=brandPrimary, fill=white, inner sep=3.5pt, draw=brandPrimary!35, rounded corners=4pt]below:Orchestrazione Docker Compose: Rete isolata \texttt{vitaldb\_net} con Healthcheck Chaining}
     ] (dockerCompose) {};
 \end{scope}
 

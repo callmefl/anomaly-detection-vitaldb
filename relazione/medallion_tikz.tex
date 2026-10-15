@@ -8,126 +8,125 @@
         rounded corners=8pt,
         line width=1.1pt,
         inner sep=0pt,
-        drop shadow={opacity=0.12, shadow xshift=2pt, shadow yshift=-2pt}
+        drop shadow={opacity=0.08, shadow xshift=1.5pt, shadow yshift=-2pt}
+    },
+    subCard/.style={
+        draw=brandBorder!80,
+        fill=brandSurface,
+        rounded corners=5pt,
+        line width=0.7pt,
+        inner xsep=8pt,
+        inner ysep=6pt,
+        align=left
     },
     downArrow/.style={
-        -{Stealth[length=3.5mm, width=2.5mm]},
-        line width=2.2pt,
-        color=brandCyan
+        -{Stealth[length=3.2mm, width=2.2mm]},
+        line width=2.0pt,
+        color=brandPrimary
     }
 ]
 
 % ==================== LIVELLO 1: LAYER BRONZE ====================
-\node[layerBlock, minimum width=15.2cm, minimum height=2.4cm] (bronze) at (0, 4.2) {};
+\node[layerBlock, minimum width=15.2cm, minimum height=2.3cm] (bronze) at (0, 4.3) {};
 
 % Barra laterale colorata Bronze
-\fill[brandCoral, rounded corners=7pt] (-7.6, 3.0) rectangle (-7.2, 5.4);
+\fill[brandCoral, rounded corners=7pt] (-7.6, 3.15) rectangle (-7.2, 5.45);
 
 % Intestazione Bronze
-\node[anchor=north west] at (-7.0, 5.25) {
+\node[anchor=north west] at (-7.0, 5.30) {
     \textbf{\large\color{brandCoral!90!black}LAYER BRONZE} \quad
-    \textbf{\normalsize\color{brandDark}Dati grezzi immutabili} \quad
-    \tikz[baseline=-2pt]\node[fill=brandPeach!20, draw=brandCoral!60, rounded corners=4pt, font=\scriptsize\bfseries, text=brandCoral!90!black, inner xsep=4pt, inner ysep=2pt]{3.88 MB (100\%)};
+    \textbf{\normalsize\color{brandDark}Dati Grezzi Immutabili} \quad
+    \tikz[baseline=-2pt]\node[fill=brandPeach!25, draw=brandCoral!60, rounded corners=4pt, font=\scriptsize\bfseries, text=brandCoral!90!black, inner xsep=5pt, inner ysep=2pt]{Storage Baseline: 100\%};
 };
 
-% Contenuto a 3 colonne Bronze
-\node[anchor=north west, font=\footnotesize, align=left] at (-7.0, 4.45) {
-    \textbf{\color{brandDark}Sorgente clinica}\\[2pt]
-    \textbullet~VitalDB Open Dataset (API)\\
-    \textbullet~5 segnali monitor Solar8000
+% 3 Sub-card Bronze
+\node[subCard, anchor=north west, minimum width=4.5cm] at (-7.0, 4.55) {
+    \textbf{\footnotesize\color{brandDark}Sorgente Clinica}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{VitalDB REST API $\cdot$ 5 tracce a 1 Hz}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (-2.5, 4.45) {
-    \textbf{\color{brandDark}Formato di storage}\\[2pt]
-    \textbullet~Apache Parquet grezzo\\
-    \textbullet~Risoluzione nominale 1s
+\node[subCard, anchor=north west, minimum width=4.5cm] at (-2.3, 4.55) {
+    \textbf{\footnotesize\color{brandDark}Formato Storage}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Apache Parquet grezzo (1s nominale)}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (2.2, 4.45) {
-    \textbf{\color{brandDark}Data governance}\\[2pt]
-    \textbullet~Immutabilità assoluta\\
-    \textbullet~Log \texttt{manifest.json}
+\node[subCard, anchor=north west, minimum width=4.4cm] at (2.4, 4.55) {
+    \textbf{\footnotesize\color{brandDark}Data Governance}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Immutabilità e log \texttt{manifest.json}}
 };
 
 
 % ==================== TRANSIZIONE 1: CLEAN ====================
-\draw[downArrow] (0, 3.0) -- (0, 1.8);
-\node[fill=white, draw=brandPrimary!50, line width=0.8pt, rounded corners=6pt, inner xsep=8pt, inner ysep=3.5pt, font=\scriptsize\bfseries, text=brandDark, drop shadow={opacity=0.06, shadow xshift=1pt, shadow yshift=-1pt}] at (0, 2.4) {
-    \texttt{clean.py}: bonifica, filtro range clinici, interpolazione lineare e LOCF
+\draw[downArrow] (0, 3.15) -- (0, 2.05);
+\node[fill=white, draw=brandPrimary!60, line width=0.8pt, rounded corners=6pt, inner xsep=10pt, inner ysep=3.5pt, font=\scriptsize\bfseries, text=brandDark, drop shadow={opacity=0.06, shadow xshift=1pt, shadow yshift=-1pt}] at (0, 2.6) {
+    \texttt{clean.py} $\longrightarrow$ Bonifica fisiologica, Imputazione temporale e Partizionamento
 };
 
 
 % ==================== LIVELLO 2: LAYER SILVER ====================
-\node[layerBlock, minimum width=15.2cm, minimum height=2.4cm] (silver) at (0, 0.6) {};
+\node[layerBlock, minimum width=15.2cm, minimum height=2.3cm] (silver) at (0, 0.9) {};
 
 % Barra laterale colorata Silver
-\fill[brandPrimary!85, rounded corners=7pt] (-7.6, -0.6) rectangle (-7.2, 1.8);
+\fill[brandPrimary, rounded corners=7pt] (-7.6, -0.25) rectangle (-7.2, 2.05);
 
 % Intestazione Silver
-\node[anchor=north west] at (-7.0, 1.65) {
+\node[anchor=north west] at (-7.0, 1.90) {
     \textbf{\large\color{brandPrimary}LAYER SILVER} \quad
-    \textbf{\normalsize\color{brandDark}Bonifica e partizionamento} \quad
-    \tikz[baseline=-2pt]\node[fill=brandPrimary!12, draw=brandPrimary!50, rounded corners=4pt, font=\scriptsize\bfseries, text=brandPrimaryDark, inner xsep=4pt, inner ysep=2pt]{2.24 MB (-42.4\%)};
+    \textbf{\normalsize\color{brandDark}Dati Bonificati e Partizionati} \quad
+    \tikz[baseline=-2pt]\node[fill=brandPrimary!12, draw=brandPrimary!50, rounded corners=4pt, font=\scriptsize\bfseries, text=brandPrimary, inner xsep=5pt, inner ysep=2pt]{Contrazione Storage: -42.4\%};
 };
 
-% Contenuto a 3 colonne Silver
-\node[anchor=north west, font=\footnotesize, align=left] at (-7.0, 0.85) {
-    \textbf{\color{brandDark}Pulizia e rimozione}\\[2pt]
-    \textbullet~Drop righe senza segnale\\
-    \textbullet~Report \texttt{quality\_report.json}
+% 3 Sub-card Silver
+\node[subCard, anchor=north west, minimum width=4.5cm] at (-7.0, 1.15) {
+    \textbf{\footnotesize\color{brandDark}Bonifica Fisiologica}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Filtro range vitali e drop righe vuote}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (-2.5, 0.85) {
-    \textbf{\color{brandDark}Imputazione temporale}\\[2pt]
-    \textbullet~Interp. lineare ($\le 5$s)\\
-    \textbullet~LOCF NIBP ($\le 300$s)
+\node[subCard, anchor=north west, minimum width=4.5cm] at (-2.3, 1.15) {
+    \textbf{\footnotesize\color{brandDark}Imputazione Temporale}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Lineare ($\le 5$s) e LOCF ($\le 300$s)}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (2.2, 0.85) {
-    \textbf{\color{brandDark}Partizionamento}\\[2pt]
-    \textbullet~Partizioni Hive \texttt{department}\\
-    \textbullet~Query con partition pruning
+\node[subCard, anchor=north west, minimum width=4.4cm] at (2.4, 1.15) {
+    \textbf{\footnotesize\color{brandDark}Partizionamento Hive}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Cartelle per reparto (\texttt{department})}
 };
 
 
 % ==================== TRANSIZIONE 2: LOAD ====================
-\draw[downArrow] (0, -0.6) -- (0, -1.8);
-\node[fill=white, draw=brandPrimary!50, line width=0.8pt, rounded corners=6pt, inner xsep=8pt, inner ysep=3.5pt, font=\scriptsize\bfseries, text=brandDark, drop shadow={opacity=0.06, shadow xshift=1pt, shadow yshift=-1pt}] at (0, -1.2) {
-    \texttt{load\_mongo.py}: modellazione BSON, contratti schema e ingestione time series
+\draw[downArrow] (0, -0.25) -- (0, -1.35);
+\node[fill=white, draw=brandPrimary!60, line width=0.8pt, rounded corners=6pt, inner xsep=10pt, inner ysep=3.5pt, font=\scriptsize\bfseries, text=brandDark, drop shadow={opacity=0.06, shadow xshift=1pt, shadow yshift=-1pt}] at (0, -0.8) {
+    \texttt{load\_mongo.py} $\longrightarrow$ Modellazione BSON e Ingestione MongoDB Time Series
 };
 
 
 % ==================== LIVELLO 3: LAYER GOLD ====================
-\node[layerBlock, minimum width=15.2cm, minimum height=2.4cm] (gold) at (0, -3.0) {};
+\node[layerBlock, minimum width=15.2cm, minimum height=2.3cm] (gold) at (0, -2.5) {};
 
 % Barra laterale colorata Gold
-\fill[brandTeal, rounded corners=7pt] (-7.6, -4.2) rectangle (-7.2, -1.8);
+\fill[brandTeal, rounded corners=7pt] (-7.6, -3.65) rectangle (-7.2, -1.35);
 
 % Intestazione Gold
-\node[anchor=north west] at (-7.0, -1.95) {
+\node[anchor=north west] at (-7.0, -1.50) {
     \textbf{\large\color{brandTeal!90!black}LAYER GOLD} \quad
-    \textbf{\normalsize\color{brandDark}MongoDB Time Series nativo} \quad
-    \tikz[baseline=-2pt]\node[fill=brandTeal!15, draw=brandTeal!60, rounded corners=4pt, font=\scriptsize\bfseries, text=brandTeal!90!black, inner xsep=4pt, inner ysep=2pt]{\textbf{0.42 MB (-89.1\%, 3.7$\times$ speedup)}};
+    \textbf{\normalsize\color{brandDark}MongoDB Time Series \& Serving} \quad
+    \tikz[baseline=-2pt]\node[fill=brandTeal!15, draw=brandTeal!60, rounded corners=4pt, font=\scriptsize\bfseries, text=brandTeal!90!black, inner xsep=5pt, inner ysep=2pt]{Risparmio: -89.1\% $\cdot$ Query Speedup: 3.7$\times$};
 };
 
-% Contenuto a 3 colonne Gold
-\node[anchor=north west, font=\footnotesize, align=left] at (-7.0, -2.75) {
-    \textbf{\color{brandDark}Time Series Collection}\\[2pt]
-    \textbullet~Collezione \texttt{vital\_signals}\\
-    \textbullet~Partizionamento a bucket (1s)
+% 3 Sub-card Gold
+\node[subCard, anchor=north west, minimum width=4.5cm] at (-7.0, -2.25) {
+    \textbf{\footnotesize\color{brandDark}Time Series Bucket}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Collezione compressa \texttt{vital\_signals}}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (-2.5, -2.75) {
-    \textbf{\color{brandDark}Compressione avanzata}\\[2pt]
-    \textbullet~Delta-of-Delta sui timestamp\\
-    \textbullet~Zstandard sui vettori
+\node[subCard, anchor=north west, minimum width=4.5cm] at (-2.3, -2.25) {
+    \textbf{\footnotesize\color{brandDark}Compressione Nativa}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Delta-of-Delta (Gorilla) e Zstandard}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (2.2, -2.75) {
-    \textbf{\color{brandDark}Governance e servizi}\\[2pt]
-    \textbullet~Metastore \texttt{registry}\\
-    \textbullet~Contratti \texttt{track\_metadata}\\
-    \textbullet~Alimentazione API e modelli ML
+\node[subCard, anchor=north west, minimum width=4.4cm] at (2.4, -2.25) {
+    \textbf{\footnotesize\color{brandDark}Governance \& Serving}\\[2pt]
+    \scriptsize\textcolor{brandDark!80}{Catalogo \texttt{registry} e contratti schema}
 };
 
 \end{tikzpicture}

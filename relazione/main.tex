@@ -155,11 +155,39 @@
     skip=8pt
 }
 
+% === CONFIGURAZIONE INDICE DEI CONTENUTI (TOC) ===
+% Capitoli in Electric Blue con enfasi visiva, sezioni e sottosezioni nel colore scuro del testo
+\usepackage{titletoc}
+
+\makeatletter
+\newcommand{\setchapterlinkcolor}{\HyColor@HyperrefColor{brandPrimary}\@linkcolor}
+\newcommand{\resetlinkcolor}{\HyColor@HyperrefColor{brandDark}\@linkcolor}
+\makeatother
+
+\titlecontents{chapter}[0pt]
+    {\addvspace{1.1em}\sffamily\bfseries\setchapterlinkcolor\color{brandPrimary}}
+    {\contentslabel[\thecontentslabel]{2.0em}}
+    {}
+    {\hfill\contentspage}
+    [\addvspace{0.15em}\resetlinkcolor]
+
+\titlecontents{section}[2.4em]
+    {\addvspace{0.3em}\sffamily\resetlinkcolor\color{brandDark}}
+    {\contentslabel[\thecontentslabel]{2.4em}}
+    {}
+    {\titlerule*[0.7pc]{.}\contentspage}
+
+\titlecontents{subsection}[5.2em]
+    {\addvspace{0.15em}\sffamily\small\resetlinkcolor\color{brandDark!85}}
+    {\contentslabel[\thecontentslabel]{3.0em}}
+    {}
+    {\titlerule*[0.7pc]{.}\contentspage}
+
 % === HYPERREF (LINK E METADATA PDF) ===
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
-    linkcolor=brandPrimary,
+    linkcolor=brandDark, % Il testo dei link generali e sezioni TOC è colore scuro
     citecolor=brandPrimary,
     urlcolor=brandAzure,
     pdftitle={Anomaly detection su dati biometrici},
