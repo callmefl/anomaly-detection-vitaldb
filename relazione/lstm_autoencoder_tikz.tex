@@ -1,0 +1,142 @@
+% Diagramma TikZ per l'architettura dell'LSTM Autoencoder con Linear Projection Layer
+\begin{tikzpicture}[
+    scale=0.88, transform shape,
+    font=\sffamily,
+    netNode/.style={
+        draw=#1!80!black,
+        fill=#1!12,
+        rounded corners=6pt,
+        line width=1.1pt,
+        inner sep=6pt,
+        align=center,
+        font=\small\bfseries,
+        drop shadow={opacity=0.12, shadow xshift=2pt, shadow yshift=-2pt}
+    },
+    ioNode/.style={
+        draw=brandBorder,
+        fill=white,
+        rounded corners=6pt,
+        line width=1.1pt,
+        inner sep=6pt,
+        align=center,
+        drop shadow={opacity=0.10, shadow xshift=2pt, shadow yshift=-2pt}
+    },
+    pipeArrow/.style={
+        -{Stealth[length=3.2mm, width=2.2mm]},
+        line width=1.8pt,
+        color=brandNavy
+    },
+    lossArrow/.style={
+        -{Stealth[length=3.0mm, width=2.0mm]},
+        line width=1.5pt,
+        color=brandCyan
+    }
+]
+
+% ==================== LIVELLO 1: PIPELINE NEURALE (DA SINISTRA A DESTRA) ====================
+
+% 1. Input Window
+\node[ioNode, minimum width=2.2cm, minimum height=2.2cm] (input) at (0, 0) {
+    \textbf{\color{brandNavy}Input $X$}\\[3pt]
+    \footnotesize Finestra 30s\\
+    \footnotesize 8 feature\\
+    \scriptsize $(B, 30, 8)$
+};
+
+% 2. Encoder LSTM
+\node[netNode=brandCyan, minimum width=2.3cm, minimum height=2.2cm] (encoder) at (2.8, 0) {
+    \textbf{Encoder}\\[2pt]
+    \textbf{LSTM}\\[4pt]
+    \scriptsize 32 unità\\
+    \scriptsize Compressione
+};
+
+% 3. Bottleneck Z
+\node[netNode=orange, minimum width=2.0cm, minimum height=2.2cm] (bottleneck) at (5.6, 0) {
+    \textbf{Bottleneck}\\[2pt]
+    \textbf{Latente $Z$}\\[4pt]
+    \scriptsize Dimensione: 32\\
+    \scriptsize Spazio latente
+};
+
+% 4. Decoder LSTM
+\node[netNode=brandCyan, minimum width=2.3cm, minimum height=2.2cm] (decoder) at (8.4, 0) {
+    \textbf{Decoder}\\[2pt]
+    \textbf{LSTM}\\[4pt]
+    \scriptsize 32 unità\\
+    \scriptsize Decodifica
+};
+
+% 5. Linear Projection
+\node[netNode=purple, minimum width=2.3cm, minimum height=2.2cm] (linear) at (11.2, 0) {
+    \textbf{Linear}\\[2pt]
+    \textbf{Projection}\\[4pt]
+    \scriptsize \texttt{Linear(32, 8)}\\
+    \scriptsize Mappatura $\mathbb{R}^8$
+};
+
+% 6. Output Window
+\node[ioNode, minimum width=2.2cm, minimum height=2.2cm] (output) at (14.0, 0) {
+    \textbf{\color{brandNavy}Output $\hat{X}$}\\[3pt]
+    \footnotesize Ricostruzione\\
+    \footnotesize 8 canali\\
+    \scriptsize $(B, 30, 8)$
+};
+
+% Frecce della pipeline neurale
+\draw[pipeArrow] (input) -- (encoder);
+\draw[pipeArrow] (encoder) -- (bottleneck);
+\draw[pipeArrow] (bottleneck) -- (decoder);
+\draw[pipeArrow] (decoder) -- (linear);
+\draw[pipeArrow] (linear) -- (output);
+
+
+% ==================== LIVELLO 2: VALUTAZIONE ERRORE E DECISIONE (CENTRATI IN BASSO) ====================
+
+% Blocco Calcolo Errore MSE (Centrato sotto la rete a x=7.0)
+\node[
+    draw=brandBorder,
+    fill=brandSurface,
+    rounded corners=7pt,
+    line width=1.1pt,
+    inner sep=8pt,
+    minimum width=7.2cm,
+    minimum height=2.0cm,
+    align=center,
+    drop shadow={opacity=0.10, shadow xshift=2pt, shadow yshift=-2pt}
+] (mseBox) at (7.0, -3.2) {
+    \textbf{\color{brandNavy}Calcolo errore di ricostruzione (MSE)}\\[3pt]
+    \small $\text{MSE}(X, \hat{X}) = (X - \hat{X})^2 \quad \implies \quad \text{Score}_{\text{finestra}} = \max_{\text{canale}}(\text{MSE})$\\[2pt]
+    \scriptsize (Valutazione comparativa del peggior segnale fisiologico ricostruito)
+};
+
+% Blocco Soglia e Decisione Clinica (Subito sotto MSE a x=7.0)
+\node[
+    draw=brandEmerald!80!black,
+    fill=brandEmerald!10,
+    rounded corners=7pt,
+    line width=1.1pt,
+    inner sep=7pt,
+    minimum width=9.2cm,
+    minimum height=1.6cm,
+    align=center,
+    drop shadow={opacity=0.10, shadow xshift=2pt, shadow yshift=-2pt}
+] (decisionBox) at (7.0, -5.2) {
+    \textbf{\color{brandNavy}Classificazione clinica} \quad
+    \footnotesize (Soglia empirica: \textbf{$95^\circ$ percentile} sui sani)\\[3pt]
+    \scriptsize $\text{Score}_{\text{finestra}} > \text{Soglia}_{95} \implies$ \textbf{\color{red!80!black}ANOMALIA CLINICA} \qquad\quad
+    \scriptsize $\text{Score}_{\text{finestra}} \le \text{Soglia}_{95} \implies$ \textbf{\color{brandEmerald!80!black}STATO NORMALE}
+};
+
+% Frecce simmetriche da Input e da Output che convergono in mseBox
+\draw[lossArrow] (input.south) -- (0, -2.1) -- (5.2, -2.1) -- ([xshift=-1.8cm]mseBox.north);
+\node[fill=white, draw=brandCyan!50, line width=0.7pt, rounded corners=3pt, inner sep=2.5pt, font=\scriptsize\bfseries, text=brandNavy] at (2.6, -2.1) {Segnale reale $X$};
+
+\draw[lossArrow] (output.south) -- (14.0, -2.1) -- (8.8, -2.1) -- ([xshift=1.8cm]mseBox.north);
+\node[fill=white, draw=brandCyan!50, line width=0.7pt, rounded corners=3pt, inner sep=2.5pt, font=\scriptsize\bfseries, text=brandNavy] at (11.4, -2.1) {Ricostruzione $\hat{X}$};
+
+% Freccia verticale diretta da MSE verso la Classificazione
+\draw[pipeArrow] (mseBox.south) -- (decisionBox.north)
+    node[midway, right=4pt, font=\scriptsize\bfseries, text=brandNavy] {Score MSE};
+
+\end{tikzpicture}

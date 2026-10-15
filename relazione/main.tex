@@ -1,76 +1,366 @@
-\documentclass[12pt, a4paper]{report}
+\documentclass[11pt, a4paper]{report}
 
-% === PACCHETTI DI BASE ===
+% === ENCODING E LINGUA ===
+\usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
-\usepackage{graphicx}
+
+% === TIPOGRAFIA MODERNA ED ELEGANTE (SANS-SERIF GEOMETRICO / NEO-GROTESQUE) ===
+% TeX Gyre Heros per un'estetica pulita e contemporanea come da layout di presentazione
+\usepackage[scaled=0.95]{helvet}
+\renewcommand*\familydefault{\sfdefault}
+\usepackage[scaled=0.88]{inconsolata}
+\usepackage[protrusion=true, expansion=false]{microtype}
+
+% === MATEMATICA ===
 \usepackage{amsmath, amssymb, amsthm}
-\usepackage{hyperref}
-\usepackage{booktabs}
+
+% === LAYOUT PAGINA ===
 \usepackage{geometry}
+\geometry{
+    top=2.8cm,
+    bottom=2.8cm,
+    left=2.8cm,
+    right=2.8cm,
+    headheight=25pt
+}
+
+% === SPAZIATURA TRA PARAGRAFI ===
+\usepackage{parskip}
+\setlength{\parskip}{0.65em}
+
+% === BRAND & TECH DESIGN SYSTEM (ELECTRIC ROYAL BLUE & PEACH PALETTE) ===
 \usepackage{xcolor}
-\usepackage{listings}
+\definecolor{brandPrimary}{HTML}{0047FF}      % Electric Royal Blue (protagonista, dal titolo di tesi)
+\definecolor{brandPrimaryDark}{HTML}{0038D1}  % Royal Blue più profondo per enfasi e contrasto
+\definecolor{brandDark}{HTML}{0F172A}         % Deep Charcoal / Slate 900 istituzionale
+\definecolor{brandNavy}{HTML}{0F172A}         % Slate 900 istituzionale
+\definecolor{brandBlue}{HTML}{1E293B}         % Slate 800 secondario
+\definecolor{brandCyan}{HTML}{0047FF}         % Mappato a Electric Blue per coerenza globale
+\definecolor{brandAzure}{HTML}{2563EB}        % Blue 600 per link ed elementi interattivi
+\definecolor{brandPeach}{HTML}{FFA07A}        % Soft Peach caldo (dall'opera geometrica in alto a destra)
+\definecolor{brandCoral}{HTML}{FF6B6B}        % Corallo vibrante
+\definecolor{brandViolet}{HTML}{7C3AED}       % Viola/Indaco gradiente
+\definecolor{brandTeal}{HTML}{059669}         % Emerald/Teal tecnico per status ok e gold layer
+\definecolor{brandEmerald}{HTML}{059669}      % Alias per compatibilità TikZ
+\definecolor{emerald}{HTML}{059669}           % Alias per compatibilità TikZ
+\definecolor{brandCharcoal}{HTML}{1E293B}     % Slate 800 testo ad alto contrasto
+\definecolor{brandMuted}{HTML}{64748B}        % Slate 500 didascalie ed intestazioni
+\definecolor{brandSurface}{HTML}{F8FAFC}      % Slate 50 fondo card e listati
+\definecolor{brandBorder}{HTML}{E2E8F0}       % Slate 200 linee pulite e moderne
+
+% === TIKZ E GRAFICA VETTORIALE ===
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, shadows, calc, backgrounds, fit}
+
+% === TCOLORBOX PER SCHEDE TECNICHE E CALLOUT (PILL & CARD MODERNE) ===
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+
+\newtcolorbox{techbox}[2][brandPrimary]{
+    enhanced,
+    breakable,
+    colback=brandSurface,
+    colframe=#1!85!black,
+    arc=6pt,
+    boxrule=0.8pt,
+    leftrule=3.8pt,
+    drop shadow={opacity=0.06, shadow xshift=1.5pt, shadow yshift=-2pt},
+    fonttitle=\bfseries\sffamily\small\color{brandDark},
+    colbacktitle=white,
+    title={#2},
+    left=12pt,
+    right=12pt,
+    top=9pt,
+    bottom=9pt,
+    attach boxed title to top left={yshift=-2.5mm, xshift=12pt},
+    boxed title style={
+        boxrule=0.7pt,
+        colframe=brandBorder,
+        arc=4pt,
+        colback=white,
+        drop shadow={opacity=0.05, shadow xshift=1pt, shadow yshift=-1pt}
+    }
+}
+
+% === TITOLI DI CAPITOLO E SEZIONE (STILE GEOMETRICO MODERNO) ===
+\usepackage{titlesec}
+
+% Capitolo moderno con badge e titolo in Electric Blue / Dark Slate
+\titleformat{\chapter}[display]
+    {\normalfont\sffamily\bfseries}
+    {\tikz[baseline=-3pt]\node (chapterbadge) [fill=brandPrimary!10, draw=brandPrimary!35, line width=0.8pt, rounded corners=5pt, inner xsep=8pt, inner ysep=3.5pt]{\footnotesize\bfseries\color{brandPrimary}CAPITOLO \thechapter};}
+    {0.5em}
+    {\fontsize{24}{28}\selectfont\bfseries\color{brandDark}}
+    [\vspace{0.4em}{\color{brandPrimary}\titlerule[2.2pt]}\vspace{0.15em}{\color{brandBorder}\titlerule[0.5pt]}]
+
+\titlespacing*{\chapter}{0pt}{-20pt}{22pt}
+
+% Sezione pulita con numero colorato in Electric Blue
+\titleformat{\section}
+    {\normalfont\Large\sffamily\bfseries\color{brandDark}}
+    {\color{brandPrimary}\thesection\quad}
+    {0em}
+    {}
+
+\titleformat{\subsection}
+    {\normalfont\large\sffamily\bfseries\color{brandDark!90}}
+    {\color{brandPrimary!85!brandDark}\thesubsection\quad}
+    {0em}
+    {}
+
+\titleformat{\subsubsection}
+    {\normalfont\normalsize\sffamily\bfseries\color{brandDark!80}}
+    {\color{brandPrimary!75}\thesubsubsection\quad}
+    {0em}
+    {}
+
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+
+% === HEADER E FOOTER CON FANCYHDR ===
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{brandBorder}\leaders\hrule height \headrulewidth\hfill}}
+\fancyhead[L]{\textcolor{brandMuted}{\footnotesize\sffamily\nouppercase{\leftmark}}}
+\fancyhead[R]{} % "VitalDB Anomaly Detection" ELIMINATO completamente dalla testata superiore come richiesto
+\fancyfoot[R]{%
+    \tikz[baseline=-3pt]\node[
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=8pt,
+        inner xsep=9pt,
+        inner ysep=3.5pt,
+        text=brandDark,
+        drop shadow={opacity=0.06, shadow xshift=1.2pt, shadow yshift=-1.5pt}
+    ]{\scriptsize\sffamily\bfseries Pag. \textcolor{brandPrimary}{\thepage}};%
+}
+\fancyfoot[L]{\textcolor{brandMuted!80}{\scriptsize\sffamily\bfseries Relazione di Progetto}}
+
+% === FIGURE, TABELLE E DIDASCALIE ===
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{colortbl}
 \usepackage{caption}
 \usepackage{subcaption}
 
-% === CONFIGURAZIONE PAGINA ===
-\geometry{
-    top=3cm,
-    bottom=3cm,
-    left=3cm,
-    right=3cm
+\captionsetup{
+    font={small,sf},
+    labelfont={bf,color=brandDark},
+    format=plain,
+    justification=centering,
+    skip=8pt
 }
 
-% === STILE PER IL CODICE ===
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+% === CONFIGURAZIONE INDICE DEI CONTENUTI (TOC) ===
+% Capitoli in Electric Blue con enfasi visiva, sezioni e sottosezioni nel colore scuro del testo
+\usepackage{titletoc}
+
+\makeatletter
+\newcommand{\setchapterlinkcolor}{\HyColor@HyperrefColor{brandPrimary}\@linkcolor}
+\newcommand{\resetlinkcolor}{\HyColor@HyperrefColor{brandDark}\@linkcolor}
+\makeatother
+
+\titlecontents{chapter}[0pt]
+    {\addvspace{1.1em}\sffamily\bfseries\setchapterlinkcolor\color{brandPrimary}}
+    {\contentslabel[\thecontentslabel]{2.0em}}
+    {}
+    {\hfill\contentspage}
+    [\addvspace{0.15em}\resetlinkcolor]
+
+\titlecontents{section}[2.4em]
+    {\addvspace{0.3em}\sffamily\resetlinkcolor\color{brandDark}}
+    {\contentslabel[\thecontentslabel]{2.4em}}
+    {}
+    {\titlerule*[0.7pc]{.}\contentspage}
+
+\titlecontents{subsection}[5.2em]
+    {\addvspace{0.15em}\sffamily\small\resetlinkcolor\color{brandDark!85}}
+    {\contentslabel[\thecontentslabel]{3.0em}}
+    {}
+    {\titlerule*[0.7pc]{.}\contentspage}
+
+% === HYPERREF (LINK E METADATA PDF) ===
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=brandDark, % Il testo dei link generali e sezioni TOC è colore scuro
+    citecolor=brandPrimary,
+    urlcolor=brandAzure,
+    pdftitle={Anomaly detection su dati biometrici},
+    pdfauthor={Andrea Altieri, Andrea Flaiani}
+}
+
+% === STILE LISTATI DI CODICE (CARD MODERNA CON INCONSOLATA) ===
+\usepackage{listings}
+
+\definecolor{codeGreen}{HTML}{059669}
+\definecolor{codeGray}{HTML}{64748B}
+\definecolor{codePurple}{HTML}{7C3AED}
+\definecolor{codeBlue}{HTML}{0047FF}
 
 \lstdefinestyle{codeStyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
+    backgroundcolor=\color{brandSurface},
+    commentstyle=\itshape\color{codeGray},
+    keywordstyle=\bfseries\color{codeBlue},
+    numberstyle=\tiny\color{codeGray},
+    stringstyle=\color{codeGreen},
+    basicstyle=\ttfamily\small\color{brandDark},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=8pt,
+    showspaces=false,
     showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    framerule=0.7pt,
+    rulecolor=\color{brandBorder},
+    xleftmargin=12pt,
+    xrightmargin=4pt
 }
 \lstset{style=codeStyle}
 
-% === PATH IMMAGINI ===
-\graphicspath{{img/}}
-
-% === INFORMAZIONI DOCUMENTO ===
-\title{
-    \textbf{Anomaly Detection su Dati Biometrici (VitalDB)}\\
-    \large Progetto per il corso di New Generation Databases\\
-    \large Corso di Laurea in Informatica
-}
-\author{\textbf{Autori}: Collaboratori del Progetto}
-\date{\today}
+% Path per le immagini grafiche raster
+\graphicspath{{img/}{capitolo1/img/}{capitolo2/img/}{capitolo3/img/}{capitolo4/img/}}
 
 \begin{document}
 
-% === FRONTESPIZIO E INDICE ===
-\maketitle
+\hypersetup{pageanchor=false}
+% === FRONTESPIZIO MODERNO (DESIGN ISPIRATO AL LAYOUT CON SFERA GRADIENTE & PILL) ===
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+    % Sottile griglia tecnica blueprint su tutta la pagina
+    \draw[step=1.0cm, brandBorder!45, line width=0.4pt] (current page.south west) grid (current page.north east);
+
+    % Composizione geometrica astratta con sfumatura calda Pesca / Corallo / Electric Blue in alto a destra
+    \begin{scope}
+        \clip ([xshift=1cm, yshift=1cm]current page.north east) rectangle ([xshift=-12cm, yshift=-11cm]current page.north east);
+        % Sfera principale con gradiente radiale
+        \shade[shading=radial, inner color=brandPeach!95, outer color=brandPrimary!90, opacity=0.92]
+            ([xshift=-1.8cm, yshift=-2.2cm]current page.north east) circle (4.8cm);
+        % Settore curvo complementare superiore
+        \shade[left color=brandPeach!85, right color=brandPrimary!80, opacity=0.88]
+            ([xshift=0.3cm, yshift=-0.2cm]current page.north east) circle (3.4cm);
+        % Linea curva bianca di separazione geometrica
+        \draw[white, line width=3.5pt]
+            ([xshift=-1.8cm, yshift=-2.2cm]current page.north east) circle (4.8cm);
+    \end{scope}
+
+    % Testata istituzionale UNIVPM in alto a sinistra (stile pulito ed essenziale)
+    \node[anchor=north west, align=left, text width=11.5cm] at ([xshift=2.4cm, yshift=-2.4cm]current page.north west) {
+        {\fontsize{12}{15}\selectfont\sffamily\bfseries\color{brandDark} UNIVERSITÀ POLITECNICA DELLE MARCHE}\\[4pt]
+        {\fontsize{9}{12}\selectfont\sffamily\bfseries\color{brandMuted} DIPARTIMENTO DI INGEGNERIA DELL'INFORMAZIONE}\\[3pt]
+        {\fontsize{8.5}{11.5}\selectfont\sffamily\color{brandDark!70} Corso di Laurea Magistrale in Ingegneria Informatica e dell'Automazione}\\[2.5pt]
+        {\fontsize{8.5}{11.5}\selectfont\sffamily\bfseries\color{brandPrimary} Insegnamento di New Generation Databases}
+    };
+
+    % Sigillo ufficiale UNIVPM racchiuso in card circolare minimalista
+    \node[
+        circle,
+        fill=white,
+        draw=brandBorder,
+        line width=0.9pt,
+        inner sep=3pt,
+        drop shadow={opacity=0.08, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] at ([xshift=-3.2cm, yshift=-6.4cm]current page.north east) {
+        \includegraphics[width=2.2cm]{univpm_seal.png}
+    };
+
+    % Sezione "Presentato da:" con Pill Badges e mini-sfera gradiente
+    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=2.4cm, yshift=-8.8cm]current page.north west) {Presentato da:};
+
+    % Badge Studente 1: Andrea Altieri
+    \node[
+        anchor=west,
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=12pt,
+        inner xsep=12pt,
+        inner ysep=5.5pt,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] (s1) at ([xshift=2.4cm, yshift=-9.9cm]current page.north west) {
+        \normalsize\sffamily\bfseries\color{brandDark} Andrea Altieri\hspace{8pt}%
+        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
+    };
+
+    % Badge Studente 2: Andrea Flaiani
+    \node[
+        anchor=west,
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=12pt,
+        inner xsep=12pt,
+        inner ysep=5.5pt,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] (s2) at ([xshift=8.0cm, yshift=-9.9cm]current page.north west) {
+        \normalsize\sffamily\bfseries\color{brandDark} Andrea Flaiani\hspace{8pt}%
+        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
+    };
+
+    % Sezione "Docente:" con Pill Badge
+    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=2.4cm, yshift=-11.8cm]current page.north west) {Docente:};
+
+    \node[
+        anchor=west,
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=12pt,
+        inner xsep=12pt,
+        inner ysep=5.5pt,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] at ([xshift=2.4cm, yshift=-12.9cm]current page.north west) {
+        \normalsize\sffamily\bfseries\color{brandDark} Prof.ssa Claudia Diamantini\hspace{8pt}%
+        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
+    };
+
+    % Titolo Principale ad Alto Impatto (Electric Royal Blue e Black Caps)
+    \node[anchor=west, align=left, text width=16cm] at ([xshift=2.4cm, yshift=-18.0cm]current page.north west) {
+        {\fontsize{34}{38}\selectfont\sffamily\bfseries\color{brandPrimary} ANOMALY DETECTION\par}
+        \vspace{0.18cm}
+        {\fontsize{34}{38}\selectfont\sffamily\bfseries\color{brandPrimary} SU DATI BIOMETRICI\par}
+        \vspace{0.45cm}
+        {\fontsize{18}{22}\selectfont\sffamily\bfseries\color{brandDark} RELAZIONE DI PROGETTO\par}
+    };
+
+    % Linea divisoria inferiore sottile
+    \draw[brandBorder, line width=0.8pt] ([xshift=2.4cm, yshift=-23.5cm]current page.north west) -- ([xshift=-2.4cm, yshift=-23.5cm]current page.north east);
+
+    % Anno Accademico in pill badge
+    \node[anchor=west] at ([xshift=2.4cm, yshift=-24.6cm]current page.north west) {
+        \tikz\node[
+            fill=brandSurface,
+            draw=brandBorder,
+            line width=0.8pt,
+            rounded corners=8pt,
+            inner xsep=10pt,
+            inner ysep=4pt
+        ]{\sffamily\bfseries\small\color{brandDark} Anno Accademico 2026/2027};
+    };
+\end{tikzpicture}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+% === INDICE DEI CONTENUTI ===
+\pagenumbering{roman}
 \tableofcontents
 \newpage
+\pagenumbering{arabic}
 
 % === CAPITOLI ===
-\input{capitolo1/capitolo1.tex}
-\input{capitolo2/capitolo2.tex}
-\input{capitolo3/capitolo3.tex}
-\input{capitolo4/capitolo4.tex}
-\input{capitolo5/capitolo5.tex}
+\input{capitolo1/capitolo1.tex}\clearpage
+\input{capitolo2/capitolo2.tex}\clearpage
+\input{capitolo3/capitolo3.tex}\clearpage
+\input{capitolo4/capitolo4.tex}\clearpage
+\input{capitolo5/capitolo5.tex}\clearpage
 
 \end{document}

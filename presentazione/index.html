@@ -1,653 +1,1949 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Technology & Anomaly Detection — VitalDB Presentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anomaly detection su dati biometrici — Presentazione della relazione di progetto</title>
+    <meta name="description" content="Presentazione della relazione di progetto di New Generation Databases: medallion architecture, MongoDB Time Series e anomaly detection ibrida su dati VitalDB.">
 
-  <!-- Google Fonts: Space Grotesk / Syne / Inter / JetBrains Mono per la grafica esatta di Slidesgo -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+    <!-- ===========================================
+         FONT (locali, funzionano anche offline)
+         Instrument Sans (display + testo) e JetBrains Mono (codice e valori).
+         Rigenerabili con fonts/_fetch_fonts.ps1
+         =========================================== -->
+    <link rel="stylesheet" href="fonts/fonts.css">
 
-  <style>
-    /* ==========================================================================
-       SLIDESGO AI TECHNOLOGY EXACT TEMPLATE STYLE (PITCH BLACK & NEON PILLS)
-       ========================================================================== */
-    :root {
-      --bg-black:      #000000;
-      --bg-card:       #0d0d0f;
-      --border-gray:   #26262a;
-      
-      --lime-neon:     #ccff00;
-      --pink-neon:     #ff2a85;
-      --purple-light:  #c084fc;
-      --purple-deep:   #7e22ce;
-      --blue-neon:     #3b82f6;
+    <style>
+        /* ===========================================
+           TOKEN DEL TEMA
+           Palette ripresa dal frontespizio della relazione:
+           crema + blu elettrico + pesca, con griglia tecnica sottile.
+           Cambia qui i colori per cambiare tutta la presentazione.
+           =========================================== */
+        :root {
+            --bg: #FBFAF7;
+            --stage-bg: #E8E6E0;
+            --slide-bg: var(--bg);
 
-      --text-white:    #ffffff;
-      --text-muted:    #a1a1aa;
-      --text-dim:      #52525b;
+            --ink: #0F172A;
+            --ink-soft: #334155;
+            --muted: #64748B;
+            --line: #E2E8F0;
+            --line-strong: #CBD5E1;
+            --surface: #F8FAFC;
 
-      --font-display:  'Space Grotesk', 'Syne', sans-serif;
-      --font-body:     'Inter', sans-serif;
-      --font-mono:     'JetBrains Mono', monospace;
-    }
+            --blue: #0047FF;
+            --blue-deep: #0038D1;
+            --blue-wash: rgba(0, 71, 255, 0.07);
+            --peach: #FFA07A;
+            --peach-wash: rgba(255, 160, 122, 0.16);
+            --coral: #FF6B6B;
+            --teal: #059669;
+            --teal-wash: rgba(5, 150, 105, 0.10);
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+            --font-display: 'Instrument Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-mono: 'JetBrains Mono', Consolas, 'Courier New', monospace;
 
-    body {
-      background-color: var(--bg-black);
-      color: var(--text-white);
-      font-family: var(--font-body);
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration: 0.9s;
+        }
 
-    /* BADGE SLIDE COUNTER IN ALTO AL CENTRO (STILE SLIDESGO 6/35) */
-    .slidesgo-counter {
-      position: absolute;
-      top: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #18181b;
-      color: #ffffff;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      font-weight: 600;
-      padding: 0.35rem 0.9rem;
-      border-radius: 6px;
-      z-index: 100;
-      border: 1px solid #27272a;
-    }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* CONTENITORE SLIDES FULL SCREEN */
-    .slide-viewport {
-      flex: 1;
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+        /* ===========================================
+           FIXED 16:9 STAGE: MANDATORY BASE STYLES
+           (viewport-base.css della skill frontend-slides, integrale)
+           Le slide sono scritte a 1920×1080 e scalate come un blocco unico.
+           =========================================== */
 
-    .slide {
-      position: absolute;
-      inset: 0;
-      padding: 4.5rem 6rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      opacity: 0;
-      visibility: hidden;
-      transform: scale(0.98);
-      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      background: var(--bg-black);
-    }
+        /* 1. Lock the browser viewport */
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: var(--stage-bg, #000);
+        }
 
-    .slide.active {
-      opacity: 1;
-      visibility: visible;
-      transform: scale(1);
-    }
+        /* 2. Full-window deck viewport */
+        .deck-viewport {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            background: var(--stage-bg, #000);
+        }
 
-    /* TITOLI SLIDE IN STILE SLIDESGO DISPLAY */
-    .slidesgo-title {
-      font-family: var(--font-display);
-      font-size: 3rem;
-      font-weight: 800;
-      color: var(--text-white);
-      letter-spacing: -0.02em;
-      margin-bottom: 2rem;
-    }
+        /* 3. Fixed 16:9 design canvas.
+           JavaScript sets transform: translate(...) scale(...). */
+        .deck-stage {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            transform-origin: 0 0;
+            background: var(--slide-bg, #fff);
+        }
 
-    .slidesgo-subtitle {
-      font-family: var(--font-display);
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--purple-light);
-      margin-bottom: 0.75rem;
-    }
+        /* 4. Slides stack inside the fixed stage.
+           Content must be laid out at 1920×1080, not reflowed per device. */
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            display: block;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            background: var(--slide-bg, #fff);
+        }
 
-    /* OVAL PILL CONTAINERS CON BORDO ROSA/MAGENTA (ESATTI COME SCREENSHOT SLIDESGO) */
-    .pill-card {
-      border: 1px solid var(--pink-neon);
-      border-radius: 9999px;
-      padding: 0.85rem 2rem;
-      text-align: center;
-      font-family: var(--font-display);
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text-white);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.6rem;
-      transition: transform 0.2s ease, border-color 0.2s ease;
-    }
+        .slide.active,
+        .slide.visible {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 1;
+        }
 
-    .pill-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--lime-neon);
-    }
+        /* 5. Keep media inside authored slide bounds */
+        img,
+        video,
+        canvas,
+        svg {
+            max-width: 100%;
+            max-height: 100%;
+        }
 
-    /* GRIGLIA A 4 COLONNE COME NELLA SCHERMATA SLIDESGO "CONTENTS OF THIS TEMPLATE" */
-    .slidesgo-grid-4 {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 2rem;
-      margin-top: 1.5rem;
-    }
+        /* 6. Presentation chrome stays outside the slide design system */
+        .deck-controls {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
 
-    .slidesgo-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 1.25rem;
-    }
+        /* 7. Print one fixed-size slide per page */
+        @media print {
+            html,
+            body {
+                width: 1920px;
+                height: auto;
+                overflow: visible;
+                background: #fff;
+            }
 
-    .slidesgo-icon {
-      font-size: 2.2rem;
-      color: var(--lime-neon);
-      line-height: 1;
-    }
+            .deck-viewport {
+                position: static;
+                overflow: visible;
+                background: #fff;
+            }
 
-    .col-desc {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
+            .deck-stage {
+                position: static;
+                width: auto;
+                height: auto;
+                transform: none !important;
+                background: none;
+            }
 
-    .col-desc strong {
-      color: var(--text-white);
-    }
+            .slide {
+                position: relative;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                width: 1920px;
+                height: 1080px;
+                break-after: page;
+                page-break-after: always;
+            }
 
-    /* BANNER ALERT ROSA (STILE SLIDESGO FLOATING ALERT) */
-    .slidesgo-pink-alert {
-      background: var(--pink-neon);
-      color: #ffffff;
-      font-size: 0.9rem;
-      font-weight: 600;
-      padding: 0.85rem 1.5rem;
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
+            .slide:last-child {
+                break-after: auto;
+                page-break-after: auto;
+            }
 
-    /* PULSANTI DI NAVIGAZIONE CIRCOLARI AI LATI (ESATTI COME SCREENSHOT) */
-    .side-nav-btn {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: #ffffff;
-      color: #000000;
-      border: none;
-      font-size: 1.3rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
-    }
+            .deck-controls {
+                display: none !important;
+            }
+        }
 
-    .side-nav-btn:hover {
-      transform: translateY(-50%) scale(1.1);
-      background: var(--lime-neon);
-    }
+        /* 8. Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+        }
 
-    .side-nav-btn.prev { left: 1.5rem; }
-    .side-nav-btn.next { right: 1.5rem; }
+        /* ===========================================
+           SFONDO DELLE SLIDE: crema + griglia tecnica "blueprint"
+           =========================================== */
+        .slide {
+            font-family: var(--font-display);
+            color: var(--ink);
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(to right, rgba(15, 23, 42, 0.055) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.055) 1px, transparent 1px);
+            background-size: 160px 160px;
+            background-position: -1px -1px;
+        }
 
-    .side-nav-btn:disabled {
-      opacity: 0.2;
-      cursor: not-allowed;
-      transform: translateY(-50%);
-      background: #ffffff;
-    }
+        /* ===========================================
+           ANIMAZIONI DI INGRESSO
+           Si attivano con la classe .visible sulla slide corrente.
+           L'indice di stagger (--d) viene assegnato dal JS.
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(34px);
+            transition: opacity var(--duration) var(--ease-out-expo),
+                        transform var(--duration) var(--ease-out-expo);
+            transition-delay: 0s;
+        }
 
-    /* TABELLA SLIDESGO */
-    .slidesgo-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-      margin-top: 1rem;
-    }
+        .slide.visible .reveal {
+            opacity: 1;
+            transform: translateY(0);
+            transition-delay: calc(var(--d, 0) * 85ms + 120ms);
+        }
 
-    .slidesgo-table th {
-      border-bottom: 2px solid var(--lime-neon);
-      color: var(--lime-neon);
-      font-family: var(--font-display);
-      font-size: 0.9rem;
-      padding: 1rem;
-      text-align: left;
-    }
+        /* ===========================================
+           SFERE GRADIENTI (motivo grafico del frontespizio)
+           =========================================== */
+        .sphere {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            background: linear-gradient(135deg, #FFB598 0%, #FBC7B2 28%, #A9B8F6 62%, #2F5CF0 100%);
+        }
 
-    .slidesgo-table td {
-      padding: 1rem;
-      border-bottom: 1px solid var(--border-gray);
-      font-family: var(--font-mono);
-    }
+        /* Versione grande: copertina e chiusura (come nell'immagine di riferimento) */
+        .sphere.xl-a { width: 620px; height: 620px; left: 1524px; top: -208px; }
+        .sphere.xl-b {
+            width: 440px; height: 440px; left: 1750px; top: -230px;
+            border: 12px solid var(--bg);
+            background: linear-gradient(135deg, #FFB598 0%, #D9C2E8 40%, #5E80F4 100%);
+        }
 
-    .slidesgo-table tr:hover {
-      background: rgba(204, 255, 0, 0.03);
-    }
-  </style>
+        /* Versione compatta: slide di contenuto */
+        .sphere.sm-a { width: 330px; height: 330px; left: 1690px; top: -170px; opacity: 0.96; }
+        .sphere.sm-b {
+            width: 210px; height: 210px; left: 1840px; top: -112px;
+            border: 8px solid var(--bg);
+            background: linear-gradient(135deg, #FFB598 0%, #D9C2E8 40%, #5E80F4 100%);
+        }
+
+        /* ===========================================
+           TIPOGRAFIA
+           =========================================== */
+        .kick {
+            position: absolute;
+            left: 120px;
+            top: 62px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        .kick .dot,
+        .pill .dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            flex: none;
+            background: linear-gradient(135deg, var(--peach), var(--blue));
+            box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.55);
+        }
+
+        .content {
+            position: absolute;
+            left: 120px;
+            right: 120px;
+            top: 140px;
+            bottom: 130px;
+        }
+
+        .title {
+            font-weight: 500;
+            font-stretch: 82%;
+            font-size: 92px;
+            line-height: 0.95;
+            letter-spacing: -0.035em;
+            text-transform: uppercase;
+            color: var(--ink);
+            height: 190px;
+        }
+
+        .title span,
+        .title em { display: block; }
+        .title em { font-style: normal; color: var(--blue); }
+
+        .body {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 250px;
+            bottom: 0;
+        }
+
+        .lbl {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .mono { font-family: var(--font-mono); }
+        .blue { color: var(--blue); }
+        .peach { color: #F2764A; }
+        .teal { color: var(--teal); }
+        .coral { color: var(--coral); }
+        .muted { color: var(--muted); }
+
+        /* ===========================================
+           COMPONENTI: pill, card, chip
+           =========================================== */
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 18px;
+            background: #fff;
+            border: 2px solid var(--line-strong);
+            border-radius: 999px;
+            padding: 16px 34px;
+            font-size: 36px;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.09);
+            white-space: nowrap;
+        }
+
+        .pill.sm { font-size: 28px; padding: 10px 26px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07); }
+        .pill.blue-solid { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: 0 12px 30px rgba(0, 71, 255, 0.28); }
+
+        .card {
+            background: #fff;
+            border: 2px solid var(--line);
+            border-radius: 36px;
+            padding: 36px 40px;
+            box-shadow: 0 16px 44px rgba(15, 23, 42, 0.06);
+            position: relative;
+        }
+
+        .card h3 {
+            font-size: 38px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 12px;
+        }
+
+        .card p,
+        .card li {
+            font-size: 28px;
+            line-height: 1.36;
+            color: var(--ink-soft);
+        }
+
+        .card b { color: var(--ink); font-weight: 600; }
+
+        .chip {
+            display: inline-block;
+            background: var(--surface);
+            border: 2px solid var(--line);
+            border-radius: 14px;
+            padding: 6px 16px;
+            font-family: var(--font-mono);
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--ink);
+        }
+
+        .chip.blue { background: var(--blue-wash); border-color: rgba(0, 71, 255, 0.25); color: var(--blue); }
+
+        .tag {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--blue);
+            margin-bottom: 14px;
+        }
+
+        .big-num {
+            font-weight: 500;
+            font-stretch: 85%;
+            font-size: 120px;
+            line-height: 0.95;
+            letter-spacing: -0.04em;
+            color: var(--blue);
+        }
+
+        .big-num small {
+            font-size: 0.4em;
+            letter-spacing: -0.02em;
+            color: var(--ink);
+        }
+
+        .accent-top::before {
+            content: "";
+            position: absolute;
+            left: 40px;
+            top: 0;
+            width: 90px;
+            height: 8px;
+            border-radius: 0 0 8px 8px;
+            background: var(--accent, var(--blue));
+        }
+
+        /* ===========================================
+           BARRE ANIMATE (benchmark, percentuali)
+           =========================================== */
+        .bar {
+            height: 34px;
+            border-radius: 999px;
+            background: var(--surface);
+            border: 2px solid var(--line);
+            overflow: hidden;
+        }
+
+        .bar > i {
+            display: block;
+            height: 100%;
+            width: 0;
+            border-radius: 999px;
+            background: var(--bar, var(--blue));
+            transition: width 1.3s var(--ease-out-expo) 0.55s;
+        }
+
+        .slide.visible .bar > i { width: var(--w); }
+
+        /* ===========================================
+           COPERTINA E CHIUSURA
+           =========================================== */
+        .cover-top {
+            position: absolute;
+            left: 100px;
+            top: 62px;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .cover-top img {
+            width: 104px;
+            height: 104px;
+            border-radius: 50%;
+            background: #fff;
+            padding: 6px;
+            border: 2px solid var(--line);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+        }
+
+        .cover-top .uni {
+            font-size: 42px;
+            font-weight: 500;
+            font-stretch: 85%;
+            letter-spacing: -0.015em;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+
+        .cover-top .dept {
+            font-size: 24px;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        .people {
+            position: absolute;
+            left: 100px;
+            right: 100px;
+            top: 372px;
+            display: flex;
+            gap: 56px;
+            align-items: flex-end;
+        }
+
+        .people .lbl {
+            font-size: 28px;
+            font-weight: 500;
+            letter-spacing: 0;
+            text-transform: none;
+            color: var(--ink);
+            margin: 0 0 16px 20px;
+        }
+
+        .people .row { display: flex; gap: 22px; }
+
+        .mega {
+            position: absolute;
+            left: 92px;
+            right: 60px;
+            top: 560px;
+            font-weight: 500;
+            font-stretch: 78%;
+            font-size: 198px;
+            line-height: 0.88;
+            letter-spacing: -0.045em;
+            text-transform: uppercase;
+            color: var(--blue);
+        }
+
+        .mega span { display: block; }
+
+        .cover-foot {
+            position: absolute;
+            left: 108px;
+            right: 100px;
+            bottom: 62px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .cover-foot .tag-big {
+            font-size: 46px;
+            font-weight: 500;
+            font-stretch: 85%;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }
+
+        /* ===========================================
+           FOOTER E PROGRESSO (iniettati dal JS)
+           =========================================== */
+        .foot {
+            position: absolute;
+            left: 120px;
+            right: 120px;
+            bottom: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--muted);
+            letter-spacing: 0.01em;
+        }
+
+        .pager {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            border: 2px solid var(--line);
+            border-radius: 18px;
+            padding: 6px 20px;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--ink);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+        }
+
+        .pager b { color: var(--blue); }
+
+        .progress {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--peach), var(--blue));
+            transition: width 0.6s var(--ease-out-expo);
+        }
+
+        /* ===========================================
+           SLIDE 02 — Contesto (visualizzazione campionamento)
+           =========================================== */
+        .track { margin-top: 34px; }
+        .track:first-of-type { margin-top: 26px; }
+
+        .track-h {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 14px;
+            font-size: 28px;
+        }
+
+        .track-h b { font-weight: 600; }
+        .track-h .mono { font-size: 26px; font-weight: 600; }
+
+        .dots.dense {
+            height: 36px;
+            background: radial-gradient(circle, var(--blue) 0 5px, transparent 5.6px) 0 50% / 18px 36px repeat-x;
+        }
+
+        .dots.sparse {
+            height: 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(var(--line-strong), var(--line-strong)) center / 100% 2px no-repeat;
+        }
+
+        .dots.sparse i {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--peach);
+            box-shadow: 0 0 0 7px var(--peach-wash);
+        }
+
+        .stack { display: flex; flex-direction: column; gap: 22px; }
+
+        .row-card {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            padding: 26px 34px;
+        }
+
+        .row-card .ico {
+            width: 76px;
+            height: 76px;
+            flex: none;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--blue);
+            background: var(--blue-wash);
+            border: 2px solid rgba(0, 71, 255, 0.22);
+        }
+
+        .row-card h3 { font-size: 34px; margin-bottom: 4px; }
+        .row-card p { font-size: 26px; }
+
+        /* ===========================================
+           SLIDE 04 — Direttrici
+           =========================================== */
+        .five {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 24px;
+            height: 100%;
+        }
+
+        .five .card { padding: 36px 30px; display: flex; flex-direction: column; }
+        .five .num {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--blue);
+            margin-bottom: auto;
+        }
+
+        .five h3 { font-size: 40px; margin-top: 40px; }
+        .five p { font-size: 26px; }
+
+        /* ===========================================
+           SLIDE 05 — Medallion
+           =========================================== */
+        .medallion {
+            display: grid;
+            grid-template-columns: 1fr 110px 1fr 110px 1fr;
+            align-items: stretch;
+            height: 100%;
+        }
+
+        .layer { padding: 34px 34px 30px; display: flex; flex-direction: column; }
+        .layer .tag { font-size: 24px; }
+        .layer h3 { font-size: 46px; margin-bottom: 4px; }
+        .layer .sub { font-size: 26px; color: var(--muted); margin-bottom: 22px; }
+        .layer ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .layer li { font-size: 25px; line-height: 1.25; padding-left: 28px; position: relative; }
+        .layer li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .layer .badge {
+            margin-top: auto;
+            align-self: flex-start;
+            border-radius: 999px;
+            padding: 10px 24px;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--accent-ink, var(--accent));
+            background: var(--accent-wash);
+            border: 2px solid var(--accent-line);
+        }
+
+        .layer.bronze { --accent: #FF6B6B; --accent-ink: #D94646; --accent-wash: rgba(255, 107, 107, 0.12); --accent-line: rgba(255, 107, 107, 0.4); }
+        .layer.silver { --accent: #0047FF; --accent-wash: rgba(0, 71, 255, 0.08); --accent-line: rgba(0, 71, 255, 0.3); }
+        .layer.gold { --accent: #059669; --accent-wash: rgba(5, 150, 105, 0.1); --accent-line: rgba(5, 150, 105, 0.38); }
+
+        .link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--blue);
+        }
+
+        .link .mono { font-size: 21px; }
+        .link .arrow {
+            width: 100%;
+            height: 3px;
+            background: var(--blue);
+            position: relative;
+            border-radius: 3px;
+        }
+
+        .link .arrow::after {
+            content: "";
+            position: absolute;
+            right: -2px;
+            top: -10px;
+            border-left: 18px solid var(--blue);
+            border-top: 11px solid transparent;
+            border-bottom: 11px solid transparent;
+        }
+
+        /* ===========================================
+           SLIDE 06 / 07 — Immagini e codice
+           =========================================== */
+        .figure {
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow: hidden;
+        }
+
+        .figure img {
+            display: block;
+            width: 100%;
+            border-radius: 20px;
+            object-fit: contain;
+        }
+
+        .figure figcaption {
+            font-size: 22px;
+            color: var(--muted);
+            padding: 0 6px;
+        }
+
+        .code {
+            background: var(--ink);
+            color: #E2E8F0;
+            border-radius: 28px;
+            padding: 30px 36px;
+            font-family: var(--font-mono);
+            font-size: 24px;
+            line-height: 1.5;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+            white-space: pre;
+        }
+
+        .code .k { color: #FFB598; }
+        .code .s { color: #7DD3A8; }
+        .code .n { color: #93B4FF; }
+        .code .c { color: #64748B; }
+
+        .rule { display: flex; gap: 24px; align-items: flex-start; padding: 24px 32px; }
+        .rule + .rule { margin-top: 18px; }
+        .rule .ico {
+            flex: none;
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-mono);
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--blue-wash);
+            color: var(--blue);
+            border: 2px solid rgba(0, 71, 255, 0.2);
+        }
+
+        .rule h3 { font-size: 32px; margin-bottom: 4px; }
+        .rule p { font-size: 25px; line-height: 1.3; }
+
+        /* ===========================================
+           SLIDE 08 — Benchmark
+           =========================================== */
+        .bm-row { display: grid; grid-template-columns: 190px 1fr 190px; gap: 20px; align-items: center; margin-top: 24px; }
+        .bm-row .n { font-size: 26px; font-weight: 600; }
+        .bm-row .v { font-family: var(--font-mono); font-size: 26px; font-weight: 600; text-align: right; }
+
+        .strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .strip .card { padding: 28px 36px; display: flex; align-items: center; gap: 24px; }
+        .strip .big-num { font-size: 92px; }
+        .strip p { font-size: 25px; line-height: 1.3; }
+
+        /* ===========================================
+           SLIDE 10 — Approccio ibrido
+           =========================================== */
+        .hybrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr;
+            gap: 24px 28px;
+            height: 100%;
+        }
+
+        .hybrid .head { display: flex; align-items: center; gap: 20px; }
+        .hybrid .head span { font-size: 28px; color: var(--muted); }
+
+        .formula {
+            font-family: var(--font-mono);
+            font-size: 38px;
+            font-weight: 600;
+            color: var(--blue);
+            margin: 6px 0 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .hybrid .card { padding: 28px 38px; }
+        .hybrid .card h3 { font-size: 34px; margin-bottom: 6px; }
+        .hybrid .card p { font-size: 25px; line-height: 1.32; }
+        .hybrid .ml { --accent: var(--peach); }
+        .hybrid .ml .formula { color: #E4602F; }
+
+        /* ===========================================
+           SLIDE 11 — LSTM Autoencoder
+           =========================================== */
+        .flow { display: flex; align-items: center; height: 190px; }
+
+        .node {
+            width: 190px;
+            height: 100%;
+            flex: none;
+            background: #fff;
+            border: 2px solid var(--line);
+            border-radius: 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-align: center;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+        }
+
+        .node .t { font-family: var(--font-mono); font-size: 18px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); }
+        .node .m { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+        .node .s { font-family: var(--font-mono); font-size: 24px; font-weight: 600; color: var(--blue); }
+        .node.core { background: var(--blue); border-color: var(--blue); box-shadow: 0 16px 36px rgba(0, 71, 255, 0.3); }
+        .node.core .t { color: rgba(255, 255, 255, 0.75); }
+        .node.core .m, .node.core .s { color: #fff; }
+        .node.out { border-color: var(--peach); background: var(--peach-wash); }
+        .node.out .s { color: #E4602F; }
+
+        .flow .arrow {
+            flex: 1;
+            height: 3px;
+            background: var(--blue);
+            position: relative;
+            border-radius: 3px;
+        }
+
+        .flow .arrow::after {
+            content: "";
+            position: absolute;
+            right: -2px;
+            top: -9px;
+            border-left: 16px solid var(--blue);
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+        }
+
+        .trio { display: grid; grid-template-columns: 1.15fr 1fr 0.9fr; gap: 24px; position: absolute; left: 0; right: 0; top: 232px; bottom: 0; }
+        .trio .card { padding: 28px 34px; }
+        .trio .card h3 { font-size: 32px; }
+        .trio .card p { font-size: 25px; line-height: 1.32; }
+
+        /* ===========================================
+           SLIDE 12 — Valutazione
+           =========================================== */
+        table.eval {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 28px;
+        }
+
+        table.eval th {
+            text-align: right;
+            font-size: 21px;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding: 0 0 16px;
+        }
+
+        table.eval th:first-child, table.eval td:first-child { text-align: left; }
+
+        table.eval td {
+            text-align: right;
+            font-family: var(--font-mono);
+            font-weight: 500;
+            padding: 20px 0;
+            border-top: 2px solid var(--line);
+        }
+
+        table.eval td:first-child { font-family: var(--font-display); font-weight: 600; font-size: 28px; }
+        table.eval tr.best td { color: var(--blue); font-weight: 700; }
+        table.eval tr.base td { color: var(--muted); }
+
+        /* ===========================================
+           SLIDE 13 — Concordanza
+           =========================================== */
+        .three-col { display: grid; grid-template-columns: 560px 700px 1fr; gap: 28px; height: 100%; }
+        .three-col .figure img { height: 400px; background: #fff; }
+        .insights { display: flex; flex-direction: column; gap: 20px; }
+        .insights .card { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; justify-content: center; }
+        .insights .big-num { font-size: 76px; }
+        .insights p { font-size: 22px; line-height: 1.28; margin-top: 8px; }
+
+        /* ===========================================
+           SLIDE 14 — Architettura di sistema
+           =========================================== */
+        .tiers { display: flex; flex-direction: column; height: 100%; }
+
+        .tier { padding: 22px 30px 24px; border-radius: 28px; }
+        .tier .tag { margin-bottom: 12px; font-size: 20px; }
+        .tier .chips { display: flex; gap: 12px; flex-wrap: wrap; }
+        .tier .chips .chip { font-family: var(--font-display); font-size: 24px; font-weight: 500; background: #fff; }
+
+        .conn {
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            font-family: var(--font-mono);
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--blue);
+        }
+
+        .conn::before, .conn::after { content: ""; width: 3px; height: 100%; background: var(--blue); border-radius: 3px; }
+        .conn::before, .conn::after { opacity: 0.4; }
+
+        .endpoints { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+        .endpoints .ep { display: flex; gap: 14px; align-items: baseline; font-family: var(--font-mono); font-size: 23px; }
+        .endpoints .m { font-weight: 700; width: 70px; flex: none; }
+        .endpoints .get { color: var(--teal); }
+        .endpoints .post { color: #E4602F; }
+        .endpoints .d { font-family: var(--font-display); font-size: 21px; color: var(--muted); display: block; margin-top: 2px; }
+
+        /* ===========================================
+           SLIDE 15 — Dashboard
+           =========================================== */
+        .shot { padding: 14px; overflow: hidden; height: 100%; }
+        .shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 26px; display: block; }
+
+        .feat-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 20px; height: 100%; }
+        .feat-grid .card { padding: 24px 30px; }
+        .feat-grid h3 { font-size: 30px; margin-bottom: 6px; }
+        .feat-grid p { font-size: 23px; line-height: 1.3; }
+
+        /* ===========================================
+           SLIDE 16 — Risultati
+           =========================================== */
+        .quad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; height: 330px; }
+        .quad .card { display: flex; flex-direction: column; justify-content: space-between; padding: 32px 34px; }
+        .quad p { font-size: 26px; line-height: 1.3; }
+
+        .statement {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            background: var(--blue);
+            border-radius: 40px;
+            padding: 0 56px;
+            color: #fff;
+            overflow: hidden;
+            box-shadow: 0 22px 54px rgba(0, 71, 255, 0.28);
+        }
+
+        .statement p {
+            font-size: 38px;
+            font-weight: 500;
+            line-height: 1.22;
+            letter-spacing: -0.02em;
+            max-width: 1280px;
+        }
+
+        .statement p b { font-weight: 600; color: #FFD2BE; }
+        .statement .sphere { position: absolute; width: 360px; height: 360px; right: -80px; top: -90px; opacity: 0.9; }
+
+        /* ===========================================
+           SLIDE 17 — Limiti e sviluppi
+           =========================================== */
+        .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; height: 100%; }
+        .two .card { padding: 36px 42px; }
+        .two h3 { font-size: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .two ul { list-style: none; display: flex; flex-direction: column; gap: 22px; }
+        .two li { font-size: 26px; line-height: 1.32; padding-left: 40px; position: relative; }
+        .two li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        /* ===========================================
+           MODALITÀ MODIFICA (tasto E): testo editabile, Ctrl+S per salvare
+           =========================================== */
+        .edit-hotzone { position: fixed; top: 0; left: 0; width: 80px; height: 80px; z-index: 10000; cursor: pointer; }
+
+        .edit-toggle {
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 2px solid var(--line-strong);
+            background: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 10001;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+        }
+
+        .edit-toggle.show,
+        .edit-toggle.active { opacity: 1; pointer-events: auto; }
+        .edit-toggle.active { background: var(--blue); border-color: var(--blue); }
+
+        body.editing [contenteditable="true"] { outline: 2px dashed rgba(0, 71, 255, 0.45); outline-offset: 4px; cursor: text; }
+        body.editing [contenteditable="true"]:focus { outline-color: var(--blue); background: rgba(0, 71, 255, 0.05); }
+
+        .edit-hint {
+            position: fixed;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--ink);
+            color: #fff;
+            font: 500 14px/1 var(--font-display);
+            padding: 10px 18px;
+            border-radius: 999px;
+            z-index: 10002;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        body.editing .edit-hint { opacity: 1; }
+
+        /* In stampa tutti gli elementi devono essere visibili */
+        @media print {
+            .reveal { opacity: 1 !important; transform: none !important; }
+            .bar > i { width: var(--w) !important; }
+            .edit-hotzone, .edit-toggle, .edit-hint, .progress { display: none !important; }
+        }
+    </style>
 </head>
 <body>
+    <div class="deck-viewport">
+        <main class="deck-stage" id="deckStage" aria-label="Presentazione della relazione di progetto">
 
-  <!-- BADGE SLIDE COUNTER TOP CENTER (ESATTO COME SLIDESGO: 1 / 10) -->
-  <div class="slidesgo-counter" id="slideCounter">1 / 10</div>
+            <!-- ===========================================
+                 01 — COPERTINA (ricalca il layout dell'immagine di riferimento)
+                 =========================================== -->
+            <section class="slide cover active" data-section="Copertina">
+                <div class="sphere xl-a"></div>
+                <div class="sphere xl-b"></div>
 
-  <!-- PULSANTI DI NAVIGAZIONE CIRCOLARI AI LATI -->
-  <button class="side-nav-btn prev" id="prevBtn" onclick="prevSlide()">‹</button>
-  <button class="side-nav-btn next" id="nextBtn" onclick="nextSlide()">›</button>
+                <div class="cover-top reveal">
+                    <img src="img/univpm_seal.png" alt="Sigillo dell'Università Politecnica delle Marche">
+                    <div>
+                        <div class="uni">Università Politecnica delle Marche</div>
+                        <div class="dept">Dipartimento di Ingegneria dell'Informazione · New Generation Databases</div>
+                    </div>
+                </div>
 
-  <!-- CONTENITORE SLIDES CON LO STILE FEDELE DI SLIDESGO AI TECHNOLOGY -->
-  <div class="slide-viewport">
+                <div class="people">
+                    <div class="reveal">
+                        <div class="lbl">Presentato da:</div>
+                        <div class="row">
+                            <span class="pill">Andrea Altieri <i class="dot"></i></span>
+                            <span class="pill">Andrea Flaiani <i class="dot"></i></span>
+                        </div>
+                    </div>
+                    <div class="reveal">
+                        <div class="lbl">Docente:</div>
+                        <span class="pill">Prof.ssa Claudia Diamantini <i class="dot"></i></span>
+                    </div>
+                </div>
 
-    <!-- SLIDE 1: COPERTINA -->
-    <div class="slide active">
-      <div style="margin-top: 2rem;">
-        <div class="slidesgo-subtitle">Progetto New Generation Databases</div>
-        <h1 class="slidesgo-title" style="font-size: 3.6rem; margin-bottom: 1.5rem;">
-          AI & Anomaly Detection<br>su Dati Biometrici VitalDB
-        </h1>
-        <p style="font-size: 1.25rem; color: var(--text-muted); max-width: 800px; line-height: 1.6;">
-          Architettura Medallion (Bronze $\rightarrow$ Silver $\rightarrow$ Gold su MongoDB 8.0 Time Series), Regole Cliniche ed Algoritmi di Machine Learning Non Supervisionato.
-        </p>
-      </div>
+                <h1 class="mega">
+                    <span class="reveal">Anomaly detection</span>
+                    <span class="reveal">su dati biometrici</span>
+                </h1>
 
-      <div style="display: flex; gap: 1.5rem; margin-bottom: 2rem;">
-        <div class="pill-card">
-          <span>🧠</span> Machine Learning 5D
-        </div>
-        <div class="pill-card" style="border-color: var(--lime-neon);">
-          <span>🥇</span> MongoDB 8.0 Gold
-        </div>
-        <div class="pill-card" style="border-color: var(--purple-light);">
-          <span>🧪</span> 311.173 Record Validati
-        </div>
-      </div>
+                <div class="cover-foot reveal">
+                    <span class="tag-big">Relazione di progetto</span>
+                    <span class="pill sm">Anno accademico 2026/2027</span>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 02 — CONTESTO
+                 =========================================== -->
+            <section class="slide" data-section="01 · Dominio">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Sala operatoria:</span><em>tanti dati, poca qualità</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 800px 1fr; gap:36px;">
+                        <div class="card reveal" style="padding-top:34px;">
+                            <div class="lbl">Frequenze di campionamento</div>
+
+                            <div class="track">
+                                <div class="track-h"><b>Frequenza cardiaca · SpO₂</b><span class="mono blue">1 Hz</span></div>
+                                <div class="dots dense"></div>
+                            </div>
+
+                            <div class="track">
+                                <div class="track-h"><b>Pressione non invasiva</b><span class="mono peach">ogni 2–5 min</span></div>
+                                <div class="dots sparse"><i></i><i></i><i></i><i></i><i></i></div>
+                            </div>
+
+                            <div class="track">
+                                <div class="track-h"><b>Celle nulle nel dato grezzo</b><span class="mono">67.6 %</span></div>
+                                <div class="bar"><i style="--w:67.6%; --bar:var(--coral)"></i></div>
+                            </div>
+
+                            <p style="margin-top:34px; font-size:26px; color:var(--muted); line-height:1.35;">
+                                Il bracciale oscillometrico impiega 20–40 secondi per ogni misura: ne risulta una matrice di serie storiche asincrona e piena di buchi.
+                            </p>
+                        </div>
+
+                        <div class="stack">
+                            <div class="card row-card reveal">
+                                <div class="ico">01</div>
+                                <div><h3>Artefatti e rumore</h3><p>Movimento, distacco degli elettrodi e interferenze strumentali.</p></div>
+                            </div>
+                            <div class="card row-card reveal">
+                                <div class="ico">02</div>
+                                <div><h3>Segnali asincroni</h3><p>Frequenze di campionamento molto diverse tra le tracce.</p></div>
+                            </div>
+                            <div class="card row-card reveal" style="background:var(--blue); border-color:var(--blue);">
+                                <div class="ico" style="background:rgba(255,255,255,.16); color:#fff; border-color:rgba(255,255,255,.35);">?</div>
+                                <div><h3 style="color:#fff;">Come garantire integrità, efficienza e reattività?</h3><p style="color:rgba(255,255,255,.82);">Data lakehouse, governance e machine learning.</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 03 — DATASET VITALDB
+                 =========================================== -->
+            <section class="slide" data-section="01 · Dominio">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>VitalDB:</span><em>il dataset clinico</em></h2>
+
+                    <div class="body">
+                        <div class="strip reveal" style="margin-bottom:24px;">
+                            <div class="card accent-top"><div class="big-num">50</div><p><b>interventi chirurgici</b> completi, Seoul National University Hospital</p></div>
+                            <div class="card accent-top" style="--accent:var(--peach)"><div class="big-num" style="font-size:78px;">311.173</div><p><b>secondi di tracciato</b>, oltre 86 ore di sala operatoria</p></div>
+                            <div class="card accent-top"><div class="big-num">5</div><p><b>metriche vitali</b> del monitor <span class="mono" style="font-size:22px;">Solar8000</span></p></div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1.1fr 1fr; gap:24px;">
+                            <div class="card reveal" style="padding:28px 36px;">
+                                <div class="lbl" style="margin-bottom:12px;">Tracce analizzate</div>
+                                <table style="width:100%; border-collapse:collapse; font-size:25px;">
+                                    <tr><td class="mono" style="padding:7px 0;">Solar8000/HR</td><td class="muted">frequenza cardiaca</td><td class="mono blue" style="text-align:right;">bpm</td></tr>
+                                    <tr><td class="mono" style="padding:7px 0;">…/PLETH_SPO2</td><td class="muted">saturazione ossigeno</td><td class="mono blue" style="text-align:right;">%</td></tr>
+                                    <tr><td class="mono" style="padding:7px 0;">…/NIBP_SBP · DBP</td><td class="muted">pressione sist. e diast.</td><td class="mono blue" style="text-align:right;">mmHg</td></tr>
+                                    <tr><td class="mono" style="padding:7px 0;">…/NIBP_MBP</td><td class="muted">pressione media</td><td class="mono blue" style="text-align:right;">mmHg</td></tr>
+                                </table>
+                            </div>
+                            <div class="card reveal" style="padding:28px 36px;">
+                                <div class="lbl" style="margin-bottom:12px;">Perché VitalDB</div>
+                                <p style="font-size:25px; line-height:1.35;"><b>Accesso immediato</b> tramite libreria Python ufficiale, a differenza di MIMIC-IV che richiede un percorso di abilitazione su PhysioNet. Solo <b>parametri numerici</b>: nessuna forma d'onda, il focus resta il data engineering.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 04 — OBIETTIVI
+                 =========================================== -->
+            <section class="slide" data-section="01 · Dominio">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Cinque</span><em>direttrici di lavoro</em></h2>
+
+                    <div class="body" style="bottom:20px;">
+                        <div class="five">
+                            <div class="card reveal accent-top"><div class="num">01</div><h3>Pipeline a livelli</h3><p>Raffinamento progressivo: Bronze, Silver, Gold.</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><div class="num">02</div><h3>Storage temporale</h3><p>MongoDB 8.0 Time Series con bucket compressi.</p></div>
+                            <div class="card reveal accent-top"><div class="num">03</div><h3>Data governance</h3><p>Catalogo, provenienza e schemi di validazione.</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><div class="num">04</div><h3>Anomaly detection</h3><p>Regole cliniche e machine learning non supervisionato.</p></div>
+                            <div class="card reveal accent-top"><div class="num">05</div><h3>Sistema completo</h3><p>API FastAPI, dashboard web e container Docker.</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 05 — MEDALLION ARCHITECTURE
+                 =========================================== -->
+            <section class="slide" data-section="02 · Pipeline dati">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Medallion</span><em>architecture</em></h2>
+
+                    <div class="body" style="bottom:10px;">
+                        <div class="medallion">
+                            <div class="card layer bronze reveal accent-top">
+                                <div class="tag" style="color:#D94646;">Livello 1</div>
+                                <h3>Bronze</h3><div class="sub">Dati grezzi immutabili</div>
+                                <ul>
+                                    <li>VitalDB API, 5 tracce a 1 Hz</li>
+                                    <li>Apache Parquet senza alterazioni</li>
+                                    <li>Registro <span class="mono" style="font-size:22px;">download_manifest.json</span></li>
+                                </ul>
+                                <div class="badge">Baseline 100%</div>
+                            </div>
+
+                            <div class="link reveal"><span>bonifica</span><div class="arrow"></div><span class="mono">clean.py</span></div>
+
+                            <div class="card layer silver reveal accent-top">
+                                <div class="tag">Livello 2</div>
+                                <h3>Silver</h3><div class="sub">Dati bonificati e partizionati</div>
+                                <ul>
+                                    <li>Filtro dei range fisiologici</li>
+                                    <li>Interpolazione lineare e LOCF</li>
+                                    <li>Partizioni Hive per reparto</li>
+                                </ul>
+                                <div class="badge">−42.4% di spazio</div>
+                            </div>
+
+                            <div class="link reveal"><span>caricamento</span><div class="arrow"></div><span class="mono">load_mongo.py</span></div>
+
+                            <div class="card layer gold reveal accent-top">
+                                <div class="tag" style="color:var(--teal);">Livello 3</div>
+                                <h3>Gold</h3><div class="sub">MongoDB Time Series</div>
+                                <ul>
+                                    <li>Collezione compressa <span class="mono" style="font-size:22px;">vital_signals</span></li>
+                                    <li>Delta-of-Delta e Zstandard</li>
+                                    <li>Catalogo <span class="mono" style="font-size:22px;">registry</span> e contratti</li>
+                                </ul>
+                                <div class="badge">−89.1% · 3.7× più veloce</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 06 — SILVER: BONIFICA
+                 =========================================== -->
+            <section class="slide" data-section="02 · Pipeline dati">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Bonifica</span><em>del livello Silver</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 900px 1fr; gap:32px; bottom:10px;">
+                        <figure class="card figure reveal" style="align-self:start;">
+                            <img src="img/before_after_cleaning.png" alt="Frequenza cardiaca del caso 1: confronto tra dato grezzo Bronze e dato bonificato Silver">
+                            <figcaption>Frequenza cardiaca del caso #1, prima (Bronze) e dopo (Silver)</figcaption>
+                        </figure>
+
+                        <div>
+                            <div class="card rule reveal">
+                                <div class="ico">≤5</div>
+                                <div><h3>Interpolazione lineare</h3><p>HR e SpO₂: solo buchi fino a <b>5 secondi</b>, scala del baroriflesso.</p></div>
+                            </div>
+                            <div class="card rule reveal">
+                                <div class="ico">300</div>
+                                <div><h3>LOCF sulla pressione</h3><p>Ultimo valore valido propagato per al più <b>300 secondi</b>.</p></div>
+                            </div>
+                            <div class="card rule reveal">
+                                <div class="ico">Δt</div>
+                                <div><h3>Freschezza della misura</h3><p><span class="mono" style="font-size:22px;">nibp_age_s</span> = t − t<sub>ultimo gonfiaggio</sub>, per l'auditing clinico.</p></div>
+                            </div>
+                            <div class="card rule reveal">
+                                <div class="ico">⚑</div>
+                                <div><h3>Outlier etichettati</h3><p>Flag booleani per canale: <b>nessuna cancellazione distruttiva</b>.</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 07 — GOLD: MONGODB TIME SERIES
+                 =========================================== -->
+            <section class="slide" data-section="02 · Pipeline dati">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>MongoDB</span><em>Time Series</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 800px 1fr; gap:32px; bottom:10px;">
+                        <div>
+                            <div class="code reveal"><span class="c">// documento nel livello Gold</span>
+{
+  <span class="n">timestamp</span>: <span class="k">ISODate</span>(<span class="s">"2020-01-01T08:15:30Z"</span>),
+  <span class="n">metadata</span>: {
+    case_id: 1, sensor_name: <span class="s">"Solar8000"</span>,
+    department: <span class="s">"General Surgery"</span>,
+    age: 64, sex: <span class="s">"M"</span>
+  },
+  <span class="n">metrics</span>: {
+    Solar8000_HR: 72.0,
+    Solar8000_PLETH_SPO2: 98.0,
+    Solar8000_NIBP_MBP: 93.3
+  },
+  <span class="n">quality_flags</span>: { HR_outlier: <span class="k">false</span>, … }
+}</div>
+                            <div class="reveal" style="display:flex; gap:12px; margin-top:22px; flex-wrap:wrap;">
+                                <span class="chip blue">timeField: timestamp</span>
+                                <span class="chip blue">metaField: metadata</span>
+                                <span class="chip blue">granularity: seconds</span>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:20px;">
+                            <div class="card reveal accent-top">
+                                <h3>Bucket compressi</h3>
+                                <p>Le misure contigue dello stesso paziente finiscono in un unico blocco, fino a <b>1.000 campioni</b>: niente <span class="mono" style="font-size:22px;">_id</span> e chiavi replicate per ogni secondo.</p>
+                            </div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)">
+                                <h3>Delta-of-Delta sull'asse temporale</h3>
+                                <p>A 1 Hz il passo è costante, quindi <span class="mono" style="font-size:22px;">Δ<sub>i</sub> = 0</span>: <b>1 bit invece di 64</b> per ogni timestamp.</p>
+                            </div>
+                            <div class="card reveal accent-top">
+                                <h3>Metriche e valori mancanti</h3>
+                                <p>XOR sulle mantisse IEEE 754 più <b>Zstandard</b>. I campi non misurati vengono omessi: zero byte occupati.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 08 — BENCHMARK
+                 =========================================== -->
+            <section class="slide" data-section="02 · Pipeline dati">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Benchmark</span><em>storage e latenza</em></h2>
+
+                    <div class="body" style="bottom:10px;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px;">
+                            <div class="card reveal" style="padding-bottom:30px;">
+                                <div class="lbl">Occupazione su disco · 50 casi</div>
+                                <div class="bm-row"><span class="n">Bronze</span><div class="bar"><i style="--w:100%; --bar:var(--coral)"></i></div><span class="v">3.88 MB</span></div>
+                                <div class="bm-row"><span class="n">Silver</span><div class="bar"><i style="--w:57.7%; --bar:var(--blue)"></i></div><span class="v">2.24 MB</span></div>
+                                <div class="bm-row"><span class="n">Gold</span><div class="bar"><i style="--w:10.8%; --bar:var(--teal)"></i></div><span class="v teal">0.42 MB</span></div>
+                            </div>
+
+                            <div class="card reveal" style="padding-bottom:30px;">
+                                <div class="lbl">Latenza di una query · mediana su 15 prove</div>
+                                <div class="bm-row"><span class="n">Parquet</span><div class="bar"><i style="--w:100%; --bar:var(--coral)"></i></div><span class="v">13.48 ms</span></div>
+                                <div class="bm-row"><span class="n">MongoDB</span><div class="bar"><i style="--w:26.9%; --bar:var(--teal)"></i></div><span class="v teal">3.63 ms</span></div>
+                                <p style="font-size:23px; color:var(--muted); margin-top:26px; line-height:1.3;">Il pushdown sui metadati del bucket scarta a priori i pazienti non richiesti.</p>
+                            </div>
+                        </div>
+
+                        <div class="strip reveal" style="margin-top:24px;">
+                            <div class="card"><div class="big-num">−89.1<small>%</small></div><p>spazio su disco rispetto al dato grezzo</p></div>
+                            <div class="card"><div class="big-num">3.7<small>×</small></div><p>più veloce nella query di aggregazione</p></div>
+                            <div class="card"><div class="big-num" style="font-size:64px;">67.6→32.6<small>%</small></div><p>celle nulle dopo la bonifica Silver</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 09 — DATA GOVERNANCE
+                 =========================================== -->
+            <section class="slide" data-section="02 · Pipeline dati">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Data governance</span><em>in stile lakehouse</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap:24px; bottom:10px;">
+                        <div class="card reveal accent-top">
+                            <div class="tag">Catalogo</div>
+                            <h3>Collezione <span class="mono" style="font-size:32px;">registry</span></h3>
+                            <p>Un documento per ogni caso promosso a Gold, con <b>provenienza</b> e versione dello schema. JSON Schema in modalità <span class="mono" style="font-size:22px;">strict</span>: i record incompleti vengono rifiutati.</p>
+                        </div>
+                        <div class="card reveal accent-top" style="--accent:var(--peach)">
+                            <div class="tag" style="color:#E4602F;">Contratto dati</div>
+                            <h3>Collezione <span class="mono" style="font-size:32px;">track_metadata</span></h3>
+                            <p>Per ogni traccia: <b>unità di misura</b> e intervallo fisiologico atteso, a servizio di personale sanitario e moduli a valle.</p>
+                        </div>
+                        <div class="card reveal accent-top" style="--accent:var(--teal)">
+                            <div class="tag" style="color:var(--teal);">Qualità</div>
+                            <h3>Flag e report di qualità</h3>
+                            <p><span class="mono" style="font-size:22px;">quality_flags</span> in ogni punto Gold e <span class="mono" style="font-size:22px;">quality_report.json</span> con storico per ogni esecuzione.</p>
+                        </div>
+                        <div class="card reveal accent-top" style="--accent:var(--coral)">
+                            <div class="tag" style="color:#D94646;">Limite noto</div>
+                            <h3>Compensazione ordinata</h3>
+                            <p>Le Time Series non ammettono transazioni multi-documento (errore 263): prima si scrivono i dati, poi il catalogo. <b>Nessun caso fantasma</b>, caricamento idempotente.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 10 — APPROCCIO IBRIDO
+                 =========================================== -->
+            <section class="slide" data-section="03 · Anomaly detection">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Approccio ibrido</span><em>a più livelli</em></h2>
+
+                    <div class="body" style="bottom:10px;">
+                        <div class="hybrid">
+                            <div class="head reveal"><span class="pill sm blue-solid">Regole cliniche</span><span>trasparenti e spiegabili</span></div>
+                            <div class="head reveal"><span class="pill sm" style="border-color:var(--peach);">Machine learning</span><span>non supervisionato</span></div>
+
+                            <div class="card reveal accent-top">
+                                <h3>Shock Index</h3>
+                                <div class="formula">SI = HR / SBP &gt; 0.9</div>
+                                <p>Fallimento dei meccanismi di compenso: tachicardia con pressione in calo.</p>
+                            </div>
+                            <div class="card ml reveal accent-top">
+                                <h3>Isolation Forest</h3>
+                                <div class="formula">contamination = 5%</div>
+                                <p>Le anomalie sono poche e isolate: bastano pochi tagli casuali per separarle.</p>
+                            </div>
+
+                            <div class="card reveal accent-top">
+                                <h3>Ipotensione severa</h3>
+                                <div class="formula">MBP &lt; 65 ∧ SpO₂ &lt; 90</div>
+                                <p>Ipoperfusione unita a desaturazione: allarme di massima priorità.</p>
+                            </div>
+                            <div class="card ml reveal accent-top">
+                                <h3>LSTM Autoencoder</h3>
+                                <div class="formula">soglia = 95° percentile</div>
+                                <p>Finestre di 30 secondi: l'errore di ricostruzione rivela le dinamiche atipiche.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 11 — LSTM AUTOENCODER
+                 =========================================== -->
+            <section class="slide" data-section="03 · Anomaly detection">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>LSTM</span><em>autoencoder</em></h2>
+
+                    <div class="body" style="bottom:10px;">
+                        <div class="flow reveal">
+                            <div class="node"><div class="t">INPUT</div><div class="m">Finestra</div><div class="s">30 × 8</div></div>
+                            <div class="arrow"></div>
+                            <div class="node"><div class="t">ENCODER</div><div class="m">LSTM</div><div class="s">32 unità</div></div>
+                            <div class="arrow"></div>
+                            <div class="node core"><div class="t">CONTESTO</div><div class="m">Vettore h</div><div class="s">32 dim.</div></div>
+                            <div class="arrow"></div>
+                            <div class="node"><div class="t">REPEAT</div><div class="m">Replica</div><div class="s">× 30 passi</div></div>
+                            <div class="arrow"></div>
+                            <div class="node"><div class="t">DECODER</div><div class="m">LSTM</div><div class="s">32 unità</div></div>
+                            <div class="arrow"></div>
+                            <div class="node"><div class="t">PROIETTORE</div><div class="m">Linear</div><div class="s">32 → 8</div></div>
+                            <div class="arrow"></div>
+                            <div class="node out"><div class="t">OUTPUT</div><div class="m">Ricostruito</div><div class="s">30 × 8</div></div>
+                        </div>
+
+                        <div class="trio">
+                            <div class="card reveal accent-top">
+                                <h3>Errore della finestra</h3>
+                                <div class="formula" style="font-size:34px;">E(X) = max<sub>c</sub> MSE<sub>c</sub></div>
+                                <p>Il massimo sui canali, non la media: un crollo isolato di SpO₂ non viene diluito dagli altri sette.</p>
+                            </div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)">
+                                <h3>Otto feature</h3>
+                                <p>Le <b>5 metriche vitali</b> più media mobile, deviazione standard mobile e differenza prima della frequenza cardiaca. Z-score per paziente.</p>
+                            </div>
+                            <div class="card reveal accent-top">
+                                <h3>Perché il proiettore</h3>
+                                <p>La tanh delle LSTM limita l'uscita a [−1, 1]: il layer lineare ricostruisce i valori z-score oltre quegli estremi.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 12 — VALUTAZIONE
+                 =========================================== -->
+            <section class="slide" data-section="03 · Anomaly detection">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Valutazione</span><em>dei modelli</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 700px 1fr; gap:28px; bottom:10px;">
+                        <div style="display:flex; flex-direction:column; gap:22px;">
+                            <div class="card reveal accent-top" style="--accent:var(--coral)">
+                                <div class="lbl">Pseudo-ground truth clinica</div>
+                                <div class="big-num" style="margin:10px 0 6px;">4.90<small>%</small></div>
+                                <p><b>15.240</b> secondi di emergenza su 311.173: le classi sono molto sbilanciate.</p>
+                            </div>
+                            <div class="card reveal" style="background:var(--ink); border-color:var(--ink); flex:1;">
+                                <div class="lbl" style="color:#94A3B8;">Accuracy paradox</div>
+                                <p style="color:#E2E8F0; margin-top:12px; font-size:27px; line-height:1.34;">Rispondere sempre «normale» dà <b style="color:#FFB598;">95.10%</b> di accuratezza, ma <b style="color:#fff;">zero emergenze</b> trovate. Per questo si valutano le metriche della sola classe anomala.</p>
+                            </div>
+                        </div>
+
+                        <div class="card reveal" style="padding:34px 44px;">
+                            <table class="eval">
+                                <thead><tr><th>Modello</th><th>Precision</th><th>Recall</th><th>F1</th><th>PR-AUC</th></tr></thead>
+                                <tbody>
+                                    <tr class="base"><td>Classificatore banale</td><td>0.000</td><td>0.000</td><td>0.000</td><td>0.049</td></tr>
+                                    <tr class="best"><td>Isolation Forest</td><td>0.140</td><td>0.143</td><td>0.141</td><td>0.075</td></tr>
+                                    <tr><td>LSTM Autoencoder</td><td>0.083</td><td>0.085</td><td>0.084</td><td>0.063</td></tr>
+                                </tbody>
+                            </table>
+                            <p style="margin-top:26px; font-size:25px; color:var(--muted); line-height:1.35;">Entrambi superano la baseline (PR-AUC pari alla prevalenza). I segnali senza riscontro nella verità clinica non sono semplici falsi positivi: spesso sono micro-instabilità del ritmo e cali pressori sub-conclamati.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 13 — CONCORDANZA
+                 =========================================== -->
+            <section class="slide" data-section="03 · Anomaly detection">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Concordanza</span><em>tra i metodi</em></h2>
+
+                    <div class="body" style="bottom:10px;">
+                        <div class="three-col">
+                            <figure class="card figure reveal">
+                                <img src="img/anomaly_overlap_matrix.png" alt="Matrice di concordanza tra regole cliniche e modelli di machine learning">
+                                <figcaption>Matrice di concordanza tra i quattro metodi</figcaption>
+                            </figure>
+
+                            <figure class="card figure reveal">
+                                <img src="img/autoencoder_mse_distribution.png" alt="Distribuzione dell'errore di ricostruzione dell'autoencoder con soglia al 95° percentile">
+                                <figcaption>Errore di ricostruzione dell'autoencoder e soglia al 95° percentile</figcaption>
+                            </figure>
+
+                            <div class="insights">
+                                <div class="card reveal"><div class="big-num">0.35</div><p>concordanza tra Isolation Forest e autoencoder</p></div>
+                                <div class="card reveal"><div class="big-num" style="color:#E4602F;">5.618</div><p>soglia MSE al 95° percentile</p></div>
+                                <div class="card reveal"><div class="big-num" style="font-size:58px;">metodi diversi</div><p>segnalano eventi diversi: si completano</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 14 — ARCHITETTURA DI SISTEMA
+                 =========================================== -->
+            <section class="slide" data-section="04 · Sistema">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Architettura</span><em>del sistema</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 1fr 660px; gap:32px; bottom:10px;">
+                        <div class="tiers">
+                            <div class="card tier reveal" style="background:var(--surface);">
+                                <div class="tag" style="color:var(--ink);">Client · frontend web</div>
+                                <div class="chips"><span class="chip">Tracciati Chart.js</span><span class="chip">Consensus matrix</span><span class="chip">Patient HUD</span><span class="chip">Loader modulare</span></div>
+                            </div>
+                            <div class="conn reveal">HTTP REST · JSON · :8000</div>
+                            <div class="card tier reveal" style="border-color:rgba(0,71,255,.4);">
+                                <div class="tag">Container <span class="mono">vitaldb_api</span></div>
+                                <div class="chips"><span class="chip">FastAPI asincrono</span><span class="chip">Motore di detection</span><span class="chip">Pool PyMongo</span></div>
+                            </div>
+                            <div class="conn reveal">BSON wire protocol · :27017</div>
+                            <div class="card tier reveal" style="border-color:rgba(5,150,105,.45); background:var(--teal-wash);">
+                                <div class="tag" style="color:var(--teal);">Container <span class="mono">vitaldb_mongo</span> · MongoDB 8.0</div>
+                                <div class="chips"><span class="chip">vital_signals</span><span class="chip">registry</span><span class="chip">track_metadata</span><span class="chip">anomalies_detected</span></div>
+                            </div>
+                        </div>
+
+                        <div class="card reveal" style="padding:30px 36px; display:flex; flex-direction:column;">
+                            <div class="lbl">Rotte principali</div>
+                            <div class="endpoints">
+                                <div class="ep"><span class="m get">GET</span><span>/cases<span class="d">elenco pazienti, 2 sole query</span></span></div>
+                                <div class="ep"><span class="m get">GET</span><span>/cases/{id}/series<span class="d">downsampling con $dateTrunc</span></span></div>
+                                <div class="ep"><span class="m post">POST</span><span>/cases/{id}/detect<span class="d">detection on demand</span></span></div>
+                                <div class="ep"><span class="m get">GET</span><span>/quality · /benchmark · /evaluation<span class="d">report di governance</span></span></div>
+                            </div>
+                            <div style="margin-top:auto;">
+                                <div class="lbl" style="margin-bottom:10px;">Un solo comando</div>
+                                <div class="code" style="font-size:22px; padding:18px 24px; border-radius:20px;">docker compose up --build -d</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 15 — DASHBOARD
+                 =========================================== -->
+            <section class="slide" data-section="04 · Sistema">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Dashboard</span><em>clinica interattiva</em></h2>
+
+                    <div class="body" style="display:grid; grid-template-columns: 720px 1fr; gap:28px; bottom:10px;">
+                        <div class="card shot reveal">
+                            <img src="img/dashboard_screenshot.png" alt="Interfaccia della dashboard con elenco pazienti, indicatori vitali e tracciati con anomalie evidenziate">
+                        </div>
+
+                        <div class="feat-grid">
+                            <div class="card reveal accent-top"><h3>Patient HUD</h3><p>Paziente, reparto e risoluzione da 1 s a 5 min.</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><h3>Vitals grid</h3><p>Cinque tessere con valore corrente e range di riferimento.</p></div>
+                            <div class="card reveal accent-top"><h3>Consensus matrix</h3><p>Un filtro per ognuno dei quattro metodi, con spiegazione clinica.</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><h3>Tracciati sincronizzati</h3><p>Due grafici Chart.js con crosshair e anomalie in evidenza.</p></div>
+                            <div class="card reveal accent-top"><h3>Vista lakehouse</h3><p>Benchmark, valutazione dei modelli e report di qualità.</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><h3>Tema chiaro e scuro</h3><p>HTML, CSS e JavaScript puri, senza strumenti di build.</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 16 — RISULTATI / CONCLUSIONI
+                 =========================================== -->
+            <section class="slide" data-section="05 · Conclusioni">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Risultati</span><em>ottenuti</em></h2>
+
+                    <div class="body" style="bottom:0;">
+                        <div class="quad">
+                            <div class="card reveal accent-top"><div class="big-num">−89.1<small>%</small></div><p><b>storage</b> rispetto al dato grezzo con MongoDB Time Series</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><div class="big-num">3.7<small>×</small></div><p><b>query</b> più veloci grazie al pushdown sui bucket</p></div>
+                            <div class="card reveal accent-top"><div class="big-num">4</div><p><b>metodi di detection</b>, due regole cliniche e due modelli</p></div>
+                            <div class="card reveal accent-top" style="--accent:var(--peach)"><div class="big-num" style="font-size:96px;">0.075</div><p><b>PR-AUC</b> dell'Isolation Forest contro 0.049 della baseline</p></div>
+                        </div>
+
+                        <div class="statement reveal">
+                            <p>Le regole cliniche sono il <b>paracadute trasparente</b> per le emergenze conclamate; il machine learning coglie le <b>avvisaglie</b> prima dello shock.</p>
+                            <div class="sphere"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 17 — LIMITI E SVILUPPI FUTURI
+                 =========================================== -->
+            <section class="slide" data-section="05 · Conclusioni">
+                <div class="sphere sm-a"></div><div class="sphere sm-b"></div>
+                <div class="content">
+                    <h2 class="title reveal"><span>Limiti</span><em>e sviluppi futuri</em></h2>
+
+                    <div class="body" style="bottom:10px;">
+                        <div class="two">
+                            <div class="card reveal accent-top" style="--accent:var(--coral)">
+                                <h3><span class="pill sm" style="border-color:var(--coral);">Limiti attuali</span></h3>
+                                <ul style="--accent:var(--coral)">
+                                    <li><b>Governance artigianale</b>: niente atomicità nativa tra serie e catalogo, serve la compensazione applicativa.</li>
+                                    <li><b>Zero nulli nel Gold</b> è effetto dell'omissione BSON; il Silver elimina 333.464 righe su 644.637.</li>
+                                    <li><b>Asse temporale convenzionale</b> ancorato al 2020-01-01, da sostituire con l'orario reale.</li>
+                                    <li><b>Contesto regolatorio</b>: MDR 2017/745 e GDPR per un uso clinico.</li>
+                                </ul>
+                            </div>
+
+                            <div class="card reveal accent-top">
+                                <h3><span class="pill sm blue-solid">Sviluppi futuri</span></h3>
+                                <ul style="--accent:var(--blue)">
+                                    <li><b>Streaming</b> con Apache Kafka o Redpanda per allarmi in tempo reale, sotto il secondo.</li>
+                                    <li><b>Nuovi parametri</b>: temperatura centrale, capnografia EtCO₂ e gas anestetici.</li>
+                                    <li><b>Explainable AI</b> con valori di Shapley (SHAP) per spiegare ogni allarme all'anestesista.</li>
+                                    <li><b>Validazione clinica</b> dei falsi allarmi per prevenire l'alarm fatigue.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 18 — CHIUSURA
+                 =========================================== -->
+            <section class="slide cover" data-section="Chiusura">
+                <div class="sphere xl-a"></div>
+                <div class="sphere xl-b"></div>
+
+                <div class="cover-top reveal">
+                    <img src="img/univpm_seal.png" alt="Sigillo dell'Università Politecnica delle Marche">
+                    <div>
+                        <div class="uni">Università Politecnica delle Marche</div>
+                        <div class="dept">Dipartimento di Ingegneria dell'Informazione · New Generation Databases</div>
+                    </div>
+                </div>
+
+                <div class="people" style="top:420px;">
+                    <div class="reveal">
+                        <div class="lbl">Demo dal vivo:</div>
+                        <span class="pill">localhost:8000/dashboard <i class="dot"></i></span>
+                    </div>
+                    <div class="reveal">
+                        <div class="lbl">Documentazione API:</div>
+                        <span class="pill">localhost:8000/docs <i class="dot"></i></span>
+                    </div>
+                </div>
+
+                <h1 class="mega" style="top:580px;">
+                    <span class="reveal">Grazie per</span>
+                    <span class="reveal">l'attenzione</span>
+                </h1>
+
+                <div class="cover-foot reveal">
+                    <span class="tag-big">Domande e discussione</span>
+                    <span class="pill sm">Andrea Altieri · Andrea Flaiani</span>
+                </div>
+            </section>
+
+        </main>
     </div>
 
-    <!-- SLIDE 2: CONTENTS OF THIS TEMPLATE (ESATTO LAYOUT SCREENSHOT 1) -->
-    <div class="slide">
-      <div>
-        <h2 class="slidesgo-title" style="text-align: center;">Contenuti del Progetto</h2>
-      </div>
+    <!-- Elementi di controllo (fuori dal palco) -->
+    <div class="edit-hotzone"></div>
+    <button class="edit-toggle" id="editToggle" title="Modalità modifica (E)" aria-label="Attiva la modalità modifica">✎</button>
+    <div class="edit-hint">Modalità modifica · clicca un testo per cambiarlo · Ctrl+S per salvare il file · E per uscire</div>
 
-      <div class="slidesgo-grid-4">
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon">📊</div>
-          <div class="pill-card" style="width: 100%;">Data ETL</div>
-          <p class="col-desc">
-            Estrazione grezza Bronze, bonifica e partizionamento Silver, ingestion su <strong>MongoDB Time Series Gold</strong>.
-          </p>
-        </div>
+    <script>
+        /* ===========================================
+           CONTROLLER DELLA PRESENTAZIONE
+           - scala del palco 1920×1080 sulla finestra
+           - tastiera (frecce, spazio, PagSu/PagGiù, Home/End, F per schermo intero)
+           - touch/swipe e rotella del mouse
+           - footer con numero di pagina e barra di avanzamento
+           - slide corrente salvata nell'hash dell'URL (#5)
+           =========================================== */
+        class SlidePresentation {
+            constructor() {
+                this.stage = document.getElementById('deckStage');
+                this.slides = Array.from(document.querySelectorAll('.slide'));
+                this.current = 0;
+                this.wheelLock = false;
 
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon">🩺</div>
-          <div class="pill-card" style="width: 100%;">Regole Cliniche</div>
-          <p class="col-desc">
-            Valutazione dello <strong>Shock Index ($SI > 0.9$)</strong> e della sofferenza d'organo da <strong>Ipotensione Severa</strong>.
-          </p>
-        </div>
+                this.decorateSlides();
+                this.setupStageScale();
+                this.setupKeyboardNav();
+                this.setupTouchNav();
+                this.setupWheelNav();
 
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon">🧠</div>
-          <div class="pill-card" style="width: 100%;">Modelli AI & ML</div>
-          <p class="col-desc">
-            Detection non supervisionata 5D con <strong>Isolation Forest</strong> e <strong>Autoencoder Neurale MLP</strong>.
-          </p>
-        </div>
+                const fromHash = parseInt(location.hash.replace('#', ''), 10);
+                this.showSlide(Number.isFinite(fromHash) ? fromHash - 1 : 0);
+            }
 
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon">💻</div>
-          <div class="pill-card" style="width: 100%;">Web App & API</div>
-          <p class="col-desc">
-            Dashboard interattiva con <strong>Theme Toggle</strong>, modali cliniche, export CSV e REST API <strong>FastAPI</strong>.
-          </p>
-        </div>
-      </div>
+            /* Footer, progresso e indici di stagger per le animazioni */
+            decorateSlides() {
+                this.progress = document.createElement('div');
+                this.progress.className = 'progress';
+                this.stage.appendChild(this.progress);
 
-      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-gray); padding-top: 1.5rem; margin-top: 1rem;">
-        <div style="font-size: 0.9rem; color: var(--text-muted);">
-          Dataset Sperimentale: <strong style="color: var(--lime-neon);">50 Casi Clinici VitalDB (311.173 Punti Temporali)</strong>
-        </div>
-        <div class="slidesgo-pink-alert">
-          <span>⚡</span> Risultati: -93.0% Occupazione Spazio Disco & Query in 4.2 ms
-        </div>
-      </div>
-    </div>
+                this.slides.forEach((slide, i) => {
+                    slide.querySelectorAll('.reveal').forEach((el, k) => el.style.setProperty('--d', k));
 
-    <!-- SLIDE 3: TWO IDEAS LAYOUT (ESATTO LAYOUT SCREENSHOT 2) -->
-    <div class="slide">
-      <h2 class="slidesgo-title">Due Approcci di Anomaly Detection</h2>
+                    if (!slide.classList.contains('cover')) {
+                        const kick = document.createElement('div');
+                        kick.className = 'kick';
+                        kick.innerHTML = '<i class="dot"></i><span></span>';
+                        kick.querySelector('span').textContent = slide.dataset.section || '';
+                        slide.appendChild(kick);
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
-        
-        <!-- CARD GRAPHIC SLIDESGO 3D GLASSMORPHISM -->
-        <div style="background: linear-gradient(135deg, #18181b 0%, #0d0d0f 100%); border: 1px solid var(--purple-light); border-radius: 20px; padding: 2.5rem; box-shadow: 0 20px 40px rgba(126, 34, 206, 0.2);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <span style="font-family: var(--font-display); font-size: 1.1rem; color: var(--lime-neon);">Algoritmi Multilivello</span>
-            <span style="background: var(--pink-neon); color: #fff; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">CONCORRENZA</span>
-          </div>
+                        const foot = document.createElement('div');
+                        foot.className = 'foot';
+                        foot.innerHTML = '<span>Anomaly detection su dati biometrici · Relazione di progetto</span>' +
+                                         '<span class="pager"><b>' + String(i + 1).padStart(2, '0') + '</b> / ' +
+                                         String(this.slides.length).padStart(2, '0') + '</span>';
+                        slide.appendChild(foot);
+                    }
+                });
+            }
 
-          <div style="font-family: var(--font-mono); font-size: 2.5rem; font-weight: 800; color: #ffffff; margin-bottom: 1rem;">
-            92.0% <span style="font-size: 1rem; color: var(--purple-light);">Accuratezza ML</span>
-          </div>
+            /* Un solo transform scala l'intero palco: nessun reflow dei contenuti */
+            setupStageScale() {
+                const scale = () => {
+                    const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+                    const x = (window.innerWidth - 1920 * factor) / 2;
+                    const y = (window.innerHeight - 1080 * factor) / 2;
+                    this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+                };
+                scale();
+                window.addEventListener('resize', scale);
+            }
 
-          <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
-            I modelli di Machine Learning (Isolation Forest ed Autoencoder) convergono sugli stessi pattern dell'instabilità clinica.
-          </p>
-        </div>
+            setupKeyboardNav() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
+                    switch (e.key) {
+                        case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ':
+                            e.preventDefault(); this.next(); break;
+                        case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+                            e.preventDefault(); this.prev(); break;
+                        case 'Home': this.showSlide(0); break;
+                        case 'End': this.showSlide(this.slides.length - 1); break;
+                        case 'f': case 'F':
+                            if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+                            else document.exitFullscreen?.();
+                            break;
+                    }
+                });
+            }
 
-        <!-- TESTO SLIDESGO PURPLE SUBTITLES -->
-        <div style="display: flex; flex-direction: column; gap: 2rem;">
-          <div>
-            <h3 class="slidesgo-subtitle">1. Regole Cliniche Domínio-Specifiche</h3>
-            <p style="font-size: 1.05rem; color: var(--text-muted); line-height: 1.6;">
-              Intercettano le emergenze fisiologiche note tramite soglie rigide fisse: <strong>Shock Index ($SI = HR/SBP > 0.9$)</strong> ed <strong>Ipotensione Severa ($MBP < 65 \land SpO_2 < 90\%$)</strong>.
-            </p>
-          </div>
+            setupTouchNav() {
+                let startX = 0, startY = 0;
+                document.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+                }, { passive: true });
+                document.addEventListener('touchend', (e) => {
+                    const dx = e.changedTouches[0].clientX - startX;
+                    const dy = e.changedTouches[0].clientY - startY;
+                    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) dx < 0 ? this.next() : this.prev();
+                }, { passive: true });
+            }
 
-          <div>
-            <h3 class="slidesgo-subtitle" style="color: var(--lime-neon);">2. Machine Learning Non Supervisionato</h3>
-            <p style="font-size: 1.05rem; color: var(--text-muted); line-height: 1.6;">
-              Isola deviazioni complesse nello spazio 5D. L'<strong>Isolation Forest</strong> ed il <strong>Reconstruction Error MSE dell'Autoencoder</strong> scoprono anomalie sottili non viste dalle soglie univariate fisse.
-            </p>
-          </div>
-        </div>
+            setupWheelNav() {
+                document.addEventListener('wheel', (e) => {
+                    if (this.wheelLock || Math.abs(e.deltaY) < 30 || document.body.classList.contains('editing')) return;
+                    this.wheelLock = true;
+                    e.deltaY > 0 ? this.next() : this.prev();
+                    setTimeout(() => { this.wheelLock = false; }, 700);
+                }, { passive: true });
+            }
 
-      </div>
-    </div>
+            next() { this.showSlide(this.current + 1); }
+            prev() { this.showSlide(this.current - 1); }
 
-    <!-- SLIDE 4: BENCHMARK PERFORMANCE TABLE -->
-    <div class="slide">
-      <div>
-        <div class="slidesgo-subtitle">Benchmark Empirico</div>
-        <h2 class="slidesgo-title">Risultati Data Pipeline (Bronze $\rightarrow$ Gold)</h2>
-      </div>
-
-      <table class="slidesgo-table">
-        <thead>
-          <tr>
-            <th>Fase Architetturale</th>
-            <th>Formato / Storage</th>
-            <th>Occupazione Spazio Disco</th>
-            <th>Riduzione Spazio (%)</th>
-            <th>Latenza Media Query Scansione</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Layer BRONZE (Grezzo)</strong></td>
-            <td>Parquet Monolitico</td>
-            <td>3.88 MB</td>
-            <td>0 % (Riferimento)</td>
-            <td>652.2 ms (Parquet Scan)</td>
-          </tr>
-          <tr>
-            <td><strong>Layer SILVER (Pulito)</strong></td>
-            <td>Parquet Partizionato</td>
-            <td>2.24 MB</td>
-            <td>-42.3 %</td>
-            <td>380.5 ms</td>
-          </tr>
-          <tr>
-            <td><strong>Layer GOLD (MongoDB Time Series)</strong></td>
-            <td>Collection BSON Bucket</td>
-            <td><strong style="color: var(--lime-neon);">0.27 MB</strong></td>
-            <td><strong style="color: var(--lime-neon);">-93.0 %</strong></td>
-            <td><strong style="color: var(--lime-neon);">4.2 ms (>150x più veloce)</strong></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
-        <div style="background: var(--bg-card); border: 1px solid var(--border-gray); padding: 1.5rem; border-radius: 12px;">
-          <div style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--lime-neon);">-93.0 % Spazio Disco</div>
-          <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">Il bucketing nativo BSON di MongoDB 8.0 Time Series comprime drasticamente l'occupazione fisica.</p>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border-gray); padding: 1.5rem; border-radius: 12px;">
-          <div style="font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--pink-neon);">4.2 ms Query Latency</div>
-          <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">La velocizzazione delle query temporali abbatte i tempi di risposta dell'API da 652ms a 4.2ms.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- SLIDE 5: METRICHE ML & VALIDAZIONE SCIENTIFICA -->
-    <div class="slide">
-      <div>
-        <div class="slidesgo-subtitle">Validazione Matematica</div>
-        <h2 class="slidesgo-title">Valutazione Modelli ML (311.173 Record)</h2>
-      </div>
-
-      <table class="slidesgo-table">
-        <thead>
-          <tr>
-            <th>Algoritmo ML</th>
-            <th>Accuratezza Globale</th>
-            <th>Precision (Anomalia)</th>
-            <th>Recall (Anomalia)</th>
-            <th>F1-Score Globale</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Isolation Forest (Scikit-Learn)</strong></td>
-            <td><strong style="color: var(--lime-neon);">92 %</strong></td>
-            <td>0.19</td>
-            <td>0.20</td>
-            <td><strong style="color: var(--lime-neon);">0.92</strong></td>
-          </tr>
-          <tr>
-            <td><strong>Autoencoder Neurale (MLPRegressor)</strong></td>
-            <td><strong>90 %</strong></td>
-            <td>0.03</td>
-            <td>0.03</td>
-            <td><strong>0.90</strong></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div style="background: rgba(126, 34, 206, 0.15); border: 1px solid var(--purple-light); padding: 1.5rem; border-radius: 12px; margin-top: 2rem;">
-        <h4 style="color: var(--purple-light); font-size: 1.1rem; margin-bottom: 0.5rem;">💡 Validazione con Pseudo-Ground Truth Clinico</h4>
-        <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
-          Utilizzando le 15.240 instabilità cliniche individuate dalle regole mediche come riferimento di verità, gli algoritmi non supervisionati dimostrano una stabilità ed un'accuratezza globale superiore al 90%, garantendo un'eccellente capacità di isolamento dei punti anomali.
-        </p>
-      </div>
-    </div>
-
-    <!-- SLIDE 6: SOFTWARE ENGINEERING & TEST SUITE -->
-    <div class="slide">
-      <div>
-        <div class="slidesgo-subtitle">Ingegnerizzazione</div>
-        <h2 class="slidesgo-title">FastAPI, Docker & Pytest Suite (100% Pass)</h2>
-      </div>
-
-      <div class="slidesgo-grid-4">
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon" style="color: var(--purple-light);">⚡</div>
-          <div class="pill-card" style="width: 100%;">FastAPI</div>
-          <p class="col-desc">REST API ad alte prestazioni con sanitizing JSON e CORS abilitato.</p>
-        </div>
-
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon" style="color: var(--lime-neon);">🐳</div>
-          <div class="pill-card" style="width: 100%; border-color: var(--lime-neon);">Docker 8.0</div>
-          <p class="col-desc">MongoDB 8.0 Replica Set containerizzato ed orchestrato via Docker Compose.</p>
-        </div>
-
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon" style="color: var(--pink-neon);">🧪</div>
-          <div class="pill-card" style="width: 100%;">Pytest Suite</div>
-          <p class="col-desc">12 test unitari ed integrativi per verificare la stabilità di ogni componente.</p>
-        </div>
-
-        <div class="slidesgo-col">
-          <div class="slidesgo-icon" style="color: var(--purple-light);">✅</div>
-          <div class="pill-card" style="width: 100%;">100% Success</div>
-          <p class="col-desc">Tutti i 12 test passano regolarmente in 3.9 secondi senza errori.</p>
-        </div>
-      </div>
-
-      <div style="background: var(--bg-card); border: 1px solid var(--border-gray); padding: 1.25rem 2rem; border-radius: 12px; margin-top: 2rem; font-family: var(--font-mono); color: var(--lime-neon); font-size: 0.9rem;">
-        $ docker exec vitaldb_api python -m pytest tests/ -v <br>
-        <span style="color: #ffffff;">==&gt; 12 passed in 3.97s (100% Success Rate)</span>
-      </div>
-    </div>
-
-    <!-- SLIDE 7: WEB DASHBOARD DEMO -->
-    <div class="slide">
-      <div>
-        <div class="slidesgo-subtitle">Frontend & User Experience</div>
-        <h2 class="slidesgo-title">Dashboard Web Interattiva & Theme Toggle</h2>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;">
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-          <div class="pill-card" style="justify-content: flex-start;">
-            <span>🌙 / ☀️</span> Theme Toggle Switch (Dark & Light)
-          </div>
-
-          <div class="pill-card" style="justify-content: flex-start; border-color: var(--lime-neon);">
-            <span>💡</span> Modali Cliniche & Formule Matematiche
-          </div>
-
-          <div class="pill-card" style="justify-content: flex-start; border-color: var(--purple-light);">
-            <span>📥</span> Export Dataset Anomalie in CSV
-          </div>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--purple-light); padding: 2rem; border-radius: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1.3rem; color: var(--text-white); margin-bottom: 1rem;">
-            Esperienza Utente Clinica
-          </h3>
-          <p style="font-size: 1rem; color: var(--text-muted); line-height: 1.6;">
-            La dashboard consente di esplorare visivamente i tracciati biometrici, selezionare la finestra di downsampling, lanciare l'anomaly detection al volo e consultare la diagnosi automatica cliccando sui singoli eventi anomali.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- SLIDE 8: TEXT SLIDE (ESATTO LAYOUT SCREENSHOT 3) -->
-    <div class="slide">
-      <h2 class="slidesgo-title">Considerazioni Architetturali</h2>
-
-      <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
-        <div style="max-width: 750px; font-size: 1.35rem; color: var(--text-muted); line-height: 1.8;">
-          L'integrazione tra la <strong style="color: var(--text-white);">Medallion Architecture su MongoDB 8.0 Time Series</strong> e gli algoritmi di <strong style="color: var(--lime-neon);">Machine Learning Non Supervisionato</strong> dimostra come la gestione moderna dei dati clinici ad alta frequenza possa ridurre la complessità infrastrutturale, garantendo al contempo risposte in tempo reale ($<5\text{ms}$) utili per il supporto decisionale in cardioanestesia.
-        </div>
-      </div>
-    </div>
-
-    <!-- SLIDE 9: CONCLUSIONI -->
-    <div class="slide">
-      <div>
-        <div class="slidesgo-subtitle">Conclusioni</div>
-        <h2 class="slidesgo-title">Traguardi Raggiunti e Scalabilità</h2>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-        <div style="background: var(--bg-card); border: 1px dashed var(--lime-neon); padding: 2rem; border-radius: 16px;">
-          <h3 style="color: var(--lime-neon); font-size: 1.3rem; margin-bottom: 1rem;">✅ Traguardi Raggiunti</h3>
-          <ul style="color: var(--text-muted); font-size: 1rem; line-height: 1.8; list-style-position: inside;">
-            <li>Pipeline ETL automatizzata Bronze $\rightarrow$ Silver $\rightarrow$ Gold.</li>
-            <li>Compressione dello spazio su disco del 93.0%.</li>
-            <li>Query Time Series veloci ($4.2\text{ms}$).</li>
-            <li>Accuratezza Anomaly Detection $>90\%$.</li>
-          </ul>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px dashed var(--pink-neon); padding: 2rem; border-radius: 16px;">
-          <h3 style="color: var(--pink-neon); font-size: 1.3rem; margin-bottom: 1rem;">🚀 Sviluppi Futuri</h3>
-          <ul style="color: var(--text-muted); font-size: 1rem; line-height: 1.8; list-style-position: inside;">
-            <li>Streaming real-time con Apache Kafka.</li>
-            <li>Reti neurali ricorsive LSTM / GRU per serie storiche.</li>
-            <li>Integrazione di ulteriori canali di monitoraggio (ECG/EEG).</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- SLIDE 10: GRAZIE & Q&A -->
-    <div class="slide">
-      <div style="text-align: center; margin: auto 0;">
-        <div class="slidesgo-subtitle" style="font-size: 1.4rem;">Grazie per l'Attenzione</div>
-        <h1 class="slidesgo-title" style="font-size: 4rem; margin-top: 1rem;">Domande & Discussione</h1>
-        
-        <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 2rem;">
-          <div class="pill-card" style="border-color: var(--lime-neon);">
-            <span>🌐</span> Live Dashboard: http://localhost:8000/dashboard/
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <script>
-    /* ==========================================================================
-       SLIDESGO PRESENTATION ENGINE - JAVASCRIPT SLIDE CONTROLLER
-       ========================================================================== */
-    let currentSlideIndex = 0;
-    const slides = document.querySelectorAll('.slide');
-    const slideCounter = document.getElementById('slideCounter');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-
-    function updateSlides() {
-      slides.forEach((slide, idx) => {
-        if (idx === currentSlideIndex) {
-          slide.classList.add('active');
-        } else {
-          slide.classList.remove('active');
+            showSlide(index) {
+                this.current = Math.max(0, Math.min(index, this.slides.length - 1));
+                this.slides.forEach((slide, i) => {
+                    slide.classList.toggle('active', i === this.current);
+                    /* .visible parte nel frame successivo per far scattare le transizioni */
+                    if (i !== this.current) slide.classList.remove('visible');
+                });
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    this.slides[this.current].classList.add('visible');
+                }));
+                this.progress.style.width = ((this.current + 1) / this.slides.length * 100) + '%';
+                history.replaceState(null, '', '#' + (this.current + 1));
+                document.dispatchEvent(new CustomEvent('slidechange', { detail: this.current }));
+            }
         }
-      });
 
-      slideCounter.textContent = `${currentSlideIndex + 1} / ${slides.length}`;
-      prevBtn.disabled = currentSlideIndex === 0;
-      nextBtn.disabled = currentSlideIndex === slides.length - 1;
-    }
+        /* ===========================================
+           MODIFICA INLINE
+           Hover sull'angolo in alto a sinistra oppure tasto E.
+           Ctrl+S scarica una copia aggiornata del file HTML.
+           =========================================== */
+        class InlineEditor {
+            constructor() {
+                this.isActive = false;
+                this.selector = 'h1 span, h2 span, h2 em, h3, p, li, td, th, figcaption, .lbl, .tag, .tag-big, .uni, .dept, .pill, .chip, .big-num, .formula, .m, .t, .s';
+                this.toggleBtn = document.getElementById('editToggle');
+                this.bind();
+            }
 
-    function nextSlide() {
-      if (currentSlideIndex < slides.length - 1) {
-        currentSlideIndex++;
-        updateSlides();
-      }
-    }
+            bind() {
+                const hotzone = document.querySelector('.edit-hotzone');
+                let hideTimeout = null;
+                const hideLater = () => { hideTimeout = setTimeout(() => { if (!this.isActive) this.toggleBtn.classList.remove('show'); }, 400); };
 
-    function prevSlide() {
-      if (currentSlideIndex > 0) {
-        currentSlideIndex--;
-        updateSlides();
-      }
-    }
+                this.toggleBtn.addEventListener('click', () => this.toggleEditMode());
+                hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); this.toggleBtn.classList.add('show'); });
+                hotzone.addEventListener('mouseleave', hideLater);
+                this.toggleBtn.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+                this.toggleBtn.addEventListener('mouseleave', hideLater);
+                hotzone.addEventListener('click', () => this.toggleEditMode());
 
-    // Navigazione tramite Tastiera (Freccia destra, Freccia sinistra, Barra Spaziatrice)
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') {
-        nextSlide();
-      } else if (e.key === 'ArrowLeft') {
-        prevSlide();
-      }
-    });
+                document.addEventListener('keydown', (e) => {
+                    if ((e.key === 'e' || e.key === 'E') && !e.target.isContentEditable && !e.ctrlKey && !e.metaKey) this.toggleEditMode();
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && this.isActive) { e.preventDefault(); this.save(); }
+                });
+            }
 
-    // Inizializzazione
-    updateSlides();
-  </script>
+            toggleEditMode() {
+                this.isActive = !this.isActive;
+                document.body.classList.toggle('editing', this.isActive);
+                this.toggleBtn.classList.toggle('active', this.isActive);
+                document.querySelectorAll(this.selector).forEach((el) => {
+                    if (this.isActive) el.setAttribute('contenteditable', 'true');
+                    else el.removeAttribute('contenteditable');
+                });
+                if (!this.isActive) document.activeElement?.blur();
+            }
+
+            save() {
+                const wasActive = this.isActive;
+                if (wasActive) this.toggleEditMode();
+                const stage = document.getElementById('deckStage');
+                const prevTransform = stage.style.transform;
+                stage.style.transform = '';
+                const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+                stage.style.transform = prevTransform;
+                const blob = new Blob([html], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'index.html';
+                a.click();
+                URL.revokeObjectURL(a.href);
+                if (wasActive) this.toggleEditMode();
+            }
+        }
+
+        const presentation = new SlidePresentation();
+        const editor = new InlineEditor();
+    </script>
 </body>
 </html>

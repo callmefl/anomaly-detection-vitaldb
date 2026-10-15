@@ -1,27 +1,44 @@
-\chapter{Introduzione e Dominio Applicativo}
+\chapter{Introduzione e dominio applicativo}
 
-\section{Contesto del Progetto}
-Il presente elaborato descrive la progettazione e l'implementazione di un sistema di \textit{Data Engineering} ed \textit{Anomaly Detection} su dati temporali ad alta frequenza ricavati dal dataset clinico open-access \textbf{VitalDB}. 
+\section{Contesto e motivazioni del progetto}
+Il monitoraggio fisiologico continuo in ambito operatorio e nei reparti di terapia intensiva genera una mole imponente di dati temporali ad alta frequenza. Durante un intervento chirurgico, monitor multiparametrici registrano senza sosta segnali biometrici vitali: battito cardiaco, concentrazione di ossigeno nel sangue e andamento della pressione arteriosa. La disponibilità di queste serie storiche dischiude grandi opportunità per la medicina computazionale, ma al contempo pone sfide ingegneristiche complesse legate alla gestione, alla qualità e alla tempestività dell'analisi del dato.
 
-Il lavoro si inserisce nell'ambito dei database di nuova generazione (\textit{New Generation Databases}), affrontando le sfide legate all'ingestione, alla pulizia, all'archiviazione strutturata e all'analisi automatizzata di serie storiche biometrici ricavati da parametri monitorati durante interventi chirurgici intraoperatori.
+I dati clinici grezzi raccolti in sala operatoria sono intrinsecamente rumorosi e disomogenei. Il movimento del paziente o dell'operatore, il distacco accidentale degli elettrodi e le interferenze strumentali provocano artefatti evidenti, dispersioni e lunghi intervalli di valori mancanti. A ciò si aggiunge una marcata asimmetria nelle frequenze di campionamento: mentre la frequenza cardiaca e la saturazione periferica dell'ossigeno vengono campionate con cadenza quasi continua ogni uno o due secondi, le misurazioni pressorie non invasive avvengono a intervalli discreti e dilatati, tipicamente ogni due o cinque minuti, a causa dei tempi necessari per il gonfiaggio e lo sgonfiaggio del bracciale pneumatico.
 
-\section{Dominio dei Dati: VitalDB}
-VitalDB è un dataset clinico comprendente oltre 6.300 casi chirurgici intraoperatori. Per ciascun paziente vengono registrati segnali fisiologici e parametri biometrici numerici a intervalli di campionamento compresi tra 1 e 7 secondi.
+In un simile scenario, le tradizionali architetture di archiviazione faticano a garantire al tempo stesso l'integrità del dato, l'efficienza dello storage e la reattività richiesta da interrogazioni analitiche complesse. Il presente progetto si colloca nell'alveo dei database di nuova generazione, affrontando l'ingegnerizzazione completa di una piattaforma per l'ingestione, la bonifica, la catalogazione e l'analisi automatizzata di serie storiche biometriche. L'obiettivo primario consiste nel superare la frammentazione tipica dei sistemi ospedalieri mediante un flusso strutturato a stadi, fondato sui principi del \textbf{data lakehouse}, associando una rigorosa disciplina di \textbf{data governance} all'impiego congiunto di regole cliniche ed algoritmi di \textbf{machine learning} per l'individuazione precoce delle instabilità emodinamiche.
 
-Nello specifico, il progetto focalizza l'analisi su cinque metriche vitali fondamentali:
-\begin{itemize}
-    \item \textbf{Solar8000/HR}: Frequenza cardiaca (\textit{Heart Rate}, espressa in bpm).
-    \item \textbf{Solar8000/PLETH\_SPO2}: Saturazione d'ossigeno nel sangue (\textit{SpO2}, espressa in \%).
-    \item \textbf{Solar8000/NIBP\_SBP}: Pressione arteriosa sistolica non invasiva (in mmHg).
-    \item \textbf{Solar8000/NIBP\_DBP}: Pressione arteriosa diastolica non invasiva (in mmHg).
-    \item \textbf{Solar8000/NIBP\_MBP}: Pressione arteriosa media non invasiva (in mmHg).
-\end{itemize}
+\section{Il dominio clinico e il dataset VitalDB}
+Per lo sviluppo e la validazione del sistema è stato selezionato il dataset clinico aperto \textbf{VitalDB}, un archivio ad accesso pubblico contenente registrazioni fisiologiche ad alta fedeltà relative a oltre 6.300 interventi chirurgici non cardiaci e cardiaci, raccolte presso il Seoul National University Hospital tra il 2016 e il 2019.
 
-\section{Obiettivi dell'Elaborato}
-Gli obiettivi principali del sistema sviluppato sono:
-\begin{enumerate}
-    \item Costruire una pipeline di raffinamento dati strutturata su architettura a livelli (\textbf{Bronze}, \textbf{Silver}, \textbf{Gold}).
-    \item Garantire l'archiviazione scalabile ed efficiente dei tracciati mediante le **Time Series Collections** di MongoDB.
-    \item Sviluppare ed etichettare automaticamente eventi ed istanti anomali applicando sia regole cliniche sia modelli di Machine Learning non supervisionato (\textit{Isolation Forest} ed \textit{Autoencoder}).
-    \item Ingegnerizzare la soluzione tramite container **Docker** e fornire un'interfaccia grafica web interattiva affiancata da API REST.
-\end{enumerate}
+La scelta di VitalDB è maturata a valle di un confronto comparativo con il dataset alternativo MIMIC-IV. Sebbene quest'ultimo rappresenti un punto di riferimento altrettanto autorevole nella letteratura medica, esso impone un percorso articolato di abilitazione attraverso la piattaforma PhysioNet, con corsi accreditati di etica e protezione dei dati che avrebbero dilatato i tempi iniziali del progetto. Al contrario, VitalDB fornisce un accesso immediato e programmatico mediante una libreria ufficiale in linguaggio Python, garantendo al contempo una granularità temporale e una varietà di parametri pienamente equivalenti e ideali per la sperimentazione di architetture dati avanzate.
+
+In pieno accordo con gli obiettivi del corso, l'attenzione è stata deliberatamente circoscritta all'elaborazione dei parametri biometrici numerici già estratti e standardizzati dalla strumentazione di sala, escludendo le forme d'onda grezze ad altissima frequenza come i tracciati elettrocardiografici o fotopletismografici campionati a centinaia di hertz. L'elaborazione di segnali grezzi avrebbe infatti richiesto una complessa componente di \textbf{digital signal processing} e stima biomedica non centrale rispetto alle finalità dell'elaborato, che vertono primariamente sul \textbf{data engineering}, sulla modellazione dei database a documenti e sulle tecniche di \textbf{anomaly detection}.
+
+L'indagine sperimentale si concentra su cinque metriche vitali primarie registrate dal modulo di monitoraggio \texttt{Solar8000}:
+il parametro \texttt{Solar8000/HR}, che quantifica la frequenza cardiaca espressa in battiti per minuto (bpm);
+il parametro \texttt{Solar8000/PLETH\_SPO2}, che rileva la saturazione d'ossigeno dell'emoglobina periferica espressa in percentuale;
+il parametro \texttt{Solar8000/NIBP\_SBP}, che misura la pressione arteriosa sistolica non invasiva espressa in millimetri di mercurio (mmHg);
+il parametro \texttt{Solar8000/NIBP\_DBP}, che registra la corrispondente pressione arteriosa diastolica in millimetri di mercurio;
+il parametro \texttt{Solar8000/NIBP\_MBP}, che esprime la pressione arteriosa media, grandezza fondamentale per stimare la perfusione d'organo.
+
+Dal punto di vista fisiopatologico, la pressione arteriosa media non rappresenta una semplice media aritmetica, bensì una stima integrata nel ciclo cardiaco, approssimata dalla relazione clinica standard:
+$$MBP \approx DBP + \frac{1}{3}(SBP - DBP)$$
+Nel paziente chirurgico sottoposto ad anestesia generale, la vasodilatazione farmacologica e l'azione deprimente sul miocardio inducono frequentemente cali pressori improvvisi. Il mantenimento di un valore di $MBP \ge 65\text{ mmHg}$ costituisce il target emodinamico raccomandato dalle linee guida internazionali per scongiurare danni ischemici acuti al circolo renale, coronarico e cerebrale.
+
+L'eterogeneità temporale tra le sorgenti sensoristiche costituisce la sfida ingegneristica centrale del progetto: mentre la frequenza cardiaca e la saturazione periferica sono acquisite con cadenza continua a $1\text{ Hz}$ tramite elettrodi ed emettitori ottici fotopletismografici, le misurazioni pressorie non invasive impiegano un bracciale pneumatico oscillometrico che necessita di tempi tecnici di gonfiaggio e sgonfiaggio compresi tra 20 e 40 secondi, ripetuti a intervalli programmati ogni due o cinque minuti. Ne deriva una matrice di serie storiche caratterizzata da forte asincronia e valori mancanti prolungati.
+
+Queste rilevazioni fisiologiche sono affiancate da metadati clinici perioperatori scaricati contestualmente, tra cui l'età, il sesso e il reparto chirurgico di afferenza del paziente (\texttt{department}, ad esempio chirurgia generale, toracica o ginecologica). Il campione sperimentale selezionato comprende 50 interventi chirurgici completi per un totale di 311.173 secondi di tracciato attivo (corrispondenti a oltre 86 ore complessive di sala operatoria). L'integrazione di questi attributi contestuali risulta determinante non solo per consentire aggregazioni epidemiologiche, ma anche per guidare il partizionamento fisico dei dati e ottimizzare le strategie di indicizzazione all'interno della base di dati.
+
+\begin{techbox}[brandNavy]{Sintesi della coorte e delle sorgenti sensoristiche}
+La base dati sperimentale raccoglie 50 interventi chirurgici per un totale di 311.173 secondi ($>86$ ore di monitoraggio continuo). La telemetria integra segnali continui a 1 Hz da fotopletismografia ottica (frequenza cardiaca e saturazione d'ossigeno) con rilievi emodinamici intermittenti a bracciale oscillometrico (pressioni sistolica, diastolica e media), ancorando le soglie di allarme al limite critico di ipoperfusione d'organo ($MBP < 65\text{ mmHg}$).
+\end{techbox}
+
+\section{Obiettivi e struttura dell'elaborato}
+Il lavoro svolto si articola attorno a cinque direttrici cardine che guidano l'intero ciclo di vita del dato clinico:
+la costruzione di una pipeline di raffinamento progressivo strutturata secondo il paradigma della \textbf{Medallion Architecture}, articolata nei livelli \textbf{Bronze}, \textbf{Silver} e \textbf{Gold};
+l'archiviazione scalabile delle serie temporali mediante le \textbf{Time Series Collection} native di MongoDB 8.0, sfruttando il raggruppamento automatico a \textbf{bucket} compressi per massimizzare la densità dello storage e accelerare le query temporali;
+l'implementazione di un modello di \textbf{data governance} artigianale ispirato ai \textbf{data lakehouse}, comprendente un catalogo di registrazione delle serie con tracciamento della provenienza (\textbf{data lineage}), schemi formali di validazione JSON e l'impiego strutturato dei metadati per monitorare e preservare la qualità del dato;
+lo sviluppo di un'architettura multilivello di \textbf{anomaly detection}, capace di coniugare euristiche cliniche dominio-specifiche (lo \textbf{Shock Index} e la condizione di ipotensione severa) con modelli di \textbf{machine learning} non supervisionato (l'algoritmo ad alberi \textbf{Isolation Forest} e un \textbf{autoencoder} neurale ricorrente basato su PyTorch);
+l'ingegnerizzazione completa dell'ecosistema attraverso un backend REST realizzato con il framework \textbf{FastAPI}, una dashboard interattiva ricca di componenti visivi per la telemetria clinica e l'orchestrazione trasparente dei servizi mediante container Docker.
+
+La trattazione è organizzata come segue: nel Capitolo 2 viene approfondita l'architettura della pipeline e il processo di pulizia e partizionamento nei livelli \textbf{Bronze} e \textbf{Silver}; nel Capitolo 3 vengono presentate l'archiviazione nel layer \textbf{Gold} su MongoDB, i benchmark di memorizzazione e l'intera impalcatura di \textbf{data governance}; nel Capitolo 4 sono esposti i modelli matematici e clinici di rilevamento delle anomalie con la relativa valutazione quantitativa; infine, nel Capitolo 5 sono descritti la progettazione del backend, l'interfaccia utente web, la containerizzazione con Docker e le prospettive di sviluppo futuro.

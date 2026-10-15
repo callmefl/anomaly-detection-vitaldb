@@ -1,0 +1,99 @@
+% === DIAGRAMMA PIPELINE DI ESECUZIONE END-TO-END (LAYOUT HORSESHOE PERFETTO) ===
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    stage/.style={
+        rectangle,
+        rounded corners=8pt,
+        draw=brandBorder,
+        line width=1.1pt,
+        fill=white,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt},
+        inner sep=9pt,
+        align=center
+    },
+    pill/.style={
+        fill=white,
+        draw=brandBorder!80,
+        line width=0.6pt,
+        rounded corners=4pt,
+        inner xsep=6pt,
+        inner ysep=2.5pt,
+        font=\scriptsize,
+        text=brandDark!85
+    },
+    bronzeBox/.style={stage, draw=brandCoral!70, fill=brandPeach!8},
+    silverBox/.style={stage, draw=brandPrimary!60, fill=brandPrimary!5},
+    goldBox/.style={stage, draw=brandTeal!60, fill=brandTeal!7},
+    detectBox/.style={stage, draw=brandPrimary!75, fill=brandPrimary!5},
+    serveBox/.style={stage, draw=brandDark!50, fill=brandSurface},
+    flowArrow/.style={
+        ->,
+        line width=1.8pt,
+        color=brandPrimary
+    }
+]
+
+% ================= RIGA 1: DATA PIPELINE (SINISTRA -> DESTRA) =================
+% FASE 1: BRONZE
+\node[bronzeBox, text width=4.1cm] (p1) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandCoral!90!black}{FASE 1: BRONZE}}\\[3pt]
+    \textbf{\small Ingestione Grezza}\\[6pt]
+    \tikz[baseline=-2pt]\node[pill]{VitalDB API (5 segnali a 1 Hz)};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Apache Parquet Immutabile};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Log \texttt{download\_manifest.json}};
+};
+
+% FASE 2: SILVER
+\node[silverBox, text width=4.4cm, right=1.9cm of p1] (p2) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandPrimary}{FASE 2: SILVER}}\\[3pt]
+    \textbf{\small Bonifica \& Partizionamento}\\[6pt]
+    \tikz[baseline=-2pt]\node[pill]{Filtro Range \& Drop Vuoti};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Lineare ($\le 5$s) e LOCF ($\le 300$s)};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Partizioni Hive per Reparto};
+};
+
+% FASE 3: GOLD
+\node[goldBox, text width=4.3cm, right=1.9cm of p2] (p3) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandTeal!90!black}{FASE 3: GOLD}}\\[3pt]
+    \textbf{\small MongoDB Time Series}\\[6pt]
+    \tikz[baseline=-2pt]\node[pill]{Collezione \texttt{vital\_signals}};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Compressione Delta-of-Delta};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Catalogo \texttt{registry}};
+};
+
+% ================= RIGA 2: DETECTION & SERVING (DESTRA -> SINISTRA) =================
+% FASE 4: ANOMALY DETECTION (posizionata verticalmente sotto FASE 3: GOLD)
+\node[detectBox, text width=7.0cm, below=2.2cm of p3] (p4) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandPrimary}{FASE 4: ANOMALY DETECTION MULTILIVELLO}}\\[3pt]
+    \textbf{\small Inferenza Ibrida (\texttt{POST /detect})}\\[6pt]
+    \tikz[baseline=-2pt]\node[pill, fill=brandPrimary!8, draw=brandPrimary!35]{%
+        \textbf{Regole Cliniche}: Shock Index $>0.9$ $\cdot$ Ipotensione%
+    };\\[4pt]
+    \tikz[baseline=-2pt]\node[pill, fill=brandPrimary!8, draw=brandPrimary!35]{%
+        \textbf{Machine Learning}: Isolation Forest $\cdot$ LSTM Autoencoder%
+    };\\[5pt]
+    {\scriptsize\textcolor{brandDark!75}{$\Downarrow$ Persistenza in \texttt{anomalies\_detected}}}
+};
+
+% FASE 5: SERVING & DASHBOARD (posizionata alla sinistra di FASE 4)
+\node[serveBox, text width=7.2cm, left=2.1cm of p4] (p5) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandDark}{FASE 5: SERVING \& DASHBOARD}}\\[3pt]
+    \textbf{\small Servizi REST \& Telemetria Web}\\[6pt]
+    \tikz[baseline=-2pt]\node[pill]{FastAPI ASGI Asincrono (:8000) $\cdot$ PyMongo};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Downsampling Analitico con \texttt{\$dateTrunc}};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Dashboard Web $\cdot$ Consensus Matrix $\cdot$ Chart.js};
+};
+
+% ================= FRECCE DI FLUSSO =================
+% Flusso orizzontale superiore (Bronze -> Silver -> Gold)
+\draw[flowArrow] (p1.east) -- node[above=4pt, font=\scriptsize\bfseries, text=brandPrimary, align=center] {Bonifica \&\\Imputazione} (p2.west);
+\draw[flowArrow] (p2.east) -- node[above=4pt, font=\scriptsize\bfseries, text=brandPrimary, align=center] {Caricamento\\\texttt{load\_mongo.py}} (p3.west);
+
+% Transizione verticale lineare diretta (Gold -> Detection)
+\draw[flowArrow] (p3.south) -- node[right=6pt, font=\scriptsize\bfseries, text=brandTeal!85!black, align=left] {Estrazione serie\\per paziente} (p4.north);
+
+% Flusso orizzontale inferiore di consumo (Detection -> Serving)
+\draw[flowArrow] (p4.west) -- node[above=4pt, font=\scriptsize\bfseries, text=brandPrimary, align=center] {Allarmi rilevati \&\\aggregazioni} (p5.east);
+
+\end{tikzpicture}
