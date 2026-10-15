@@ -19,9 +19,19 @@ il parametro \texttt{Solar8000/HR}, che quantifica la frequenza cardiaca espress
 il parametro \texttt{Solar8000/PLETH\_SPO2}, che rileva la saturazione d'ossigeno dell'emoglobina periferica espressa in percentuale;
 il parametro \texttt{Solar8000/NIBP\_SBP}, che misura la pressione arteriosa sistolica non invasiva espressa in millimetri di mercurio (mmHg);
 il parametro \texttt{Solar8000/NIBP\_DBP}, che registra la corrispondente pressione arteriosa diastolica in millimetri di mercurio;
-il parametro \texttt{Solar8000/NIBP\_MBP}, che esprime la pressione arteriosa media, indicatore fondamentale per la valutazione della perfusione degli organi vitali.
+il parametro \texttt{Solar8000/NIBP\_MBP}, che esprime la pressione arteriosa media, grandezza fondamentale per stimare la perfusione d'organo.
 
-Queste rilevazioni fisiologiche sono affiancate da metadati clinici perioperatori scaricati contestualmente, tra cui l'età, il sesso e il reparto chirurgico di afferenza del paziente (\texttt{department}, ad esempio chirurgia generale, toracica o ginecologica). L'integrazione di questi attributi contestuali risulta determinante non solo per consentire aggregazioni epidemiologiche, ma anche per guidare il partizionamento fisico dei dati e ottimizzare le strategie di indicizzazione all'interno della base di dati.
+Dal punto di vista fisiopatologico, la pressione arteriosa media non rappresenta una semplice media aritmetica, bensì una stima integrata nel ciclo cardiaco, approssimata dalla relazione clinica standard:
+$$MBP \approx DBP + \frac{1}{3}(SBP - DBP)$$
+Nel paziente chirurgico sottoposto ad anestesia generale, la vasodilatazione farmacologica e l'azione deprimente sul miocardio inducono frequentemente cali pressori improvvisi. Il mantenimento di un valore di $MBP \ge 65\text{ mmHg}$ costituisce il target emodinamico raccomandato dalle linee guida internazionali per scongiurare danni ischemici acuti al circolo renale, coronarico e cerebrale.
+
+L'eterogeneità temporale tra le sorgenti sensoristiche costituisce la sfida ingegneristica centrale del progetto: mentre la frequenza cardiaca e la saturazione periferica sono acquisite con cadenza continua a $1\text{ Hz}$ tramite elettrodi ed emettitori ottici fotopletismografici, le misurazioni pressorie non invasive impiegano un bracciale pneumatico oscillometrico che necessita di tempi tecnici di gonfiaggio e sgonfiaggio compresi tra 20 e 40 secondi, ripetuti a intervalli programmati ogni due o cinque minuti. Ne deriva una matrice di serie storiche caratterizzata da forte asincronia e valori mancanti prolungati.
+
+Queste rilevazioni fisiologiche sono affiancate da metadati clinici perioperatori scaricati contestualmente, tra cui l'età, il sesso e il reparto chirurgico di afferenza del paziente (\texttt{department}, ad esempio chirurgia generale, toracica o ginecologica). Il campione sperimentale selezionato comprende 50 interventi chirurgici completi per un totale di 311.173 secondi di tracciato attivo (corrispondenti a oltre 86 ore complessive di sala operatoria). L'integrazione di questi attributi contestuali risulta determinante non solo per consentire aggregazioni epidemiologiche, ma anche per guidare il partizionamento fisico dei dati e ottimizzare le strategie di indicizzazione all'interno della base di dati.
+
+\begin{techbox}[brandNavy]{Sintesi della coorte e delle sorgenti sensoristiche}
+La base dati sperimentale raccoglie 50 interventi chirurgici per un totale di 311.173 secondi ($>86$ ore di monitoraggio continuo). La telemetria integra segnali continui a 1 Hz da fotopletismografia ottica (frequenza cardiaca e saturazione d'ossigeno) con rilievi emodinamici intermittenti a bracciale oscillometrico (pressioni sistolica, diastolica e media), ancorando le soglie di allarme al limite critico di ipoperfusione d'organo ($MBP < 65\text{ mmHg}$).
+\end{techbox}
 
 \section{Obiettivi e struttura dell'elaborato}
 Il lavoro svolto si articola attorno a cinque direttrici cardine che guidano l'intero ciclo di vita del dato clinico:

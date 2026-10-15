@@ -21,38 +21,38 @@
 \node[layerBlock, minimum width=15.2cm, minimum height=2.4cm] (bronze) at (0, 4.2) {};
 
 % Barra laterale colorata Bronze
-\fill[orange!90!black, rounded corners=7pt] (-7.6, 3.0) rectangle (-7.2, 5.4);
+\fill[brandCoral, rounded corners=7pt] (-7.6, 3.0) rectangle (-7.2, 5.4);
 
 % Intestazione Bronze
 \node[anchor=north west] at (-7.0, 5.25) {
-    \textbf{\large\color{orange!90!black}LAYER BRONZE} \quad
-    \textbf{\normalsize\color{brandNavy}Dati grezzi immutabili} \quad
-    \tikz[baseline=-2pt]\node[fill=orange!15, draw=orange!70!black, rounded corners=3pt, font=\scriptsize\bfseries, text=orange!90!black, inner sep=2.5pt]{3.88 MB (100\%)};
+    \textbf{\large\color{brandCoral!90!black}LAYER BRONZE} \quad
+    \textbf{\normalsize\color{brandDark}Dati grezzi immutabili} \quad
+    \tikz[baseline=-2pt]\node[fill=brandPeach!20, draw=brandCoral!60, rounded corners=4pt, font=\scriptsize\bfseries, text=brandCoral!90!black, inner xsep=4pt, inner ysep=2pt]{3.88 MB (100\%)};
 };
 
 % Contenuto a 3 colonne Bronze
 \node[anchor=north west, font=\footnotesize, align=left] at (-7.0, 4.45) {
-    \textbf{\color{brandNavy}Sorgente clinica}\\[2pt]
+    \textbf{\color{brandDark}Sorgente clinica}\\[2pt]
     \textbullet~VitalDB Open Dataset (API)\\
     \textbullet~5 segnali monitor Solar8000
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (-1.8, 4.45) {
-    \textbf{\color{brandNavy}Formato di storage}\\[2pt]
+\node[anchor=north west, font=\footnotesize, align=left] at (-2.5, 4.45) {
+    \textbf{\color{brandDark}Formato di storage}\\[2pt]
     \textbullet~Apache Parquet grezzo\\
-    \textbullet~Risoluzione nominale 1 secondo
+    \textbullet~Risoluzione nominale 1s
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (3.2, 4.45) {
-    \textbf{\color{brandNavy}Data governance}\\[2pt]
-    \textbullet~Immutabilità sorgente assoluta\\
-    \textbullet~Registro \texttt{download\_manifest.json}
+\node[anchor=north west, font=\footnotesize, align=left] at (2.2, 4.45) {
+    \textbf{\color{brandDark}Data governance}\\[2pt]
+    \textbullet~Immutabilità assoluta\\
+    \textbullet~Log \texttt{manifest.json}
 };
 
 
 % ==================== TRANSIZIONE 1: CLEAN ====================
 \draw[downArrow] (0, 3.0) -- (0, 1.8);
-\node[fill=brandSurface, draw=brandCyan, line width=0.9pt, rounded corners=4pt, inner sep=3.5pt, font=\scriptsize\bfseries, text=brandNavy] at (0, 2.4) {
+\node[fill=white, draw=brandPrimary!50, line width=0.8pt, rounded corners=6pt, inner xsep=8pt, inner ysep=3.5pt, font=\scriptsize\bfseries, text=brandDark, drop shadow={opacity=0.06, shadow xshift=1pt, shadow yshift=-1pt}] at (0, 2.4) {
     \texttt{clean.py}: bonifica, filtro range clinici, interpolazione lineare e LOCF
 };
 
@@ -61,38 +61,38 @@
 \node[layerBlock, minimum width=15.2cm, minimum height=2.4cm] (silver) at (0, 0.6) {};
 
 % Barra laterale colorata Silver
-\fill[blue!75!cyan, rounded corners=7pt] (-7.6, -0.6) rectangle (-7.2, 1.8);
+\fill[brandPrimary!85, rounded corners=7pt] (-7.6, -0.6) rectangle (-7.2, 1.8);
 
 % Intestazione Silver
 \node[anchor=north west] at (-7.0, 1.65) {
-    \textbf{\large\color{blue!75!cyan}LAYER SILVER} \quad
-    \textbf{\normalsize\color{brandNavy}Bonifica e partizionamento} \quad
-    \tikz[baseline=-2pt]\node[fill=blue!12, draw=blue!60!cyan, rounded corners=3pt, font=\scriptsize\bfseries, text=blue!80!black, inner sep=2.5pt]{2.24 MB (-42.4\%)};
+    \textbf{\large\color{brandPrimary}LAYER SILVER} \quad
+    \textbf{\normalsize\color{brandDark}Bonifica e partizionamento} \quad
+    \tikz[baseline=-2pt]\node[fill=brandPrimary!12, draw=brandPrimary!50, rounded corners=4pt, font=\scriptsize\bfseries, text=brandPrimaryDark, inner xsep=4pt, inner ysep=2pt]{2.24 MB (-42.4\%)};
 };
 
 % Contenuto a 3 colonne Silver
 \node[anchor=north west, font=\footnotesize, align=left] at (-7.0, 0.85) {
-    \textbf{\color{brandNavy}Pulizia e rimozione}\\[2pt]
+    \textbf{\color{brandDark}Pulizia e rimozione}\\[2pt]
     \textbullet~Drop righe senza segnale\\
     \textbullet~Report \texttt{quality\_report.json}
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (-1.8, 0.85) {
-    \textbf{\color{brandNavy}Imputazione temporale}\\[2pt]
-    \textbullet~Interp. lineare HR/SpO2 ($\le 5$s)\\
-    \textbullet~LOCF NIBP ($\le 300$s) + \texttt{nibp\_age\_s}
+\node[anchor=north west, font=\footnotesize, align=left] at (-2.5, 0.85) {
+    \textbf{\color{brandDark}Imputazione temporale}\\[2pt]
+    \textbullet~Interp. lineare ($\le 5$s)\\
+    \textbullet~LOCF NIBP ($\le 300$s)
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (3.2, 0.85) {
-    \textbf{\color{brandNavy}Partizionamento}\\[2pt]
-    \textbullet~Directory \texttt{department=<N>/}\\
-    \textbullet~Lettura rapida con pruning
+\node[anchor=north west, font=\footnotesize, align=left] at (2.2, 0.85) {
+    \textbf{\color{brandDark}Partizionamento}\\[2pt]
+    \textbullet~Partizioni Hive \texttt{department}\\
+    \textbullet~Query con partition pruning
 };
 
 
 % ==================== TRANSIZIONE 2: LOAD ====================
 \draw[downArrow] (0, -0.6) -- (0, -1.8);
-\node[fill=brandSurface, draw=brandCyan, line width=0.9pt, rounded corners=4pt, inner sep=3.5pt, font=\scriptsize\bfseries, text=brandNavy] at (0, -1.2) {
+\node[fill=white, draw=brandPrimary!50, line width=0.8pt, rounded corners=6pt, inner xsep=8pt, inner ysep=3.5pt, font=\scriptsize\bfseries, text=brandDark, drop shadow={opacity=0.06, shadow xshift=1pt, shadow yshift=-1pt}] at (0, -1.2) {
     \texttt{load\_mongo.py}: modellazione BSON, contratti schema e ingestione time series
 };
 
@@ -101,31 +101,32 @@
 \node[layerBlock, minimum width=15.2cm, minimum height=2.4cm] (gold) at (0, -3.0) {};
 
 % Barra laterale colorata Gold
-\fill[brandEmerald, rounded corners=7pt] (-7.6, -4.2) rectangle (-7.2, -1.8);
+\fill[brandTeal, rounded corners=7pt] (-7.6, -4.2) rectangle (-7.2, -1.8);
 
 % Intestazione Gold
 \node[anchor=north west] at (-7.0, -1.95) {
-    \textbf{\large\color{brandEmerald!90!black}LAYER GOLD} \quad
-    \textbf{\normalsize\color{brandNavy}MongoDB Time Series nativo} \quad
-    \tikz[baseline=-2pt]\node[fill=brandEmerald!15, draw=brandEmerald, rounded corners=3pt, font=\scriptsize\bfseries, text=brandEmerald!80!black, inner sep=2.5pt]{\textbf{0.42 MB (-89.1\%, 3.7$\times$ speedup)}};
+    \textbf{\large\color{brandTeal!90!black}LAYER GOLD} \quad
+    \textbf{\normalsize\color{brandDark}MongoDB Time Series nativo} \quad
+    \tikz[baseline=-2pt]\node[fill=brandTeal!15, draw=brandTeal!60, rounded corners=4pt, font=\scriptsize\bfseries, text=brandTeal!90!black, inner xsep=4pt, inner ysep=2pt]{\textbf{0.42 MB (-89.1\%, 3.7$\times$ speedup)}};
 };
 
 % Contenuto a 3 colonne Gold
 \node[anchor=north west, font=\footnotesize, align=left] at (-7.0, -2.75) {
-    \textbf{\color{brandNavy}Time Series Collection}\\[2pt]
+    \textbf{\color{brandDark}Time Series Collection}\\[2pt]
     \textbullet~Collezione \texttt{vital\_signals}\\
     \textbullet~Partizionamento a bucket (1s)
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (-1.8, -2.75) {
-    \textbf{\color{brandNavy}Compressione avanzata}\\[2pt]
+\node[anchor=north west, font=\footnotesize, align=left] at (-2.5, -2.75) {
+    \textbf{\color{brandDark}Compressione avanzata}\\[2pt]
     \textbullet~Delta-of-Delta sui timestamp\\
-    \textbullet~Zstandard sui vettori biometrici
+    \textbullet~Zstandard sui vettori
 };
 
-\node[anchor=north west, font=\footnotesize, align=left] at (3.2, -2.75) {
-    \textbf{\color{brandNavy}Governance e servizi}\\[2pt]
-    \textbullet~Collezioni \texttt{registry} e \texttt{track\_metadata}\\
+\node[anchor=north west, font=\footnotesize, align=left] at (2.2, -2.75) {
+    \textbf{\color{brandDark}Governance e servizi}\\[2pt]
+    \textbullet~Metastore \texttt{registry}\\
+    \textbullet~Contratti \texttt{track\_metadata}\\
     \textbullet~Alimentazione API e modelli ML
 };
 

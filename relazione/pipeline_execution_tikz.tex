@@ -1,0 +1,117 @@
+% === DIAGRAMMA PIPELINE DI ESECUZIONE END-TO-END (LAYOUT HORSESHOE PERFETTO) ===
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    stage/.style={
+        rectangle,
+        rounded corners=7pt,
+        draw=brandBorder,
+        line width=1.1pt,
+        fill=white,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt},
+        inner sep=8pt,
+        align=center
+    },
+    bronzeBox/.style={stage, draw=brandCoral!65, fill=brandPeach!10},
+    silverBox/.style={stage, draw=brandPrimary!60, fill=brandPrimary!6},
+    goldBox/.style={stage, draw=brandTeal!60, fill=brandTeal!8},
+    detectBox/.style={stage, draw=brandPrimary!75, fill=brandPrimary!5},
+    serveBox/.style={stage, draw=brandDark!60, fill=brandSurface},
+    flowArrow/.style={
+        ->,
+        line width=1.6pt,
+        color=brandPrimary
+    }
+]
+
+% ================= RIGA 1: DATA PIPELINE (SINISTRA -> DESTRA) =================
+% FASE 1: BRONZE
+\node[bronzeBox, text width=3.8cm] (p1) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandNavy}{FASE 1: BRONZE}}\\[3pt]
+    \textbf{\footnotesize Ingestione Grezza}\\[2pt]
+    {\scriptsize
+    $\bullet$ VitalDB Public API\\
+    $\bullet$ 50 casi clinici chirurgia\\
+    $\bullet$ Parquet raw senza schema\\
+    $\bullet$ 3.88 MB / 644.637 record
+    }
+};
+
+% FASE 2: SILVER
+\node[silverBox, text width=4.2cm, right=2.2cm of p1] (p2) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandBlue}{FASE 2: SILVER}}\\[3pt]
+    \textbf{\footnotesize Bonifica \& Partizionamento}\\[2pt]
+    {\scriptsize
+    $\bullet$ Bounding fisiologico\\
+    $\bullet$ Drop righe prive di segnale\\
+    $\bullet$ Interpolazione lineare $\le 5$s\\
+    $\bullet$ LOCF NIBP $\le 300$s\\
+    $\bullet$ Calcolo metadato \texttt{nibp\_age\_s}\\
+    $\bullet$ Partizionamento Hive Parquet
+    }
+};
+
+% FASE 3: GOLD
+\node[goldBox, text width=4.1cm, right=2.2cm of p2] (p3) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandCyan!85!black}{FASE 3: GOLD}}\\[3pt]
+    \textbf{\footnotesize MongoDB Time Series}\\[2pt]
+    {\scriptsize
+    $\bullet$ Collezione \texttt{vital\_signals}\\
+    $\bullet$ Compressione bucket nativa\\
+    $\bullet$ Delta-of-Delta a 1 Hz\\
+    $\bullet$ Metastore catalogo \texttt{registry}\\
+    $\bullet$ JSON Schema rigoroso\\
+    $\bullet$ Omissione campi nulli BSON
+    }
+};
+
+% ================= RIGA 2: DETECTION & SERVING (DESTRA -> SINISTRA) =================
+% FASE 4: ANOMALY DETECTION (posizionata verticalmente sotto FASE 3: GOLD)
+\node[detectBox, text width=6.6cm, below=2.0cm of p3] (p4) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandPrimary}{FASE 4: ANOMALY DETECTION MULTILIVELLO}}\\[3pt]
+    \textbf{\footnotesize Inferenza Ibrida (\texttt{POST /detect})}\\[4pt]
+    \begin{tabular}{@{}p{3.0cm}@{\hspace{8pt}}p{3.0cm}@{}}
+        \centering
+        \textbf{\tiny REGOLE CLINICHE}\\[2pt]
+        {\tiny
+        $\bullet$ Shock Index $> 0.9$\\
+        $\bullet$ Ipotensione severa\\
+        ($MBP < 65 \land \text{SpO}_2 < 90\%$)
+        }
+        &
+        \centering
+        \textbf{\tiny MACHINE LEARNING}\\[2pt]
+        {\tiny
+        $\bullet$ Isolation Forest (5\%)\\
+        $\bullet$ LSTM Autoencoder\\
+        $\bullet$ Errore $\max_c \text{MSE}_c$ al 95° pct
+        }
+    \end{tabular}\\[4pt]
+    {\scriptsize $\Downarrow$ Persistenza atomica in \texttt{anomalies\_detected}}
+};
+
+% FASE 5: SERVING & DASHBOARD (posizionata alla sinistra di FASE 4, sotto FASE 1 e 2)
+\node[serveBox, text width=7.0cm, left=2.5cm of p4] (p5) {
+    {\sffamily\bfseries\scriptsize\textcolor{brandNavy}{FASE 5: SERVING \& DASHBOARD}}\\[3pt]
+    \textbf{\footnotesize Fruizione Dati \& Visualizzazione Telemetrica}\\[3pt]
+    {\scriptsize
+    $\bullet$ Downsampling analitico con pipeline MongoDB \texttt{\$dateTrunc}\\
+    $\bullet$ Server ASGI asincrono FastAPI con pool di connessione PyMongo\\
+    $\bullet$ Frontend modulare a componenti con loader asincrono HTML\\
+    $\bullet$ Consensus Matrix multimodello con modali clinici ed esplicativi\\
+    $\bullet$ Grafici telemetrici sincronizzati (HR, $\text{SpO}_2$, SBP, DBP, MBP)
+    }
+};
+
+% ================= FRECCE DI FLUSSO CON ETICHETTE PULITE =================
+% Flusso orizzontale superiore (Bronze -> Silver -> Gold)
+\draw[flowArrow] (p1.east) -- node[above=4pt, font=\scriptsize\bfseries, text=brandCyan!85!brandNavy, align=center] {Bonifica \&\\Imputazione} (p2.west);
+\draw[flowArrow] (p2.east) -- node[above=4pt, font=\scriptsize\bfseries, text=brandCyan!85!brandNavy, align=center] {Caricamento\\\texttt{load\_mongo.py}} (p3.west);
+
+% Transizione verticale lineare diretta (Gold -> Detection)
+\draw[flowArrow] (p3.south) -- node[right=6pt, font=\scriptsize\bfseries, text=brandTeal!85!black, align=left] {Estrazione serie\\per paziente} (p4.north);
+
+% Flusso orizzontale inferiore di consumo (Detection -> Serving)
+\draw[flowArrow] (p4.west) -- node[above=4pt, font=\scriptsize\bfseries, text=brandNavy, align=center] {Allarmi rilevati \&\\downsampling} (p5.east);
+
+\end{tikzpicture}

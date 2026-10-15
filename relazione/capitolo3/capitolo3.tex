@@ -10,7 +10,13 @@ il parametro \texttt{timeField}, impostato sul campo radice \texttt{timestamp}, 
 il parametro \texttt{metaField}, impostato sul sotto-documento \texttt{metadata}, che raccoglie gli attributi descrittivi immutabili della serie associata a quel paziente;
 il parametro \texttt{granularity}, impostato al valore \texttt{seconds}, che suggerisce al motore la frequenza attesa delle misurazioni per ottimizzare la dimensione e la durata temporale di ciascun \textbf{bucket}.
 
-All'interno dell'infrastruttura di archiviazione, MongoDB organizza i dati nella collezione di sistema interna \texttt{system.buckets.vital\_signals}. Quando giungono nuovi punti recanti i medesimi metadati, il motore inserisce i campioni nel \textbf{bucket} aperto corrente fino al raggiungimento della capacità massima di compressione (fino a 1.000 punti o un limite temporale stabilito). Per comprimere i dati all'interno del \textbf{bucket}, il motore applica tecniche colonnari avanzate: i timestamp crescenti vengono codificati mediante l'algoritmo \textbf{Delta-of-Delta}, che memorizza unicamente le variazioni degli incrementi temporali riducendo l'ingombro a pochi bit per punto, mentre i vettori delle metriche numeriche vengono compressi tramite l'algoritmo \textbf{Zstandard}. In questo modo viene massimizzata la densità informativa ed eliminata qualsiasi ridondanza dei metadati contestuali.
+All'interno dell'infrastruttura di archiviazione, MongoDB organizza i dati nella collezione di sistema interna \texttt{system.buckets.vital\_signals}. In tale collezione, ogni singolo documento BSON non rappresenta una singola misurazione istantanea, bensì un intero \textbf{bucket} che racchiude un blocco compresso di campioni temporali consecutivi. Dal punto di vista strutturale, il documento di \textbf{bucket} si articola in tre componenti fondamentali: l'identificativo univoco \texttt{\_id}, il sotto-documento \texttt{control} e il contenitore binario \texttt{data}. Il sotto-documento \texttt{control} ospita i metadati di controllo dell'intervallo, tra cui i valori estremi del timestamp (\texttt{min.timestamp} e \texttt{max.timestamp}), i valori minimi e massimi assunti dalle metriche numeriche all'interno del blocco, la versione dello schema interno (\texttt{version: 1}) e il contatore dei campioni (\texttt{count}), che può accogliere fino a 1.000 osservazioni temporali o estendersi fino al limite orario previsto dalla granularità definita.
+
+Quando giungono nuovi campioni recanti i medesimi attributi immutabili (ossia lo stesso paziente e monitor), il motore inserisce i dati nel \textbf{bucket} aperto corrente fino al raggiungimento della capacità massima. Per comprimere le sequenze temporali all'interno della sezione \texttt{data}, MongoDB adotta una combinazione sinergica di algoritmi colonnari avanzati:
+l'asse temporale viene compresso mediante l'algoritmo \textbf{Delta-of-Delta}, originariamente introdotto nell'architettura Gorilla di Facebook per le serie storiche ad altissima frequenza. Indicando con $t_i$ il timestamp dell'osservazione corrente, la procedura calcola la differenza temporale di primo ordine rispetto al campione precedente, $D_i = t_i - t_{i-1}$, e successivamente la variazione di secondo ordine rispetto all'incremento antecedente, $\Delta_i = D_i - D_{i-1}$. Nel contesto del monitoraggio intraoperatorio ad alta fedeltà a 1 Hz, i campioni si susseguono a intervalli rigorosamente costanti di un secondo: ne consegue che $D_i = 1\text{ s}$ per ogni istante e, di riflesso, la derivata seconda temporale risulta identicamente nulla, $\Delta_i = 0$. In virtù delle regole di codifica bit-packing dell'algoritmo, il valore nullo viene serializzato impiegando un singolo bit \texttt{0}, invece degli 8 byte (64 bit) ordinariamente necessari per rappresentare un timestamp Unix standard a 64 bit o una data BSON. L'ingombro dell'ordinamento temporale crolla quindi a frazioni trascurabili di memoria;
+i vettori numerici delle metriche biometriche continue (quali frequenza cardiaca e saturazione) vengono codificati sfruttando la correlazione tra campioni consecutivi tramite differenziazione binaria XOR sulle mantisse in virgola mobile a 64 bit (standard IEEE 754), seguita da una compressione a blocchi con l'algoritmo \textbf{Zstandard} (zstd).
+
+Un ulteriore beneficio architetturale di MongoDB rispetto al formato Parquet risiede nella gestione della sparsità e dei valori mancanti. Nel formato Parquet, ogni colonna numerica della tabella partizionata alloca necessariamente una maschera di bit di definizione (\textbf{definition level bitmask}) per tracciare per ciascuna riga la presenza o assenza del dato. Al contrario, all'interno della struttura flessibile BSON adottata da MongoDB, se un parametro vitale non viene misurato in un determinato secondo (come avviene tipicamente per la pressione non invasiva nei lunghi intervalli di riposo tra due cicli di gonfiaggio del bracciale), il relativo campo viene semplicemente omesso dal sotto-documento \texttt{metrics}. Questa assenza non comporta alcuna allocazione di byte né padding numerico, massimizzando la densità informativa dello storage.
 
 \section{Benchmark prestazionale e di occupazione dello storage}
 Per valutare in modo quantitativo e scientificamente rigoroso i benefici apportati dalla transizione dai file Parquet alla collezione temporale di MongoDB, è stata eseguita una campagna di benchmark automatizzata mediante lo script \texttt{benchmark\_etl.py}.
@@ -44,6 +50,10 @@ Valori mancanti misurati & 67.6\% & 32.6\% (post-LOCF) & 0.0\% (Omissione BSON) 
 Come emerge dai dati riportati nella Tabella~\ref{tab:etl_benchmark}, il passaggio dai file Parquet non compressi del livello \textbf{Bronze} (3.88 MB) al formato bonificato del livello \textbf{Silver} (2.24 MB) produce una prima contrazione del volume del 42.4\%, dovuta alla rimozione delle righe completamente prive di segnale vitale. L'ulteriore transizione al livello \textbf{Gold} su MongoDB abbatte lo spazio occupato a soli 0.42 MB, facendo registrare un risparmio complessivo di storage dell'89.1\% rispetto al dato grezzo originario. Questo risultato dimostra l'eccellente efficienza dell'algoritmo di compressione a \textbf{bucket} per serie temporali biometriche a elevata frequenza.
 
 Sul fronte delle prestazioni computazionali, il protocollo di test ha adottato una metodologia comparativa uniforme: è stata misurata la mediana dei tempi di risposta su quindici iterazioni successive relative al caso clinico 1, precedute da una fase di riscaldamento (\textbf{warmup}) per stabilizzare le cache del sistema operativo e del database. L'interrogazione mirava a estrarre la media della frequenza cardiaca per l'intero arco temporale dell'intervento. La lettura del file Parquet partizionato ha richiesto una latenza mediana di 13.48 ms, mentre la corrispondente query di aggregazione in MongoDB, eseguita tramite pipeline con operatore \texttt{\$match} e \texttt{\$group}, è stata evasa in appena 3.63 ms. Il motore di MongoDB consegue dunque un fattore di velocizzazione pari a 3.7 volte, beneficiando del filtraggio anticipato a livello di metadati del \textbf{bucket} prima di procedere alla decodifica delle serie numeriche.
+
+\begin{techbox}[brandCyan]{Vantaggi architetturali di MongoDB Time Series}
+La combinazione della compressione a \textbf{bucket} con l'algoritmo \textbf{Delta-of-Delta} consente di abbattere lo storage su disco dell'89.1\% rispetto ai dati grezzi \textbf{Bronze}. Contestualmente, il \textbf{query pushdown} sui metadati indicizzati del \textbf{bucket} esclude a priori le serie temporali dei pazienti non richiesti, velocizzando la scansione analitica di 3.7 volte rispetto all'accesso su file Parquet.
+\end{techbox}
 
 \section{Data governance artigianale in ottica data lakehouse}
 Un aspetto centrale del progetto, concordato e approfondito durante le fasi di revisione con la relatrice, risiede nella formalizzazione della \textbf{data governance}. Nei moderni contesti industriali, l'adozione di un'architettura a livelli richiede meccanismi stringenti per garantire l'integrità strutturale, il tracciamento della provenienza e l'affidabilità delle transazioni. Piattaforme dedicate quali Delta Lake, Apache Iceberg o Apache Hudi forniscono queste garanzie mediante registri di transazioni distribuiti (\textbf{transaction log}) e cataloghi integrati all'interno di motori di calcolo analitico quali Spark o Trino.
@@ -107,6 +117,59 @@ la procedura esegue dapprima l'inserimento in blocco di tutti i punti della seri
 solo a fronte del completamento con esito positivo dell'inserimento dei dati temporali, la procedura procede alla registrazione del caso nel catalogo \texttt{registry};
 qualora la prima operazione dovesse sollevare un errore di rete o di I/O, il controllo interrompe l'esecuzione e il documento di catalogo non viene scritto. In questo modo si impedisce l'insorgenza di casi fantasma all'interno del catalogo.
 Al contempo, per rendere l'operazione idempotente e prevenire duplicazioni accidentali in caso di riavvio della procedura, il caricatore verifica preliminarmente la presenza del caso nel \texttt{registry}: se il caso risulta già catalogato, il caricamento dei dati associati viene saltato a priori.
+
+\section{Pipeline di aggregazione analitica e ottimizzazione delle query}
+La disponibilità dei dati ad alta frequenza nel livello \textbf{Gold} consente di sviluppare pipeline di interrogazione analitica avanzate per alimentare in tempo reale la visualizzazione grafica e gli algoritmi diagnostici. Per evitare che la complessità computazionale si trasferisca sull'applicazione web o sull'infrastruttura di rete, le elaborazioni intensive di filtraggio, raggruppamento e aggregazione temporale vengono demandate direttamente al motore interno di MongoDB, sfruttando il framework di aggregazione nativo (\textbf{Aggregation Pipeline}).
+
+\subsection{Downsampling temporale efficiente lato database con \$dateTrunc}
+Nel monitoraggio intraoperatorio continuo, un singolo intervento chirurgico di media o lunga durata può protrarsi per diverse ore, accumulando decine di migliaia di punti temporali per paziente (oltre 21.000 campioni per una procedura di sei ore). Il trasferimento indiscriminato dell'intero tracciato a frequenza di 1 Hz dal database al browser del client comporterebbe un sovraccarico insostenibile: il payload JSON della risposta HTTP supererebbe decine di megabyte, saturando la banda di rete e rallentando il motore di rendering grafico JavaScript dell'interfaccia utente.
+
+Per risolvere questa criticità, nel modulo \texttt{src/analysis/queries.py} è stata sviluppata la funzione \texttt{downsample\_case}, richiamabile dall'API specificando il parametro \texttt{window\_seconds}. La funzione esegue una riduzione controllata della risoluzione temporale (\textbf{downsampling}) interamente a livello di base di dati mediante una pipeline strutturata su tre stadi consecutivi, come illustrato nel Listato~\ref{lst:downsample_pipeline}:
+lo stadio \texttt{\$match} seleziona esclusivamente i documenti pertinenti al paziente richiesto sfruttando il campo indicizzato \texttt{metadata.case\_id};
+lo stadio \texttt{\$group} impiega l'operatore temporale \texttt{\$dateTrunc} per troncare e raggruppare i timestamp delle misurazioni in intervalli discreti di ampiezza prefissata (ad esempio 30, 60 o 300 secondi), specificando l'unità di misura temporale (\texttt{unit: "second"}) e la dimensione del contenitore (\texttt{binSize: window\_seconds}). Contestualmente, per ciascuna metrica vitale presente nel sotto-documento \texttt{metrics}, il gruppo calcola la media aritmetica dei valori osservati nella finestra mediante l'accumulatore \texttt{\$avg};
+lo stadio \texttt{\$sort} ordina cronologicamente le finestre aggregate garantendo la continuità sequenziale del flusso restituito.
+
+\begin{lstlisting}[caption={Pipeline di aggregazione MongoDB per il downsampling temporale con l'operatore \$dateTrunc.}, label={lst:downsample_pipeline}]
+// Aggregazione per il downsampling temporale in MongoDB
+db.vital_signals.aggregate([
+  // 1. Filtraggio per caso clinico (sfrutta l'indice sui metadati)
+  { $match: { "metadata.case_id": case_id } },
+  
+  // 2. Raggruppamento temporale a finestre fisse con media delle metriche
+  {
+    $group: {
+      _id: {
+        $dateTrunc: {
+          date: "$timestamp",
+          unit: "second",
+          binSize: NumberInt(window_seconds)
+        }
+      },
+      HR:       { $avg: "$metrics.Solar8000_HR" },
+      PLETH_SPO2: { $avg: "$metrics.Solar8000_PLETH_SPO2" },
+      NIBP_SBP: { $avg: "$metrics.Solar8000_NIBP_SBP" },
+      NIBP_DBP: { $avg: "$metrics.Solar8000_NIBP_DBP" },
+      NIBP_MBP: { $avg: "$metrics.Solar8000_NIBP_MBP" }
+    }
+  },
+  
+  // 3. Ordinamento cronologico delle finestre aggregate
+  { $sort: { _id: 1 } }
+]);
+\end{lstlisting}
+
+Questa strategia garantisce che il volume dei dati trasmessi sulla rete si riduca di un fattore esattamente proporzionale all'ampiezza della finestra scelta (ad esempio una contrazione di 60 volte per finestre da un minuto), consentendo alla dashboard web di caricare e visualizzare tracciati chirurgici di svariate ore con latenze inferiori a cento millisecondi.
+
+\subsection{Ottimizzazione dell'accesso anagrafico ed eliminazione del problema N+1}
+Un'ulteriore ottimizzazione architetturale riguarda l'estrazione dell'elenco dei pazienti per la barra di navigazione della dashboard, implementata nella rotta REST \texttt{GET /cases}. 
+
+In un disegno non ottimizzato, l'applicazione interrogherebbe preliminarmente la collezione \texttt{registry} per recuperare l'elenco dei casi censiti, per poi iterare su ciascuno di essi ed eseguire una query distinta (\texttt{find\_one}) sulla collezione \texttt{vital\_signals} allo scopo di recuperare i metadati di contesto del paziente (reparto chirurgico, età e sesso). Questo approccio ingenuo genera il noto problema delle $N+1$ query: per una coorte di $N$ pazienti, il sistema invierebbe al database $N+1$ interrogazioni separate, moltiplicando i tempi di latenza di rete e il carico di parsing del motore.
+
+Nel presente sistema, il problema è stato risolto strutturando una procedura a due sole operazioni indipendenti dal numero di pazienti della coorte:
+la prima lettura interroga in blocco la collezione \texttt{registry} per prelevare lo stato di caricamento e i conteggi certificati;
+la seconda operazione invia a \texttt{vital\_signals} una pipeline di aggregazione con un singolo stadio \texttt{\$group} raggruppato per \texttt{\$metadata.case\_id}, che estrae istantaneamente il primo documento associato a ciascun paziente mediante l'operatore \texttt{\$first} sui campi \texttt{department}, \texttt{age} e \texttt{sex}.
+
+Le due strutture informative vengono poi unite in memoria all'interno del backend Python in un singolo dizionario. In questo modo il numero di interazioni con il database rimane rigorosamente fisso a due, azzerando qualsiasi sovraccarico al crescere della dimensione del dataset.
 
 \section{Uso dei metadati per la data quality e analisi critica}
 Nel disegno dell'architettura, i metadati svolgono una duplice funzione: abilitano prestazioni di accesso ottimali e governano l'osservabilità della qualità del dato lungo tutte le fasi della pipeline.

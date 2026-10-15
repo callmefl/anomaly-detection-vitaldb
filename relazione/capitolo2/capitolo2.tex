@@ -17,6 +17,15 @@ il livello \textbf{Gold} struttura i dati in documenti conformi al modello a ser
 
 L'adozione di questa architettura multi-stadio garantisce che gli errori introdotti in un passaggio intermedio possano essere isolati e corretti rieseguendo le trasformazioni a partire dai livelli precedenti, preservando al contempo una netta separazione delle responsabilità tra ingestione, trasformazione analitica e fruizione finale del dato.
 
+L'intera catena di elaborazione, schematizzata nella Figura~\ref{fig:pipeline_execution}, si articola in cinque fasi operative sequenziali che connettono l'estrazione remota alla visualizzazione telemetrica.
+
+\begin{figure}[ht]
+    \centering
+    \resizebox{0.95\textwidth}{!}{\input{pipeline_execution_tikz.tex}}
+    \caption{Architettura della pipeline di esecuzione end-to-end dall'ingestione alla visualizzazione.}
+    \label{fig:pipeline_execution}
+\end{figure}
+
 \section{Layer Bronze per l'ingestione e la storicizzazione dei dati grezzi}
 Il livello \textbf{Bronze} costituisce il punto di ingresso dell'intera infrastruttura. Il modulo di acquisizione, implementato nello script \texttt{src/bronze/download.py}, interagisce direttamente con l'archivio centrale di VitalDB sfruttando l'API Python ufficiale.
 
@@ -34,10 +43,16 @@ I dati clinici immagazzinati nel livello \textbf{Bronze} non possono essere impi
 Il primo passo del processo consiste nell'eliminazione selettiva delle righe totalmente vuote. In molte fasi dell'intervento, ad esempio prima dell'ingresso effettivo del paziente in sala operatoria o dopo il distacco dei monitor, la registrazione produce timestamp privi di qualsiasi misurazione su tutte e cinque le tracce contemporaneamente. Queste righe non apportano alcun contenuto informativo e vengono rimosse per non appesantire inutilmente le strutture dati successive.
 
 Successivamente, il modulo applica una strategia differenziata di imputazione per gestire la disomogeneità fisiologica delle sorgenti sensoristiche:
-per i segnali fisiologici continui, segnatamente la frequenza cardiaca (\texttt{Solar8000/HR}) e la saturazione periferica (\texttt{Solar8000/PLETH\_SPO2}), le brevi perdite di segnale causate da artefatti di movimento vengono sanate mediante interpolazione lineare. Per evitare di creare valori fittizi durante interruzioni prolungate del monitoraggio, l'interpolazione viene rigorosamente limitata a un massimo di cinque campioni consecutivi;
-per i segnali pressori non invasivi (\texttt{NIBP\_SBP}, \texttt{NIBP\_DBP}, \texttt{NIBP\_MBP}), la misurazione è intrinsecamente intermittente, avvenendo a intervalli discreti compresi tipicamente tra due e cinque minuti mediante il gonfiaggio periodico del bracciale pneumatico. In questo caso l'interpolazione lineare risulterebbe priva di senso clinico, poiché creerebbe una falsa transizione continua tra stati distanti nel tempo. Viene pertanto adottata la tecnica \textbf{Last Observation Carried Forward} (LOCF), propagando l'ultimo valore valido fino a una soglia massima di validità fissata a 300 secondi (cinque minuti). Oltre tale finestra temporale, la misura cessa di essere considerata clinicamente affidabile e viene lasciata indefinita.
+per i segnali fisiologici continui, segnatamente la frequenza cardiaca (\texttt{Solar8000/HR}) e la saturazione periferica (\texttt{Solar8000/PLETH\_SPO2}), le brevi perdite di segnale causate da artefatti di movimento vengono sanate mediante interpolazione lineare:
+$$y(t) = y(t_0) + \frac{y(t_1) - y(t_0)}{t_1 - t_0} (t - t_0)$$
+Per evitare di fabbricare andamenti biologici fittizi durante interruzioni prolungate del monitoraggio (quali il temporaneo distacco degli elettrodi o le interferenze da elettrobisturi), l'interpolazione viene rigorosamente circoscritta a intervalli di ampiezza non superiore a cinque secondi ($t_1 - t_0 \le 5\text{ s}$). Questa scelta è motivata dalla fisiologia cardiovascolare: su scale temporali inferiori a cinque secondi la variazione di frequenza cardiaca è dominata da inerzia baroriflessa, rendendo l'ipotesi di linearità statisticamente plausibile;
+per i segnali pressori non invasivi (\texttt{NIBP\_SBP}, \texttt{NIBP\_DBP}, \texttt{NIBP\_MBP}), la misurazione è intrinsecamente intermittente, avvenendo a intervalli discreti compresi tipicamente tra due e cinque minuti mediante il ciclo oscillometrico del bracciale. In questo scenario, l'interpolazione lineare risulterebbe priva di fondamento clinico, poiché creerebbe una fittizia transizione continua tra stati distanti nel tempo. Viene pertanto adottata la tecnica \textbf{Last Observation Carried Forward} (LOCF), propagando l'ultimo valore valido:
+$$y(t) = y(t_{\text{last}}) \quad \forall t \in [t_{\text{last}}, t_{\text{last}} + 300\text{ s}]$$
+La propagazione è limitata a una finestra massima di 300 secondi (cinque minuti), oltre la quale la misura cessa di essere considerata clinicamente attendibile e viene lasciata indefinita.
 
-A supporto della trasparenza analitica, il modulo calcola contestualmente la variabile temporale \texttt{nibp\_age\_s}, che quantifica in ogni secondo l'età della misurazione pressoria corrente, ossia l'intervallo temporale trascorso dall'ultimo gonfiaggio effettivo del bracciale. Questa grandezza costituisce un metadato di qualità essenziale per valutare il grado di freschezza del dato emodinamico.
+A supporto della trasparenza analitica e dell'auditing clinico, il modulo calcola contestualmente la variabile temporale \texttt{nibp\_age\_s}:
+$$\texttt{nibp\_age\_s} = t - t_{\text{last\_cuff}}$$
+Tale grandezza quantifica in ogni secondo l'età della misurazione pressoria corrente. Questo metadato si rivela determinante per il processo decisionale: qualora un algoritmo segnali un'ipotensione in presenza di un valore elevato di \texttt{nibp\_age\_s} (ad esempio superiore a 240 secondi), l'anestesista è tempestivamente informato che il dato riflette una misurazione remota e può disporre un gonfiaggio manuale del bracciale prima di intraprendere terapie farmacologiche aggressive.
 
 \begin{figure}[ht]
     \centering
@@ -57,9 +72,38 @@ pressione media considerata valida tra $20$ e $220$ mmHg.
 
 I valori al di fuori di questi intervalli non vengono arbitrariamente cancellati, bensì etichettati tramite appositi flag booleani (\texttt{HR\_outlier}, \texttt{SPO2\_outlier}, \texttt{SBP\_outlier}, \texttt{DBP\_outlier}, \texttt{MBP\_outlier}). In tal modo la pipeline conserva l'evidenza dell'anomalia rilevata a beneficio degli stadi successivi, senza alterare distruttivamente la serie storica.
 
+L'implementazione concreta di queste trasformazioni è descritta nel Listato~\ref{lst:clean_imputation}, estratto dal modulo \texttt{src/silver/clean.py}.
+
+\begin{lstlisting}[caption={Algoritmo di bonifica controllata, imputazione e tracciamento della freschezza temporale nel layer Silver.}, label={lst:clean_imputation}]
+// Codice estratto da src/silver/clean.py
+# 1. Filtra le righe completamente prive di segnali vitali
+df_clean = df.dropna(subset=vital_tracks, how='all').copy()
+
+# 2. Segnali continui (HR e SpO2): interpolazione lineare breve (max 5 sec)
+cont_tracks = ['Solar8000/HR', 'Solar8000/PLETH_SPO2']
+df_clean[cont_tracks] = df_clean[cont_tracks].interpolate(method='linear', limit=5)
+
+# 3. Segnali emodinamici a intervalli (NIBP): LOCF con tetto di staleness a 300s
+nibp_tracks = ['Solar8000/NIBP_SBP', 'Solar8000/NIBP_DBP', 'Solar8000/NIBP_MBP']
+if nibp_tracks:
+    nibp_measured = df_clean[nibp_tracks[0]].notna()
+    last_measure_time = df_clean['Time'].where(nibp_measured).ffill()
+    df_clean['nibp_age_s'] = (df_clean['Time'] - last_measure_time).fillna(9999.0).astype(float)
+    df_clean[nibp_tracks] = df_clean[nibp_tracks].ffill(limit=300)
+
+# 4. Outlier fisiologici (etichettatura senza rimozione distruttiva)
+df_clean['HR_outlier']   = (df_clean['Solar8000/HR'] < 20) | (df_clean['Solar8000/HR'] > 250)
+df_clean['SPO2_outlier'] = (df_clean['Solar8000/PLETH_SPO2'] < 50) | (df_clean['Solar8000/PLETH_SPO2'] > 100)
+df_clean['MBP_outlier']  = (df_clean['Solar8000/NIBP_MBP'] < 20) | (df_clean['Solar8000/NIBP_MBP'] > 220)
+\end{lstlisting}
+
+\begin{techbox}[brandTeal]{Sintesi di data governance nel layer Silver}
+La separazione tra dati puliti e metadati di controllo assicura che il dato fisiologico non venga corrotto: l'imputazione lineare è ristretta alla scala del baroriflesso ($\le 5\text{ s}$), il metodo LOCF è vincolato a un intervallo clinicamente credibile ($\le 300\text{ s}$) con auditing esplicito della freschezza temporale tramite $\texttt{nibp\_age\_s}$, e le anomalie numeriche vengono tracciate tramite flag booleani senza alterazione distruttiva del dato.
+\end{techbox}
+
 Infine, i dati bonificati vengono salvati in formato Parquet all'interno di una gerarchia di directory partizionata fisicamente per reparto chirurgico di appartenenza (\texttt{department}):
 $$\texttt{data/silver/department=<REPARTO>/case\_<ID>.parquet}$$
-Questa organizzazione ricalca il principio del \textbf{partition pruning} dei \textbf{data lakehouse}, consentendo alle routine di caricamento e analisi di scandire esclusivamente le partizioni attinenti al reparto clinico d'interesse (ad esempio chirurgia generale o cardiochirurgia) senza dover effettuare la scansione dell'intero archivio su disco.
+Questa organizzazione ricalca il principio del \textbf{partition pruning} dei moderni \textbf{data lakehouse}: quando un'interrogazione o una procedura di addestramento richiede i dati relativi a una specifica specialità chirurgica, il lettore Apache Parquet ispeziona unicamente il sottoalbero della directory corrispondente senza scansionare l'intero archivio su disco, abbattendo le operazioni di I/O e velocizzando l'elaborazione.
 
 \section{Evoluzione del modello dati da tabella piatta a documento BSON}
 L'architettura della pipeline non si limita a innalzare la qualità intrinseca dei valori numerici, ma trasforma radicalmente il modello concettuale del dato nel passaggio verso il livello \textbf{Gold}.

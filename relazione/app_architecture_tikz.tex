@@ -1,0 +1,145 @@
+% === DIAGRAMMA ARCHITETTURA DI SISTEMA E DOCKER (ZERO SOVRAPPOSIZIONI) ===
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    node distance=0.25cm,
+    containerBox/.style={
+        rectangle,
+        rounded corners=8pt,
+        draw=#1!70!black,
+        line width=1.1pt,
+        fill=white,
+        drop shadow={opacity=0.08, shadow xshift=1.5pt, shadow yshift=-2pt},
+        inner sep=10pt,
+        align=center
+    },
+    compBox/.style={
+        rectangle,
+        rounded corners=4pt,
+        draw=brandBorder,
+        line width=0.8pt,
+        fill=brandSurface,
+        inner sep=6pt,
+        align=center,
+        font=\scriptsize
+    },
+    connArrow/.style={
+        <->,
+        line width=1.4pt,
+        color=brandNavy!80
+    }
+]
+
+% ================= TIER 1: CLIENT WEB =================
+\node[containerBox=brandNavy, text width=13.8cm] (tierClient) {
+    \begin{minipage}{13.8cm}
+        {\sffamily\bfseries\footnotesize\textcolor{brandNavy}{LIVELLO CLIENT: FRONTEND WEB (HTML5 / VANILLA JS / CSS3)}}\\[6pt]
+        \begin{tikzpicture}[node distance=0.25cm]
+            \node[compBox, text width=2.6cm] (c1) {
+                \textbf{Loader Modulare}\\[2pt]
+                \texttt{loader.js}\\[1pt]
+                {\tiny Fetch parziali asincrono\\Cache-busting \texttt{?v=3.8}}
+            };
+            \node[compBox, text width=3.0cm, right=0.25cm of c1] (c2) {
+                \textbf{Consensus Matrix}\\[2pt]
+                \texttt{consensus-matrix.html}\\[1pt]
+                {\tiny 4 chip con conteggio\\Modali clinici \& formule}
+            };
+            \node[compBox, text width=3.0cm, right=0.25cm of c2] (c3) {
+                \textbf{Telemetria Chart.js}\\[2pt]
+                \texttt{telemetry-charts.js}\\[1pt]
+                {\tiny 2 canvas sincronizzati\\Crosshair \& zoom comuni}
+            };
+            \node[compBox, text width=2.4cm, right=0.25cm of c3] (c4) {
+                \textbf{Patient HUD}\\[2pt]
+                \texttt{patient-hud.html}\\[1pt]
+                {\tiny Bento-grid vitali\\Selettore downsampling}
+            };
+        \end{tikzpicture}
+    \end{minipage}
+};
+
+% ================= TIER 2: API GATEWAY (DOCKER) =================
+\node[containerBox=brandCyan, text width=13.8cm, below=1.3cm of tierClient] (tierApi) {
+    \begin{minipage}{13.8cm}
+        {\sffamily\bfseries\footnotesize\textcolor{brandCyan!85!black}{LIVELLO APPLICATIVO: CONTAINER DOCKER \texttt{vitaldb\_api} (:8000)}}\\[6pt]
+        \begin{tikzpicture}[node distance=0.25cm]
+            \node[compBox, text width=2.7cm] (a1) {
+                \textbf{Server ASGI \& Router}\\[2pt]
+                \texttt{FastAPI / Uvicorn}\\[1pt]
+                {\tiny Gestione asincrona\\Middleware CORS attivo}
+            };
+            \node[compBox, text width=2.9cm, right=0.25cm of a1] (a2) {
+                \textbf{Rotte REST Esposte}\\[2pt]
+                \texttt{api/main.py}\\[1pt]
+                {\tiny \texttt{/health}, \texttt{/cases}, \texttt{/series}\\
+                \texttt{/detect}, \texttt{/quality}, \texttt{/bench}}
+            };
+            \node[compBox, text width=2.8cm, right=0.25cm of a2] (a3) {
+                \textbf{Serializzazione \& Validaz.}\\[2pt]
+                \texttt{Pydantic / NumPy}\\[1pt]
+                {\tiny Sanitizzazione \texttt{NaN} $\to$ \texttt{null}\\Marcatura ISO 8601}
+            };
+            \node[compBox, text width=2.4cm, right=0.25cm of a3] (a4) {
+                \textbf{Connection Pool}\\[2pt]
+                \texttt{pymongo.MongoClient}\\[1pt]
+                {\tiny Riuso socket TCP\\Istanza singleton globale}
+            };
+        \end{tikzpicture}\\[5pt]
+        \begin{tikzpicture}
+            \node[compBox, fill=brandTeal!8, draw=brandTeal!50, text width=12.4cm] (coreLogic) {
+                \textbf{\scriptsize MOTORE ANALITICO E DI DETECTION (\texttt{src/detection/detector.py} \& \texttt{src/analysis/queries.py})}\\[2pt]
+                {\tiny $\bullet$ Shock Index ($>0.9$) \quad $\bullet$ Ipotensione Severa ($MBP<65 \land \text{SpO}_2<90\%$) \quad $\bullet$ Isolation Forest (5\%) \quad $\bullet$ LSTM Autoencoder ($\max_c \text{MSE}_c$) \quad $\bullet$ Downsampling \texttt{\$dateTrunc}}
+            };
+        \end{tikzpicture}
+    \end{minipage}
+};
+
+% ================= TIER 3: DATABASE & STORAGE (DOCKER) =================
+\node[containerBox=brandTeal, text width=13.8cm, below=1.3cm of tierApi] (tierDb) {
+    \begin{minipage}{13.8cm}
+        {\sffamily\bfseries\footnotesize\textcolor{brandTeal!85!black}{LIVELLO PERSISTENZA: CONTAINER DOCKER \texttt{vitaldb\_mongo} (:27017)}}\\[6pt]
+        \begin{tikzpicture}[node distance=0.25cm]
+            \node[compBox, fill=brandCyan!8, draw=brandCyan!60, text width=3.2cm] (d1) {
+                \textbf{Time Series Collection}\\[2pt]
+                \texttt{vital\_signals}\\[1pt]
+                {\tiny Bucket compressi colonnari\\Gorilla Delta-of-Delta\\Compressione Zstandard}
+            };
+            \node[compBox, text width=2.6cm, right=0.25cm of d1] (d2) {
+                \textbf{Metastore Catalogo}\\[2pt]
+                \texttt{registry}\\[1pt]
+                {\tiny JSON Schema \texttt{strict}\\Tracciamento provenienza}
+            };
+            \node[compBox, text width=2.6cm, right=0.25cm of d2] (d3) {
+                \textbf{Contratti Dati}\\[2pt]
+                \texttt{track\_metadata}\\[1pt]
+                {\tiny Definizione unità di misura\\Intervalli fisiologici}
+            };
+            \node[compBox, text width=2.6cm, right=0.25cm of d3] (d4) {
+                \textbf{Riscontri Anomalie}\\[2pt]
+                \texttt{anomalies\_detected}\\[1pt]
+                {\tiny Timestamp allarme\\Vettore metodi concordanti}
+            };
+        \end{tikzpicture}\\[5pt]
+        {\tiny $\bullet$ Configurazione Replica Set: \texttt{--replSet rs0} \quad $\bullet$ Volume persistente: \texttt{mongo\_data:/data/db} \quad $\bullet$ Inizializzazione automatica in \texttt{initdb.d}}
+    \end{minipage}
+};
+
+% ================= CONNESSIONI E ORCHESTRAZIONE =================
+\draw[connArrow] (tierClient.south) -- node[fill=white, font=\scriptsize\bfseries, text=brandCyan!85!black, draw=brandCyan!40, rounded corners=3pt, inner sep=3pt] {Chiamate HTTP / REST JSON (porta 8000)} (tierApi.north);
+\draw[connArrow] (tierApi.south) -- node[fill=white, font=\scriptsize\bfseries, text=brandTeal!85!black, draw=brandTeal!40, rounded corners=3pt, inner sep=3pt] {Protocollo BSON / Wire Protocol nativo (porta 27017)} (tierDb.north);
+
+% Riquadro Docker Compose (posizionato sullo sfondo con etichetta sotto)
+\begin{scope}[on background layer]
+    \node[
+        draw=brandBlue!50,
+        line width=1.1pt,
+        dashed,
+        rounded corners=8pt,
+        inner sep=12pt,
+        fit=(tierApi) (tierDb),
+        label={[font=\tiny\bfseries, text=brandBlue, fill=white, inner sep=3pt, draw=brandBlue!40, rounded corners=3pt]below:Orchestrazione Docker Compose: Rete isolata \texttt{vitaldb\_net} (Healthcheck Chaining: \texttt{vitaldb\_api} attende \texttt{vitaldb\_mongo})}
+    ] (dockerCompose) {};
+\end{scope}
+
+\end{tikzpicture}

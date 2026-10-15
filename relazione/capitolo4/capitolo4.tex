@@ -7,7 +7,7 @@ Per intercettare questo ampio spettro di condizioni, il presente progetto non si
 due regole cliniche deterministiche dominio-specifiche, formulate sulla base delle evidenze della letteratura medica (lo \textbf{Shock Index} e la condizione di ipotensione severa);
 due algoritmi di \textbf{machine learning} non supervisionato capaci di operare sullo spazio congiunto delle serie storiche, segnatamente l'algoritmo ad alberi \textbf{Isolation Forest} e un modello neurale ricorrente basato su \textbf{LSTM Autoencoder}.
 
-La complementarità di questo schema discende da una precisa motivazione clinico-ingegneristica: le regole cliniche hanno una solida giustificazione fisiopatologica e forniscono riscontri trasparenti e immediatamente comprensibili dal personale medico, ma falliscono nell'identificare anomalie multivariate sfumate che precedono l'evento conclamato; al contrario, i modelli di \textbf{machine learning} non supervisionato eccellono nel riconoscere correlazioni inattese e configurazioni atipiche ad alta dimensionalità, sebbene necessitino di una contestualizzazione per distinguere gli artefatti statistici dalle vere emergenze cliniche.
+La complementarità di questo schema risponde a una precisa motivazione clinica e ingegneristica: le regole cliniche hanno una solida giustificazione fisiopatologica e forniscono riscontri trasparenti e immediatamente comprensibili dal personale medico, ma falliscono nell'identificare anomalie multivariate sfumate che precedono l'evento conclamato; al contrario, i modelli di \textbf{machine learning} non supervisionato eccellono nel riconoscere correlazioni inattese e configurazioni atipiche ad alta dimensionalità, sebbene necessitino di una contestualizzazione per distinguere gli artefatti statistici dalle vere emergenze cliniche.
 
 \section{Regole cliniche dominio-specifiche}
 Le regole cliniche implementate nello script \texttt{src/detection/detector.py} operano direttamente sulle grandezze fisiologiche archiviate nel livello \textbf{Gold}, valutando soglie note nella pratica anestesiologica.
@@ -27,16 +27,21 @@ $$\text{Solar8000\_NIBP\_MBP} < 65 \text{ mmHg} \quad \land \quad \text{Solar800
 Il mantenimento di una pressione arteriosa media ($MBP$) al di sopra di $65$ mmHg è universalmente riconosciuto nelle linee guida cliniche come la soglia minima necessaria per garantire l'autoregolazione del flusso ematico nei distretti cerebrale e renale. Quando tale ipoperfusione si associa a una caduta della saturazione al di sotto del $90\%$, l'organismo entra in una condizione di grave sofferenza ipossico-ischemica. La coincidenza temporale dei due segnali costituisce un allarme di massima priorità in sala operatoria.
 
 \section{Ingegnerizzazione delle feature temporali}
-Per consentire agli algoritmi di \textbf{machine learning} di catturare non soltanto i valori istantanei dei parametri ma anche la dinamica evolutiva delle serie, la procedura esegue una fase di estrazione di feature temporali derivate.
+Per consentire agli algoritmi di \textbf{machine learning} di catturare non soltanto i valori istantanei dei parametri ma anche la dinamica evolutiva e la tendenza temporale delle serie biometriche, la procedura esegue una fase di estrazione di feature temporali derivate.
 
-A partire dal segnale della frequenza cardiaca (\texttt{Solar8000/HR}), che presenta la cadenza di campionamento più continua e regolare, vengono calcolate tre feature dinamiche:
-la media mobile a cinque campioni (\texttt{HR\_rolling\_mean}), calcolata con finestra scorrevole per attenuare il micro-rumore ad alta frequenza;
-la deviazione standard mobile a cinque campioni (\texttt{HR\_rolling\_std}), che quantifica la dispersione e la variabilità del battito cardiaco nel brevissimo termine;
-la differenza prima (\texttt{HR\_delta}), che misura la velocità istantanea di incremento o decremento della frequenza tra campioni successivi.
+A partire dal segnale della frequenza cardiaca (\texttt{Solar8000/HR}), che presenta la cadenza di campionamento più continua e regolare a frequenza di 1 Hz, vengono calcolate tre feature dinamiche fondamentali. Indicando con $x_t$ il valore della frequenza cardiaca all'istante temporale $t$ (in secondi) e con $W = 5$ campioni l'ampiezza della finestra temporale retrospettiva, le metriche vengono definite formalmente come:
+la media mobile a cinque campioni (\texttt{HR\_rolling\_mean}), che attenua le micro-oscillazioni e gli artefatti ad alta frequenza senza introdurre ritardi significativi:
+$$\mu_t = \frac{1}{W} \sum_{k=0}^{W-1} x_{t-k}$$
+la deviazione standard mobile a cinque campioni (\texttt{HR\_rolling\_std}), che quantifica la dispersione e l'instabilità istantanea del battito cardiaco nel brevissimo termine:
+$$\sigma_t = \sqrt{\frac{1}{W-1} \sum_{k=0}^{W-1} (x_{t-k} - \mu_t)^2}$$
+la differenza prima (\texttt{HR\_delta}), che misura la velocità istantanea di accelerazione o decelerazione del ritmo cardiaco:
+$$\Delta x_t = x_t - x_{t-1}$$
 
-Al fine di garantire l'assoluta correttezza metodologica, il calcolo di queste finestre mobili viene vincolato al raggruppamento per singolo paziente mediante la trasformazione \texttt{df.groupby("case\_id")}. Questo accorgimento impedisce rigorosamente che i confini temporali di un caso clinico si sovrappongano a quelli del caso successivo, scongiurando qualsiasi contaminazione analitica tra pazienti differenti.
+L'introduzione di $\Delta x_t$ riveste un ruolo fisiologico cruciale: una repentina variazione positiva di $\Delta x_t$ (oltre 10--15 bpm in un singolo secondo) riflette una scarica adrenergica massiva indotta da un risveglio intraoperatorio o da uno stimolo algico chirurgico acuto, mentre un crollo improvviso testimonia un riflesso vagale o un blocco atrioventricolare.
 
-Il vettore complessivo delle feature impiegato dai modelli di \textbf{machine learning} comprende otto grandezze numeriche: le cinque metriche vitali originarie (frequenza cardiaca, saturazione d'ossigeno e le tre componenti pressorie) affiancate dalle tre feature dinamiche derivate sulla frequenza. Al contrario, la variabile \texttt{nibp\_age\_s} calcolata nel livello \textbf{Silver} viene deliberatamente esclusa dal vettore; essa rappresenta infatti un metadato di governance attestante la freschezza temporale della misura e non una proprietà fisiologica del paziente.
+Al fine di garantire l'assoluta correttezza metodologica, il calcolo di queste finestre mobili viene vincolato al raggruppamento per singolo paziente mediante la trasformazione \texttt{df.groupby("case\_id")}. Questo accorgimento impedisce rigorosamente che i confini temporali di un caso clinico si sovrappongano a quelli del caso successivo, scongiurando qualsiasi contaminazione analitica tra pazienti differenti nei punti di transizione.
+
+Il vettore complessivo delle feature impiegato dai modelli di \textbf{machine learning} comprende otto grandezze numeriche: le cinque metriche vitali originarie (frequenza cardiaca, saturazione d'ossigeno e le tre componenti pressorie) affiancate dalle tre feature dinamiche derivate sulla frequenza. Al contrario, la variabile \texttt{nibp\_age\_s} calcolata nel livello \textbf{Silver} viene deliberatamente esclusa dal vettore; essa rappresenta infatti un metadato di governance attestante la freschezza temporale della misura e non una proprietà biologica intrinseca del paziente.
 
 \section{Modelli di machine learning non supervisionato}
 L'approccio basato sull'apprendimento non supervisionato prescinde dalla presenza di etichette a priori e mira a identificare pattern anomali nello spazio delle otto feature biometriche.
@@ -58,19 +63,50 @@ Per catturare le interdipendenze sequenziali e la memoria a lungo termine dei se
     \label{fig:lstm_arch}
 \end{figure}
 
-Come schematizzato nella Figura~\ref{fig:lstm_arch}, l'architettura si articola in una struttura simmetrica di tipo \textbf{encoder-decoder}:
-l'encoder è costituito da uno strato ricorrente LSTM a 32 unità nascoste (\texttt{hidden\_size=32}), che riceve in ingresso una finestra temporale di osservazioni consecutive e la comprime progressivamente in un vettore latente compatto;
-il decoder è composto da un secondo strato ricorrente LSTM speculare a 32 unità, che ricostruisce la sequenza temporale decodificando la rappresentazione latente;
-un layer di proiezione lineare finale (\texttt{nn.Linear}), posizionato all'uscita del decoder, mappa lo stato nascosto nello spazio continuo originale $\mathbb{R}^n$. L'introduzione di questo strato lineare si è rivelata determinante dal punto di vista ingegneristico: la funzione di attivazione tangente iperbolica nativa delle celle LSTM limita infatti le uscite all'intervallo ristretto $[-1, 1]$, impedendo la corretta ricostruzione di variabili standardizzate con punteggio z che superano tali estremi. Il proiettore lineare elimina questo vincolo consentendo la ricostruzione sull'intero asse reale.
+Come schematizzato nella Figura~\ref{fig:lstm_arch}, l'architettura elabora le serie storiche mediante una struttura simmetrica di tipo \textbf{encoder-decoder}:
+il modello riceve in ingresso un tensore tridimensionale di forma $(B, W_s, C)$, dove $B$ rappresenta la dimensione del batch, $W_s = 30$ campioni (corrispondenti a 30 secondi di telemetria continua) è l'ampiezza della finestra scorrevole e $C = 8$ è il numero di canali biometrici standardizzati con punteggio z;
+l'encoder è costituito da uno strato ricorrente LSTM a 32 unità nascoste (\texttt{hidden\_size=32}), che riceve la sequenza temporale $X \in \mathbb{R}^{30 \times 8}$ e la comprime progressivamente nel vettore di stato nascosto finale $h_{\text{enc}} \in \mathbb{R}^{32}$. Tale vettore costituisce il \textbf{context vector} compresso, che riassume l'intera dinamica evolutiva del blocco temporale;
+per alimentare il decoder, il vettore $h_{\text{enc}}$ viene replicato per 30 passi temporali consecutivi (\textbf{repeat vector}), fornendo a ciascun istante del processo di ricostruzione la medesima rappresentazione globale del contesto;
+il decoder è composto da un secondo strato ricorrente LSTM speculare a 32 unità, che elabora la sequenza riprodotta generando gli stati di decodifica $h^{\text{dec}}_t \in \mathbb{R}^{32}$ per ciascuno dei 30 istanti;
+un layer di proiezione lineare finale (\texttt{nn.Linear}), posizionato all'uscita del decoder, proietta ciascuno stato nascosto nello spazio continuo originale delle feature: $\hat{X}_t = W_p h^{\text{dec}}_t + b_p$, con pesi $W_p \in \mathbb{R}^{8 \times 32}$ e bias $b_p \in \mathbb{R}^8$. L'introduzione di questo strato lineare si è rivelata determinante: la funzione di attivazione tangente iperbolica nativa delle celle LSTM limita infatti le uscite all'intervallo ristretto $[-1, 1]$, impedendo la corretta ricostruzione di variabili standardizzate con punteggio z che superano tali estremi. Il proiettore lineare elimina questo vincolo consentendo la ricostruzione sull'intero asse reale.
+
+L'architettura della rete in PyTorch, definita mediante la funzione interna \\ \texttt{\_make\_lstm\_autoencoder\_class} nel modulo \texttt{detector.py}, è riportata nel Listato~\ref{lst:lstm_pytorch}.
+
+\begin{lstlisting}[caption={Definizione del modello PyTorch LSTM Autoencoder con proiettore lineare per l'anomaly detection.}, label={lst:lstm_pytorch}]
+// Modulo PyTorch implementato in src/detection/detector.py
+class LSTMAutoencoder(nn.Module):
+    def __init__(self, n_features=8, hidden_size=32, n_layers=1):
+        super().__init__()
+        # Encoder: comprime la sequenza (B, 30, 8) nello stato nascosto (B, 32)
+        self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
+        # Decoder: ricostruisce la sequenza temporale partendo dal vettore latente
+        self.decoder = nn.LSTM(hidden_size, hidden_size, n_layers, batch_first=True)
+        # Proiettore lineare: mappa lo stato nascosto R^32 nello spazio originale R^8
+        self.out = nn.Linear(hidden_size, n_features)
+
+    def forward(self, x):
+        # x ha forma (batch_size, sequence_length=30, n_features=8)
+        _, (hidden, _) = self.encoder(x)
+        # Replicazione del context vector per ciascuno dei 30 timestep
+        context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
+        output, _ = self.decoder(context)
+        return self.out(output)  # dimensione ricostruita: (batch, 30, 8)
+\end{lstlisting}
 
 La preparazione dei dati per la rete neurale adotta una rigida politica di segmentazione per paziente mediante la classe \texttt{LSTMAutoencoderDetector}:
 i dati vengono raggruppati per \texttt{case\_id} e standardizzati con scala z-score;
-la serie temporale di ciascun paziente viene suddivisa in finestre temporali scorrevoli della durata di 30 secondi (\texttt{window\_size=30}) mediante la funzione vettoriale senza copia \texttt{np.lib.stride\_tricks.sliding\_window\_view}. Questa segmentazione confina l'estrazione delle finestre all'interno di ciascun singolo intervento, impedendo che l'inizio dell'intervento di un paziente incorpori i campioni conclusivi del paziente precedente;
+la suddivisione delle serie in finestre da 30 secondi viene eseguita mediante la funzione vettoriale senza copia \texttt{np.lib.stride\_tricks.sliding\_window\_view}. Questa operazione genera le viste sulle finestre temporali manipolando unicamente gli offset dei puntatori di memoria (\textbf{strides}), senza allocare o duplicare copie fisiche dell'array in memoria RAM. In questo modo è possibile processare agevolmente oltre 300.000 finestre con un consumo di memoria estremamente contenuto;
 il modello viene addestrato con ottimizzatore Adam (tasso di apprendimento $10^{-3}$) e funzione di perdita di errore quadratico medio (MSE) per dieci epoche su un campione rappresentativo uniforme di finestre.
 
-Durante la fase di inferenza, la rete valuta la discrepanza tra la finestra di ingresso $X$ e la corrispondente finestra ricostruita $\hat{X}$. Per evitare che l'errore medio venga attenuato artificiosamente dai parametri mantenuti stabili tramite imputazione (quali la pressione sanguigna tra due misurazioni), l'errore di ricostruzione complessivo della finestra viene calcolato prendendo il massimo errore tra i canali biometrici. L'errore così ottenuto viene assegnato con precisione all'ultimo istante temporale della finestra scorrevole.
+Durante la fase di inferenza, la rete valuta la discrepanza tra la finestra di ingresso $X$ e la corrispondente finestra ricostruita $\hat{X}$. Nel calcolo dell'errore di ricostruzione complessivo della finestra, si è deliberatamente scelto di non utilizzare la media aritmetica dell'errore quadratico medio su tutti gli otto canali. In ambito emodinamico, la mediazione globale introdurrebbe infatti un grave rischio di diluizione: se sette parametri su otto rimangono stabili, una caduta acuta e drammatica di un singolo canale vitale (quale una grave desaturazione $\text{SpO}_2$ al di sotto dell'80\% per ostruzione respiratoria improvvisa) verrebbe attenuata dall'effetto mediato degli altri segnali, non riuscendo a superare la soglia di allarme. Per scongiurare tale evenienza, l'errore della finestra viene definito come il massimo errore quadratico medio osservato tra i canali biometrici:
+$$\mathcal{E}(X) = \max_{c \in \{1, \dots, C\}} \left( \frac{1}{W_s} \sum_{t=1}^{W_s} (X_{t,c} - \hat{X}_{t,c})^2 \right)$$
+L'errore così ottenuto viene assegnato con precisione all'ultimo istante temporale della finestra scorrevole.
 
-La soglia decisionale di anomalia viene fissata in modo non parametrico al $95^\circ$ percentile della distribuzione empirica degli errori MSE su tutte le finestre. I campioni il cui errore di ricostruzione supera tale soglia vengono classificati come anomalie fisiologiche multivariate complesse.
+La soglia decisionale di anomalia viene fissata in modo non parametrico al $95^\circ$ percentile della distribuzione empirica degli errori $\mathcal{E}(X)$ su tutte le finestre. I campioni il cui errore di ricostruzione supera tale soglia vengono classificati come anomalie fisiologiche multivariate complesse.
+
+\begin{techbox}[brandCyan]{Principio di sensibilità emodinamica nel deep learning}
+L'impiego del massimo errore quadratico medio canale per canale ($\max_c \text{MSE}_c$) garantisce che il modello neurale mantenga una sensibilità elevata anche di fronte a collassi isolati di un singolo parametro vitale (es. ipossia acuta o crollo pressorio), impedendo che la stabilità contemporanea degli altri canali fisiologici disinneschi l'allarme multivariato.
+\end{techbox}
 
 \section{Valutazione empirica, metriche e concordanza}
 La valutazione delle prestazioni dei modelli di \textbf{machine learning} in ambito clinico su serie storiche ad alta frequenza incontra un ostacolo metodologico significativo: l'assenza di etichette reali validate istante per istante da un anestesista umano.
@@ -95,7 +131,14 @@ LSTM Autoencoder & 0.083 & 0.085 & 0.084 & 0.063 \\
 \label{tab:ml_evaluation}
 \end{table}
 
-Come si evince dalla Tabella~\ref{tab:ml_evaluation}, entrambi gli algoritmi di \textbf{machine learning} superano nettamente la baseline casuale (pari alla prevalenza positiva del 4.9\%), conseguendo valori di PR-AUC pari a 0.075 per l'\textbf{Isolation Forest} e 0.063 per l'\textbf{Autoencoder}. I valori assoluti di Precision ed F1-score riflettono la natura non supervisionata dei modelli: essi non sono stati calibrati per riprodurre pedissequamente la specifica formula algebrica dello Shock Index, bensì per rilevare anomalie generali nello spazio congiunto delle feature. Molti dei punti segnalati dal machine learning che non coincidono con la pseudo-ground truth costituiscono in realtà dissociazioni tra saturazione e ritmo cardiaco o transizioni atipiche della dinamica pressoria che, pur non integrando gli estremi dello shock conclamato, rappresentano deviazioni significative rispetto alla normalità fisiologica.
+Come si evince dalla Tabella~\ref{tab:ml_evaluation}, entrambi gli algoritmi di \textbf{machine learning} superano nettamente la baseline casuale (pari alla prevalenza positiva del 4.90\%), conseguendo valori di PR-AUC pari a 0.075 per l'\textbf{Isolation Forest} e 0.063 per l'\textbf{Autoencoder}. I valori assoluti apparentemente contenuti di Precision ed F1-score riflettono fedelmente la natura dell'apprendimento non supervisionato e meritano un'attenta disamina fisiopatologica.
+
+I modelli di \textbf{machine learning} non sono stati addestrati tramite regressione supervisionata per ricalcare meccanicamente la formula algebrica dello Shock Index o la soglia statica dell'ipotensione severa, bensì per rilevare deviazioni multivariabili atipiche all'interno dell'intero spazio a otto dimensioni. Ne discende che i campioni segnalati dagli algoritmi non supervisionati che non trovano corrispondenza nella \textbf{pseudo-ground truth} non devono essere semplicisticamente etichettati come "falsi positivi" o errori modellistici. Al contrario, un'analisi retrospettiva delle serie dimostra che molti di questi allarmi intercettano manifestazioni cliniche sub-conclamate di grande rilevanza:
+micro-instabilità del ritmo cardiaco caratterizzate da improvvisi aumenti della deviazione standard mobile (\texttt{HR\_rolling\_std}), correlabili a extrasistoli ventricolari o fibrillazioni atriali parossistiche;
+rapide decelerazioni del battito cardiaco ($\Delta x_t < -15\text{ bpm}$) indotte da riflessi vagali conseguenti a trazioni peritoneali o manipolazioni chirurgiche dei visceri;
+transitori cali pressori in cui la pressione arteriosa media scende repentinamente verso valori di confine (ad esempio da 95 a 68 mmHg), senza ancora varcare la soglia critica di 65 mmHg ma testimoniando comunque un'alterazione acuta del tono vascolare periferico.
+
+In questa prospettiva, l'approccio multilivello dimostra tutto il proprio valore pratico: le regole cliniche deterministiche operano come paracadute di sicurezza trasparente per le emergenze manifeste, mentre gli algoritmi di \textbf{machine learning} estendono l'orizzonte temporale di allerta cogliendo le sottili avvisaglie prodromiche dell'instabilità emodinamica prima che essa si trasformi in uno shock conclamato.
 
 \begin{figure}[ht]
     \centering

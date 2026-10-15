@@ -23,29 +23,29 @@
 \node[cardBox, minimum width=7.2cm, minimum height=6.8cm] (storageCard) at (0, 0) {};
 
 % Titolo Card 1
-\node[font=\bfseries\small, text=brandNavy, anchor=north] at (0, 3.1) {Occupazione storage su disco};
+\node[font=\bfseries\small, text=brandDark, anchor=north] at (0, 3.1) {Occupazione storage su disco};
 \node[font=\scriptsize, text=brandMuted, anchor=north] at (0, 2.65) {Dimensione per 50 casi clinici (311.173 record)};
 
 % --- Riga 1: Bronze ---
 \node[font=\scriptsize, text=brandCharcoal, anchor=west] at (-3.2, 1.95) {\textbf{Layer Bronze} \textcolor{brandMuted}{(Grezzo)}};
-\node[font=\scriptsize, text=orange!90!black, anchor=east] at (3.2, 1.95) {\textbf{3.88 MB} \textcolor{brandMuted}{(100\%)}};
+\node[font=\scriptsize, text=brandCoral!90!black, anchor=east] at (3.2, 1.95) {\textbf{3.88 MB} \textcolor{brandMuted}{(100\%)}};
 \draw[bgBar] (-3.2, 1.45) rectangle (3.2, 1.75);
-\draw[fill=orange!85!black, valBar] (-3.2, 1.45) rectangle (3.2, 1.75);
+\draw[fill=brandCoral, valBar] (-3.2, 1.45) rectangle (3.2, 1.75);
 
 % --- Riga 2: Silver ---
 \node[font=\scriptsize, text=brandCharcoal, anchor=west] at (-3.2, 0.95) {\textbf{Layer Silver} \textcolor{brandMuted}{(Bonificato)}};
-\node[font=\scriptsize, text=blue!80!black, anchor=east] at (3.2, 0.95) {\textbf{2.24 MB} \textcolor{brandMuted}{(-42.4\%)}};
+\node[font=\scriptsize, text=brandPrimaryDark, anchor=east] at (3.2, 0.95) {\textbf{2.24 MB} \textcolor{brandMuted}{(-42.4\%)}};
 \draw[bgBar] (-3.2, 0.45) rectangle (3.2, 0.75);
-\draw[fill=blue!65!cyan, valBar] (-3.2, 0.45) rectangle (0.48, 0.75);
+\draw[fill=brandPrimary!80, valBar] (-3.2, 0.45) rectangle (0.48, 0.75);
 
 % --- Riga 3: Gold ---
 \node[font=\scriptsize, text=brandCharcoal, anchor=west] at (-3.2, -0.05) {\textbf{Layer Gold} \textcolor{brandMuted}{(MongoDB TS)}};
-\node[font=\scriptsize, text=brandEmerald!90!black, anchor=east] at (3.2, -0.05) {\textbf{0.42 MB} \textcolor{brandEmerald}{\textbf{(-89.1\%)}}};
+\node[font=\scriptsize, text=brandTeal!90!black, anchor=east] at (3.2, -0.05) {\textbf{0.42 MB} \textcolor{brandTeal}{\textbf{(-89.1\%)}}};
 \draw[bgBar] (-3.2, -0.55) rectangle (3.2, -0.25);
-\draw[fill=brandEmerald, valBar] (-3.2, -0.55) rectangle (-2.50, -0.25);
+\draw[fill=brandTeal, valBar] (-3.2, -0.55) rectangle (-2.50, -0.25);
 
 % Callout riassuntivo in basso
-\node[fill=brandEmerald!12, draw=brandEmerald!50, line width=0.8pt, rounded corners=5pt, inner sep=6pt, font=\scriptsize\bfseries, text=brandEmerald!80!black] at (0, -2.1) {
+\node[fill=brandTeal!12, draw=brandTeal!50, line width=0.8pt, rounded corners=5pt, inner sep=6pt, font=\scriptsize\bfseries, text=brandTeal!90!black] at (0, -2.1) {
     Risparmio complessivo di storage: 89.1\%
 };
 
@@ -54,24 +54,24 @@
 \node[cardBox, minimum width=7.2cm, minimum height=6.8cm] (latencyCard) at (8.0, 0) {};
 
 % Titolo Card 2
-\node[font=\bfseries\small, text=brandNavy, anchor=north] at (8.0, 3.1) {Latenza scansione query};
+\node[font=\bfseries\small, text=brandDark, anchor=north] at (8.0, 3.1) {Latenza scansione query};
 \node[font=\scriptsize, text=brandMuted, anchor=north] at (8.0, 2.65) {Mediana su 15 esecuzioni con warm-up (caso 1)};
 
 % --- Riga 1: Parquet ---
 \node[font=\scriptsize, text=brandCharcoal, anchor=west] at (4.8, 1.85) {\textbf{Parquet partizionato}};
-\node[font=\scriptsize, text=orange!80!red, anchor=east] at (11.2, 1.85) {\textbf{13.48 ms} \textcolor{brandMuted}{(1.0$\times$)}};
+\node[font=\scriptsize, text=brandCoral!90!black, anchor=east] at (11.2, 1.85) {\textbf{13.48 ms} \textcolor{brandMuted}{(1.0$\times$)}};
 \draw[bgBar] (4.8, 1.35) rectangle (11.2, 1.65);
-\draw[fill=orange!80!red, valBar] (4.8, 1.35) rectangle (11.2, 1.65);
+\draw[fill=brandCoral, valBar] (4.8, 1.35) rectangle (11.2, 1.65);
 
 % --- Riga 2: MongoDB pushdown ---
 \node[font=\scriptsize, text=brandCharcoal, anchor=west] at (4.8, 0.75) {\textbf{MongoDB Gold}};
-\node[font=\scriptsize, text=brandCyan!80!black, anchor=east] at (11.2, 0.75) {\textbf{3.63 ms} \textcolor{brandCyan}{\textbf{(3.7$\times$ speedup)}}};
+\node[font=\scriptsize, text=brandPrimaryDark, anchor=east] at (11.2, 0.75) {\textbf{3.63 ms} \textcolor{brandPrimary}{\textbf{(3.7$\times$ speedup)}}};
 \draw[bgBar] (4.8, 0.25) rectangle (11.2, 0.55);
-\draw[fill=brandCyan, valBar] (4.8, 0.25) rectangle (6.53, 0.55);
+\draw[fill=brandPrimary, valBar] (4.8, 0.25) rectangle (6.53, 0.55);
 
 % Callout riassuntivo in basso
-\node[fill=brandCyan!10, draw=brandCyan!50, line width=0.8pt, rounded corners=5pt, inner sep=6pt, font=\scriptsize, align=center, text=brandNavy] at (8.0, -1.8) {
-    \textbf{Fattore di velocizzazione: 3.7$\times$}\\[2pt]
+\node[fill=brandPrimary!8, draw=brandPrimary!40, line width=0.8pt, rounded corners=6pt, inner sep=6pt, font=\scriptsize, align=center, text=brandDark] at (8.0, -1.8) {
+    \textbf{\textcolor{brandPrimary}{Fattore di velocizzazione: 3.7$\times$}}\\[2pt]
     Filtraggio preventivo sui metadati del bucket\\
     prima della decompressione delle serie temporali
 };
