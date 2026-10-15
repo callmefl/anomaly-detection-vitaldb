@@ -90,3 +90,81 @@ def test_lstm_autoencoder_detector():
     assert len(preds) == len(df)
     # Il 5% dei punti deve risultare anomalo per costruzione del percentile
     assert preds.sum() > 0
+
+
+def test_save_anomalies_to_mongo_idempotence():
+    """Verifica che save_anomalies_to_mongo elimini sempre le anomalie obsolete con detected_at != now."""
+    import datetime
+    from unittest.mock import MagicMock
+    from src.detection.detector import save_anomalies_to_mongo
+
+    db = MagicMock()
+    df_clean = pd.DataFrame({
+        "case_id": [1, 1],
+        "timestamp": [datetime.datetime.now(), datetime.datetime.now()],
+        "shock_index_anomaly": [False, False],
+        "severe_hypotension_anomaly": [False, False]
+    })
+
+    # Caso con 0 anomalie: deve comunque chiamare delete_many per evitare anomalie stale
+    count = save_anomalies_to_mongo(db, df_clean)
+    assert count == 0
+    call_args = db['anomalies_detected'].delete_many.call_args[0][0]
+    assert call_args["case_id"] == {"$in": [1]}
+    assert "$ne" in call_args["detected_at"]
+
+
+def test_save_anomalies_to_mongo_insert_before_delete():
+    """Verifica che save_anomalies_to_mongo chiami insert_many prima di delete_many."""
+    import datetime
+    from unittest.mock import MagicMock
+    from src.detection.detector import save_anomalies_to_mongo
+
+    calls = []
+    db = MagicMock()
+    db['anomalies_detected'].insert_many.side_effect = lambda docs: calls.append("insert")
+    db['anomalies_detected'].delete_many.side_effect = lambda query: calls.append("delete")
+
+    df_anom = pd.DataFrame({
+        "case_id": [1, 1],
+        "timestamp": [datetime.datetime.now(), datetime.datetime.now()],
+        "shock_index_anomaly": [True, False],
+    })
+
+    count = save_anomalies_to_mongo(db, df_anom)
+    assert count == 1
+    assert calls == ["insert", "delete"]
+
+
+def test_load_from_gold_masks_outliers():
+    """Verifica che load_from_gold proietti quality_flags e mascheri a NaN i valori con outlier flag attivo."""
+    import datetime
+    from unittest.mock import MagicMock
+    from src.detection.detector import load_from_gold, HR_KEY
+
+    db = MagicMock()
+    db['vital_signals'].find.return_value.sort.return_value = [
+        {
+            "timestamp": datetime.datetime(2020, 1, 1, 0, 0, 0),
+            "metadata": {"case_id": 1},
+            "metrics": {HR_KEY: 300.0},
+            "quality_flags": {"HR_outlier": True, "nibp_age_s": 10.0}
+        },
+        {
+            "timestamp": datetime.datetime(2020, 1, 1, 0, 0, 1),
+            "metadata": {"case_id": 1},
+            "metrics": {HR_KEY: 75.0},
+            "quality_flags": {"HR_outlier": False, "nibp_age_s": 11.0}
+        }
+    ]
+
+    df = load_from_gold(db, case_ids=[1])
+    assert len(df) == 2
+    assert "nibp_age_s" in df.columns
+    assert df["nibp_age_s"].iloc[0] == 10.0
+    # Il record 0 era marcato come outlier fisiologico -> deve risultare NaN per non falsare la detection clinica
+    assert np.isnan(df[HR_KEY].iloc[0])
+    # Il record 1 era valido -> deve essere preservato
+    assert df[HR_KEY].iloc[1] == 75.0
+
+

@@ -63,16 +63,18 @@ def evaluate_anomaly_models():
     df['HR_delta']        = g.diff().fillna(0.0)
     feature_cols = [c for c in FEATURE_COLS if c in df.columns]
 
-    # 3. Isolation Forest ML
+    # 3. Isolation Forest ML: singolo fit con imputazione per caso per predizioni e score PR-AUC
     print("\nAddestramento e scoring Isolation Forest...")
-    if_detector = AnomalyDetector(method='isolation_forest', contamination=0.05)
-    y_if = if_detector.fit_predict(df, feature_cols)
-    
-    # Calcolo score continuo per PR-AUC (negativo di score_samples: più alto = più anomalo)
-    X_imputed = df.groupby('case_id')[feature_cols].transform(lambda s: s.ffill().bfill()).fillna(0.0).values
+    if 'case_id' in df.columns:
+        X_df = df.groupby('case_id')[feature_cols].transform(lambda s: s.ffill().bfill()).fillna(0.0)
+    else:
+        X_df = df[feature_cols].ffill().bfill().fillna(0.0)
+    X_imputed = X_df.values
+
     from sklearn.ensemble import IsolationForest
     clf_if = IsolationForest(contamination=0.05, random_state=42)
-    clf_if.fit(X_imputed)
+    preds_if = clf_if.fit_predict(X_imputed)
+    y_if = (preds_if == -1)
     if_scores = -clf_if.score_samples(X_imputed)
 
     # 4. LSTM Autoencoder Neurale (PyTorch)
@@ -92,7 +94,7 @@ def evaluate_anomaly_models():
     f1_ae = float(f1_score(y_clinical, y_ae, pos_label=True, zero_division=0))
     ap_ae = float(average_precision_score(y_clinical, ae_scores))
 
-    print("\n--- METRICHE CLASSE ANOMALIA (Confronto con Baseline 4.9%) ---")
+    print(f"\n--- METRICHE CLASSE ANOMALIA (Confronto con Baseline {base_rate * 100:.1f}%) ---")
     print(f"Isolation Forest  -> Precision: {p_if:.3f} | Recall: {r_if:.3f} | F1: {f1_if:.3f} | PR-AUC: {ap_if:.3f}")
     print(f"LSTM Autoencoder  -> Precision: {p_ae:.3f} | Recall: {r_ae:.3f} | F1: {f1_ae:.3f} | PR-AUC: {ap_ae:.3f}")
 
@@ -101,6 +103,11 @@ def evaluate_anomaly_models():
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "total_samples": total_samples,
         "cases_evaluated": len(case_ids),
+        "notes": (
+            "La pseudo-ground truth clinica è generata da regole euristiche (Shock Index e Ipotensione Severa) "
+            "che utilizzano le medesime feature biometriche fornite ai modelli non supervisionati: "
+            "la correlazione riflette la concordanza con tali euristiche e presenta una nota circolarità metodologica."
+        ),
         "baseline": {
             "positive_samples": positive_samples,
             "base_rate_pct": round(base_rate * 100, 2),

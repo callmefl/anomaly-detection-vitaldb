@@ -46,8 +46,11 @@ def test_api_get_series_endpoint():
         assert response.status_code == 404
 
 
-def test_api_detect_endpoint():
-    """Verifica l'endpoint POST /cases/1/detect."""
+def test_api_detect_endpoint(monkeypatch):
+    """Verifica l'endpoint POST /cases/1/detect applicando monkeypatch a save_anomalies_to_mongo (no-op)."""
+    import src.detection.detector as detector_module
+    monkeypatch.setattr(detector_module, "save_anomalies_to_mongo", lambda db, df: 0)
+
     response = client.post("/cases/1/detect")
     if response.status_code == 200:
         data = response.json()

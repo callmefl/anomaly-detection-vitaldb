@@ -32,16 +32,23 @@ def run_etl_benchmark():
     
     try:
         coll_stats = db.command("collStats", "vital_signals")
-        gold_size_mb = coll_stats.get("totalSize", coll_stats.get("storageSize", 0)) / (1024 * 1024)
+        storage_size_bytes = coll_stats.get("storageSize", 0)
+        index_size_bytes = coll_stats.get("totalIndexSize", 0)
+        total_size_bytes = coll_stats.get("totalSize", storage_size_bytes + index_size_bytes)
+        gold_size_mb = storage_size_bytes / (1024 * 1024)
+        gold_index_mb = index_size_bytes / (1024 * 1024)
+        gold_total_mb = total_size_bytes / (1024 * 1024)
         gold_size_source = "collStats"
     except Exception as e:
         print(f"⚠️ collStats non disponibile: {e}. Utilizzo stima basata su Silver (×0.3).")
         gold_size_mb = silver_size_mb * 0.3  # Stima: compressione tipica Time Series ~70%
+        gold_index_mb = 0.0
+        gold_total_mb = gold_size_mb
         gold_size_source = "estimated_silver_ratio"
         
     print(f"Spazio Bronze: {bronze_size_mb:.2f} MB")
     print(f"Spazio Silver: {silver_size_mb:.2f} MB")
-    print(f"Spazio Gold (MongoDB): {gold_size_mb:.2f} MB")
+    print(f"Spazio Gold (MongoDB storage puro): {gold_size_mb:.2f} MB (Indici: {gold_index_mb:.2f} MB, Totale: {gold_total_mb:.2f} MB)")
 
     # 2. Data Quality (Missing values reali misurati)
     bronze_nulls = 0
@@ -63,9 +70,27 @@ def run_etl_benchmark():
         silver_nulls += df_s[vital_s].isna().sum().sum()
 
     null_pct_silver = (silver_nulls / total_silver_cells * 100) if total_silver_cells > 0 else 0.0
+
+    # Calcolo null_pct_gold reale (formato sparso: le metriche nulle non vengono persistite nel subdocument metrics)
+    try:
+        total_gold_records = db['vital_signals'].count_documents({})
+        total_gold_expected_cells = total_gold_records * len(config.VITAL_TRACKS)
+        if total_gold_expected_cells > 0:
+            total_gold_present_cells = 0
+            for track in config.VITAL_TRACKS:
+                m_key = track.replace('/', '_')
+                total_gold_present_cells += db['vital_signals'].count_documents({f"metrics.{m_key}": {"$exists": True}})
+            total_gold_nulls = total_gold_expected_cells - total_gold_present_cells
+            null_pct_gold = (total_gold_nulls / total_gold_expected_cells) * 100
+        else:
+            null_pct_gold = null_pct_silver
+    except Exception as e:
+        print(f"⚠️ Impossibile calcolare null_pct_gold da MongoDB: {e}")
+        null_pct_gold = null_pct_silver
     
     print(f"Missing Values Reali Bronze: {null_pct_bronze:.1f}%")
     print(f"Missing Values Reali Silver (post-LOCF): {null_pct_silver:.1f}%")
+    print(f"Missing Values Reali Gold (sparso $exists): {null_pct_gold:.1f}%")
 
     # 3. Latenza Query Like-for-Like (Mediana su N run dopo Warmup)
     # Target di test: Caso #1
@@ -134,6 +159,7 @@ def run_etl_benchmark():
 
     reduction_silver = ((bronze_size_mb - silver_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
     reduction_gold = ((bronze_size_mb - gold_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
+    reduction_silver_vs_gold = ((silver_size_mb - gold_size_mb) / silver_size_mb * 100) if silver_size_mb > 0 else 0.0
 
     report_data = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -143,9 +169,13 @@ def run_etl_benchmark():
             "bronze_mb": round(bronze_size_mb, 2),
             "silver_mb": round(silver_size_mb, 2),
             "gold_mb": round(gold_size_mb, 2),
+            "gold_storage_only_mb": round(gold_size_mb, 2),
+            "gold_index_mb": round(gold_index_mb, 2),
+            "gold_total_mb": round(gold_total_mb, 2),
             "gold_size_source": gold_size_source,
             "reduction_silver_pct": round(reduction_silver, 1),
-            "reduction_gold_pct": round(reduction_gold, 1)
+            "reduction_gold_pct": round(reduction_gold, 1),
+            "reduction_silver_vs_gold_pct": round(reduction_silver_vs_gold, 1)
         },
         "query_latency": {
             "single_case_parquet_ms": round(t_single_parquet_ms, 2),
@@ -158,7 +188,7 @@ def run_etl_benchmark():
         "quality": {
             "null_pct_bronze": round(null_pct_bronze, 1),
             "null_pct_silver": round(null_pct_silver, 1),
-            "null_pct_gold": 0.0
+            "null_pct_gold": round(null_pct_gold, 1)
         }
     }
 

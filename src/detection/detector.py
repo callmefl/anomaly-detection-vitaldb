@@ -47,26 +47,51 @@ def load_from_gold(db, case_ids):
     """Estrae le serie temporali dei casi richiesti dalla Time Series Collection 'vital_signals' di MongoDB.
     
     Ordinamento deterministico per paziente e timestamp per evitare interleaving di serie temporali.
+    Proietta quality_flags e nibp_age_s, mascherando a NaN le metriche contrassegnate come outlier fisiologici
+    prima dell'applicazione di regole cliniche e modelli di machine learning.
 
     Args:
         db: Istanza PyMongo del database.
         case_ids (list): Lista degli identificativi numerici dei casi clinici da filtrare.
         
     Returns:
-        pd.DataFrame: Tabella denormalizzata con colonne `timestamp`, `case_id` e le metriche vitali.
+        pd.DataFrame: Tabella denormalizzata con colonne `timestamp`, `case_id`, metriche vitali e flag di qualità.
     """
     cursor = db['vital_signals'].find(
         {"metadata.case_id": {"$in": case_ids}},
-        {"_id": 0, "timestamp": 1, "metadata": 1, "metrics": 1}
+        {"_id": 0, "timestamp": 1, "metadata": 1, "metrics": 1, "quality_flags": 1}
     ).sort([("metadata.case_id", 1), ("timestamp", 1)])
     
     data = []
     for doc in cursor:
         row = {"timestamp": doc["timestamp"], "case_id": doc["metadata"]["case_id"]}
         row.update(doc.get("metrics", {}))
+        qf = doc.get("quality_flags", {})
+        if "nibp_age_s" in qf:
+            row["nibp_age_s"] = qf["nibp_age_s"]
+        for k, v in qf.items():
+            if k.endswith("_outlier") or k.endswith("_imputed"):
+                row[k] = v
         data.append(row)
         
-    return pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    if df.empty:
+        return df
+
+    # Maschera a NaN le metriche segnalate come outlier fisiologici: evita che artefatti
+    # sensoriali (es. cavo staccato) vengano confusi con vere emergenze cliniche (es. arresto/shock)
+    outlier_metric_map = {
+        "HR_outlier": HR_KEY,
+        "SPO2_outlier": SPO2_KEY,
+        "SBP_outlier": SBP_KEY,
+        "DBP_outlier": DBP_KEY,
+        "MBP_outlier": MBP_KEY,
+    }
+    for out_flag, metric_col in outlier_metric_map.items():
+        if out_flag in df.columns and metric_col in df.columns:
+            df.loc[df[out_flag] == True, metric_col] = np.nan
+
+    return df
 
 
 def compute_shock_index(df, threshold=0.9):
@@ -138,19 +163,26 @@ def detect_statistical(series, z_threshold=3.0):
 def detect_isolation_forest(df, contamination=0.05):
     """Applica l'algoritmo non supervisionato Isolation Forest per identificare anomalie multivariate.
 
+    Esegue l'imputazione locale strettamente per caso (se case_id è fornito) per evitare
+    che valori di pazienti diversi si propaghino attraverso i confini dei casi.
+
     Args:
-        df (pd.DataFrame): Matrice delle feature numeriche dei parametri vitali.
+        df (pd.DataFrame): Matrice delle feature numeriche dei parametri vitali (opzionalmente con 'case_id').
         contamination (float): Proporzione stimata di punti anomali nello spazio campionario.
 
     Returns:
         np.array: Array booleano (True = anomalia rilevata).
     """
-    # Usa ffill per propagare l'ultimo stato valido ed evitare che il riempimento con la media
-    # sposti i punti anomali verso il centro della distribuzione nascondendoli.
-    df_clean = df.ffill().bfill().fillna(0.0)
+    if 'case_id' in df.columns:
+        feat_cols = [c for c in df.columns if c != 'case_id']
+        df_clean = df.copy()
+        df_clean[feat_cols] = df.groupby('case_id')[feat_cols].transform(lambda g: g.ffill().bfill()).fillna(0.0)
+        X = df_clean[feat_cols]
+    else:
+        X = df.ffill().bfill().fillna(0.0)
     
     clf = IsolationForest(contamination=contamination, random_state=42)
-    preds = clf.fit_predict(df_clean)
+    preds = clf.fit_predict(X)
     
     # Converte l'output di scikit-learn (-1 per outlier, 1 per inlier) in booleani
     return preds == -1
@@ -336,7 +368,11 @@ class AnomalyDetector:
     def fit_predict(self, df, feature_cols):
         if self.method == 'isolation_forest':
             contamination = self.kwargs.get('contamination', 0.05)
-            return detect_isolation_forest(df[feature_cols], contamination)
+            # Includi case_id se presente per consentire l'imputazione isolata per paziente
+            cols = list(feature_cols)
+            if 'case_id' in df.columns and 'case_id' not in cols:
+                cols.append('case_id')
+            return detect_isolation_forest(df[cols], contamination)
         elif self.method == 'statistical':
             z_threshold = self.kwargs.get('z_threshold', 3.0)
             anomalies = pd.DataFrame(index=df.index)
@@ -354,8 +390,11 @@ class AnomalyDetector:
 def save_anomalies_to_mongo(db, df_anomalies):
     """Persiste i punti anomali identificati all'interno della collezione MongoDB `anomalies_detected`.
 
-    Garantisce idempotenza: cancella sempre le anomalie precedenti per tutti i casi analizzati,
-    anche se il run attuale trova 0 anomalie (evita anomalie stale per casi tornati normali).
+    Garantisce idempotenza sicura:
+    1. Prepara e inserisce prima i nuovi record marcati con il timestamp corrente (detected_at = now).
+    2. Solo ad inserimento avvenuto con successo, rimuove le anomalie obsolete dei casi esaminati (detected_at != now).
+    In questo modo, se l'inserimento dovesse fallire a causa di un'eccezione o crash del database,
+    lo stato precedente non viene cancellato alla cieca.
 
     Args:
         db: Istanza PyMongo del database.
@@ -374,17 +413,11 @@ def save_anomalies_to_mongo(db, df_anomalies):
     else:
         analyzed_cases = []
 
-    # Cancella sempre le vecchie anomalie per i casi esaminati (anche se ora hanno 0 anomalie)
-    if analyzed_cases:
-        db['anomalies_detected'].delete_many({"case_id": {"$in": analyzed_cases}})
-
+    now = datetime.datetime.now(datetime.timezone.utc)
     any_anomaly = df_anomalies[flag_cols].any(axis=1)
     rows = df_anomalies[any_anomaly]
-    if rows.empty:
-        return 0
 
     documents = []
-    now = datetime.datetime.now(datetime.timezone.utc)
     for _, row in rows.iterrows():
         methods = [c.replace('_anomaly', '') for c in flag_cols if bool(row[c])]
         documents.append({
@@ -394,8 +427,18 @@ def save_anomalies_to_mongo(db, df_anomalies):
             "detected_at": now,
         })
 
+    # 1. Inserisce prima i nuovi documenti
     if documents:
         db['anomalies_detected'].insert_many(documents)
+
+    # 2. Rimuove le vecchie anomalie (detected_at != now) per i casi esaminati
+    # Se un caso è tornato a 0 anomalie, i suoi vecchi record vengono comunque ripuliti
+    if analyzed_cases:
+        db['anomalies_detected'].delete_many({
+            "case_id": {"$in": analyzed_cases},
+            "detected_at": {"$ne": now}
+        })
+
     return len(documents)
 
 

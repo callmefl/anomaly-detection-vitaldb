@@ -44,16 +44,25 @@ def metric_keys():
     return [metric_key(t) for t in config.VITAL_TRACKS]
 
 
-def list_loaded_cases(db):
-    """Restituisce l'elenco di tutti i casi clinici caricati, consultando la collezione `registry`.
+def list_loaded_cases(db, status="committed"):
+    """Restituisce l'elenco dei casi clinici con commit completato (status='committed'), consultando `registry`.
+
+    Filtra i casi con stato 'committed' (o privi di campo status per retrocompatibilità con documenti storici),
+    escludendo rigorosamente i record con stato 'loading' o 'failed'.
 
     Args:
         db: Istanza PyMongo del database.
+        status (str): Stato di commit richiesto (default: 'committed').
 
     Returns:
-        pd.DataFrame: Tabella dei casi registrati con `case_id`, `record_count`, `schema_version`, `provenance`.
+        pd.DataFrame: Tabella dei casi registrati con `case_id`, `record_count`, `schema_version`, `status`, `provenance`.
     """
-    cursor = db['registry'].find({}, {"_id": 0}).sort("case_id", 1)
+    if status == "committed":
+        filter_query = {"$or": [{"status": "committed"}, {"status": {"$exists": False}}]}
+    else:
+        filter_query = {"status": status}
+
+    cursor = db['registry'].find(filter_query, {"_id": 0}).sort("case_id", 1)
     return pd.DataFrame(list(cursor))
 
 

@@ -75,25 +75,69 @@ def load_bronze_case(case_id, bronze_dir):
     return None
 
 
+def interpolate_short_gaps(series: pd.Series, max_gap: int = 5):
+    """Interpola linearmente solo i buchi interni di valori mancanti con durata <= max_gap campioni.
+
+    I buchi interni di durata > max_gap e i NaN periferici (leading/trailing) non vengono toccati,
+    evitando di riempire fittiziamente interruzioni prolungate di segnale (a differenza di interpolate(limit=max_gap)).
+
+    Args:
+        series (pd.Series): Serie numerica da interpolare.
+        max_gap (int): Durata massima in campioni (secondi a 1Hz) del buco da imputare.
+
+    Returns:
+        tuple[pd.Series, pd.Series]: (serie_interpolata, maschera_booleana_imputed).
+    """
+    is_na = series.isna()
+    if not is_na.any():
+        return series.copy(), pd.Series(False, index=series.index)
+
+    # Identifica i NaN strettamente interni (compresi tra un valore valido a monte e uno a valle)
+    not_na = ~is_na
+    has_prev = not_na.cummax()
+    has_next = not_na[::-1].cummax()[::-1]
+    is_internal = is_na & has_prev & has_next
+
+    if not is_internal.any():
+        return series.copy(), pd.Series(False, index=series.index)
+
+    # Raggruppa i blocchi contigui di valori e ne calcola la lunghezza
+    group_ids = (is_na != is_na.shift()).cumsum()
+    gap_sizes = is_na.groupby(group_ids).transform('size')
+
+    # Solo i buchi interni con dimensione <= max_gap sono candidati all'interpolazione
+    short_gap = is_internal & (gap_sizes <= max_gap)
+
+    interpolated = series.interpolate(method='linear')
+    res = series.where(~short_gap, interpolated)
+    imputed_mask = short_gap & series.isna() & res.notna()
+    return res, imputed_mask
+
+
 def clean_case(df, case_id):
     """Esegue la bonifica ed il filtraggio di Data Quality sui tracciati temporali del caso.
 
     Fasi di trasformazione:
-    1. Scarta le righe in cui tutte le tracce vitali sono nulle contemporaneamente.
-    2. Interpolazione continua su HR e SpO2 (lineare, limit=5).
-    3. Last Observation Carried Forward (LOCF) su NIBP (limit=300s, 5 min) con calcolo colonna nibp_age_s.
-    4. Calcola i flag booleani per identificare eventuali outlier fuori dai range fisiologici.
+    1. Griglia temporale intatta: nessun dropna iniziale per preservare i secondi reali (1 Hz).
+    2. Segnali continui (HR e SpO2): interpolazione lineare solo su buchi brevi (<= 5s) con tracciamento *_imputed.
+    3. Segnali emodinamici a intervalli (NIBP): LOCF con tetto di staleness a 300s (5 minuti) calcolato su griglia piena.
+    4. Identificazione outlier fisiologici leggendo min/max da config.TRACK_SPECS come unica fonte di verità.
+    5. Scarto finale delle sole righe in cui tutte le tracce biometriche risultano simultaneamente vuote.
     """
-    # 1. Filtra le righe completamente vuote sulle metriche vitali
-    tracks = [c for c in df.columns if c != 'Time']
-    df_clean = df.dropna(subset=tracks, how='all').copy()
-    
-    # 2. Segnali continui (HR e SpO2): interpolazione lineare breve (max 5 sec)
-    cont_tracks = [c for c in ['Solar8000/HR', 'Solar8000/PLETH_SPO2'] if c in df_clean.columns]
-    if cont_tracks:
-        df_clean[cont_tracks] = df_clean[cont_tracks].interpolate(method='linear', limit=5)
+    df_clean = df.copy()
 
-    # 3. Segnali emodinamici a intervalli (NIBP): LOCF con tetto di staleness a 300s (5 minuti)
+    # 1. Segnali continui (HR e SpO2): interpolazione lineare circoscritta a gap <= 5s
+    if 'Solar8000/HR' in df_clean.columns:
+        clean_hr, hr_imp = interpolate_short_gaps(df_clean['Solar8000/HR'], max_gap=5)
+        df_clean['Solar8000/HR'] = clean_hr
+        df_clean['HR_imputed'] = hr_imp
+
+    if 'Solar8000/PLETH_SPO2' in df_clean.columns:
+        clean_spo2, spo2_imp = interpolate_short_gaps(df_clean['Solar8000/PLETH_SPO2'], max_gap=5)
+        df_clean['Solar8000/PLETH_SPO2'] = clean_spo2
+        df_clean['SPO2_imputed'] = spo2_imp
+
+    # 2. Segnali emodinamici a intervalli (NIBP): LOCF con tetto di staleness a 300s (5 minuti)
     nibp_tracks = [c for c in ['Solar8000/NIBP_SBP', 'Solar8000/NIBP_DBP', 'Solar8000/NIBP_MBP'] if c in df_clean.columns]
     if nibp_tracks:
         time_series = df_clean['Time'] if 'Time' in df_clean.columns else pd.Series(df_clean.index, index=df_clean.index, dtype=float)
@@ -106,21 +150,29 @@ def clean_case(df, case_id):
     else:
         df_clean['nibp_age_s'] = 9999.0
 
-    # 4. Identifica e marca gli outlier fisiologici (range medici di validità)
-    if 'Solar8000/HR' in df_clean.columns:
-        df_clean['HR_outlier'] = (df_clean['Solar8000/HR'] < 20) | (df_clean['Solar8000/HR'] > 250)
-        
-    if 'Solar8000/PLETH_SPO2' in df_clean.columns:
-        df_clean['SPO2_outlier'] = (df_clean['Solar8000/PLETH_SPO2'] < 50) | (df_clean['Solar8000/PLETH_SPO2'] > 100)
-        
-    if 'Solar8000/NIBP_SBP' in df_clean.columns:
-        df_clean['SBP_outlier'] = (df_clean['Solar8000/NIBP_SBP'] < 40) | (df_clean['Solar8000/NIBP_SBP'] > 250)
+    # 3. Identifica e marca gli outlier fisiologici leggendo i range da config.TRACK_SPECS
+    outlier_map = {
+        'Solar8000/HR': 'HR_outlier',
+        'Solar8000/PLETH_SPO2': 'SPO2_outlier',
+        'Solar8000/NIBP_SBP': 'SBP_outlier',
+        'Solar8000/NIBP_DBP': 'DBP_outlier',
+        'Solar8000/NIBP_MBP': 'MBP_outlier',
+    }
+    track_specs = getattr(config, "TRACK_SPECS", {})
+    for track_name, flag_col in outlier_map.items():
+        if track_name in df_clean.columns:
+            spec = track_specs.get(track_name, {})
+            min_val = spec.get("min", -float("inf"))
+            max_val = spec.get("max", float("inf"))
+            val = df_clean[track_name]
+            # Valore outlier solo se presente e strettamente fuori dal range fisiologico
+            df_clean[flag_col] = val.notna() & ((val < min_val) | (val > max_val))
 
-    if 'Solar8000/NIBP_DBP' in df_clean.columns:
-        df_clean['DBP_outlier'] = (df_clean['Solar8000/NIBP_DBP'] < 10) | (df_clean['Solar8000/NIBP_DBP'] > 180)
-
-    if 'Solar8000/NIBP_MBP' in df_clean.columns:
-        df_clean['MBP_outlier'] = (df_clean['Solar8000/NIBP_MBP'] < 20) | (df_clean['Solar8000/NIBP_MBP'] > 220)
+    # 4. Scarta solo alla fine le righe in cui tutte le tracce vitali risultano contemporaneamente nulle
+    vital_cols = [c for c in config.VITAL_TRACKS if c in df_clean.columns]
+    if not vital_cols:
+        vital_cols = [c for c in df_clean.columns if c not in ('Time', 'case_id', 'nibp_age_s') and not c.endswith('_outlier') and not c.endswith('_imputed')]
+    df_clean = df_clean.dropna(subset=vital_cols, how='all').copy()
 
     df_clean['case_id'] = case_id
     return df_clean
@@ -156,20 +208,54 @@ def process_all_cases(bronze_dir, silver_dir):
             
             department = resolve_department(department_map, case_id)
             save_silver(df_clean, case_id, silver_dir, department)
-            # Raccoglie i dati per il Report di Qualità
+            # Raccoglie i dati per il Report di Qualità (preserva campi per compatibilità dashboard)
             case_report = {
                 "case_id": case_id,
                 "rows_original": rows_before,
                 "rows_cleaned": rows_after,
                 "rows_dropped": rows_before - rows_after,
                 "department": department,
-                "outliers_count": {}
+                "outliers_count": {},
+                "sensor_metrics": {}
             }
             
             # Conteggio degli outlier per segnale
-            for flag in ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']:
+            outlier_flags = [
+                ('HR_outlier', 'Solar8000/HR'),
+                ('SPO2_outlier', 'Solar8000/PLETH_SPO2'),
+                ('SBP_outlier', 'Solar8000/NIBP_SBP'),
+                ('DBP_outlier', 'Solar8000/NIBP_DBP'),
+                ('MBP_outlier', 'Solar8000/NIBP_MBP')
+            ]
+            for flag, track in outlier_flags:
                 if flag in df_clean.columns:
                     case_report["outliers_count"][flag] = int(df_clean[flag].sum())
+
+            # Metriche dettagliate per sensore (osservati, imputati, mancanti, outlier, copertura)
+            for flag, track in outlier_flags:
+                if track in df.columns:
+                    observed = int(df[track].notna().sum())
+                    outliers = int(df_clean[flag].sum()) if flag in df_clean.columns else 0
+                    missing = int(df_clean[track].isna().sum()) if track in df_clean.columns else 0
+                    
+                    # Calcolo imputati
+                    short_col = flag.replace('_outlier', '')
+                    imp_col = f"{short_col}_imputed"
+                    if imp_col in df_clean.columns:
+                        imputed = int(df_clean[imp_col].sum())
+                    elif 'NIBP' in track and 'nibp_age_s' in df_clean.columns and track in df_clean.columns:
+                        imputed = int((df_clean[track].notna() & (df_clean['nibp_age_s'] > 0)).sum())
+                    else:
+                        imputed = 0
+
+                    coverage_pct = round(((observed + imputed) / rows_after * 100), 2) if rows_after > 0 else 0.0
+                    case_report["sensor_metrics"][track] = {
+                        "observed": observed,
+                        "imputed": imputed,
+                        "missing": missing,
+                        "outliers": outliers,
+                        "coverage_pct": min(coverage_pct, 100.0)
+                    }
 
             # Misurazione reale dei valori nulli residui post-bonifica (LOCF + interpolazione)
             vital_cols = [c for c in config.VITAL_TRACKS if c in df_clean.columns]
