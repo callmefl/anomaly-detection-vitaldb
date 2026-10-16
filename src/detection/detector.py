@@ -94,12 +94,17 @@ def load_from_gold(db, case_ids):
     return df
 
 
-def compute_shock_index(df, threshold=0.9):
+def compute_shock_index(df, threshold=0.9, max_nibp_age_s=None):
     """Calcola lo Shock Index clinico ($SI = HR / SBP$) e contrassegna le instabilità emodinamiche.
+
+    Se la colonna 'nibp_age_s' è presente, verifica che la misura pressoria sia sufficientemente
+    recente (<= max_nibp_age_s) per evitare che un singolo valore propagato per LOCF
+    generi falsi allarmi prolungati su misure obsolete.
 
     Args:
         df (pd.DataFrame): DataFrame contenente le colonne HR_KEY ed SBP_KEY.
         threshold (float): Soglia sopra la quale il punto è valutato come a rischio shock (default: 0.9).
+        max_nibp_age_s (float, optional): Età massima in secondi della lettura NIBP valida.
 
     Returns:
         pd.DataFrame: Copia del DataFrame arricchita con 'shock_index' e 'shock_index_anomaly' (bool).
@@ -114,18 +119,28 @@ def compute_shock_index(df, threshold=0.9):
         shock_index = df[HR_KEY] / df[SBP_KEY]
 
     df['shock_index'] = shock_index
-    df['shock_index_anomaly'] = shock_index > threshold
-    df['shock_index_anomaly'] = df['shock_index_anomaly'].fillna(False)
+    is_anomaly = (shock_index > threshold).fillna(False)
+
+    if 'nibp_age_s' in df.columns:
+        max_age = max_nibp_age_s if max_nibp_age_s is not None else getattr(config, "NIBP_MAX_CLINICAL_AGE_S", 120.0)
+        is_fresh = (df['nibp_age_s'] <= max_age).fillna(False)
+        is_anomaly = is_anomaly & is_fresh
+
+    df['shock_index_anomaly'] = is_anomaly
     return df
 
 
-def compute_severe_hypotension(df, mbp_threshold=65.0, spo2_threshold=90.0):
+def compute_severe_hypotension(df, mbp_threshold=65.0, spo2_threshold=90.0, max_nibp_age_s=None):
     """Applica la regola clinica di Ipotensione Severa (MBP < 65 mmHg AND SpO2 < 90%).
+
+    Se 'nibp_age_s' è presente nel DataFrame, richiede che la misura pressoria non superi
+    la soglia di freschezza clinica `max_nibp_age_s`.
 
     Args:
         df (pd.DataFrame): DataFrame contenente le colonne MBP_KEY ed SPO2_KEY.
         mbp_threshold (float): Soglia di pressione arteriosa media in mmHg (default: 65).
         spo2_threshold (float): Soglia di saturazione d'ossigeno in % (default: 90).
+        max_nibp_age_s (float, optional): Età massima in secondi della lettura NIBP valida.
 
     Returns:
         pd.DataFrame: Copia del DataFrame arricchita con la colonna 'severe_hypotension_anomaly' (bool).
@@ -137,7 +152,14 @@ def compute_severe_hypotension(df, mbp_threshold=65.0, spo2_threshold=90.0):
 
     low_mbp = df[MBP_KEY] < mbp_threshold
     low_spo2 = df[SPO2_KEY] < spo2_threshold
-    df['severe_hypotension_anomaly'] = (low_mbp & low_spo2).fillna(False)
+    is_anomaly = (low_mbp & low_spo2).fillna(False)
+
+    if 'nibp_age_s' in df.columns:
+        max_age = max_nibp_age_s if max_nibp_age_s is not None else getattr(config, "NIBP_MAX_CLINICAL_AGE_S", 120.0)
+        is_fresh = (df['nibp_age_s'] <= max_age).fillna(False)
+        is_anomaly = is_anomaly & is_fresh
+
+    df['severe_hypotension_anomaly'] = is_anomaly
     return df
 
 
@@ -490,8 +512,9 @@ if __name__ == '__main__':
     client = MongoClient(config.MONGO_URI)
     db = client[config.DB_NAME]
 
-    all_cases = [doc["case_id"] for doc in db['registry'].find({}, {"case_id": 1})]
+    all_cases = [doc["case_id"] for doc in db['registry'].find({"status": "committed"}, {"case_id": 1})]
     if not all_cases:
-        print("⚠️ Nessun caso nel registry. Eseguire prima il caricamento dei casi.")
+        print("⚠️ Nessun caso committed nel registry. Eseguire prima il caricamento dei casi.")
     else:
         run_detection_pipeline(db, all_cases)
+

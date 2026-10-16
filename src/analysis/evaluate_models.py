@@ -25,12 +25,12 @@ def evaluate_anomaly_models():
     client = MongoClient(config.MONGO_URI)
     db = client[config.DB_NAME]
     
-    # Recupera i casi caricati dal registry
-    registry_cases = list(db['registry'].find({}, {"_id": 0, "case_id": 1}))
+    # Recupera esclusivamente i casi con commit completato dal registry
+    registry_cases = list(db['registry'].find({"status": "committed"}, {"_id": 0, "case_id": 1}))
     case_ids = [c["case_id"] for c in registry_cases]
     
     if not case_ids:
-        print("Nessun caso trovato nel database.")
+        print("Nessun caso committed trovato nel database.")
         return
         
     df = load_from_gold(db, case_ids)
@@ -99,8 +99,11 @@ def evaluate_anomaly_models():
     print(f"LSTM Autoencoder  -> Precision: {p_ae:.3f} | Recall: {r_ae:.3f} | F1: {f1_ae:.3f} | PR-AUC: {ap_ae:.3f}")
 
     # Salva il report quantitativo in data/ml_evaluation.json
+    run_id = config.get_or_create_run_id()
     evaluation_report = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "run_id": run_id,
+        "pipeline_version": getattr(config, "PIPELINE_VERSION", "1.1.0"),
         "total_samples": total_samples,
         "cases_evaluated": len(case_ids),
         "notes": (
@@ -130,7 +133,7 @@ def evaluate_anomaly_models():
     eval_json_path = config.DATA_DIR / "ml_evaluation.json"
     with open(eval_json_path, "w", encoding="utf-8") as f:
         json.dump(evaluation_report, f, indent=2)
-    print(f"✓ Report ML quantitativo salvato in: {eval_json_path}")
+    print(f"✓ Report ML quantitativo salvato in: {eval_json_path} (run_id: {run_id})")
 
     img_dir = ROOT_DIR / "relazione" / "img"
     img_dir.mkdir(parents=True, exist_ok=True)

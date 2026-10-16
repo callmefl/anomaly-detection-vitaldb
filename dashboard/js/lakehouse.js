@@ -106,8 +106,15 @@ const lakehouseView = {
 
     if (elBronzeMB) elBronzeMB.textContent = `${bronzeMB.toFixed(2)} MB`;
     if (elSilverMB) elSilverMB.textContent = `${silverMB.toFixed(2)} MB (-${Number(silverPct).toFixed(1)}%)`;
-    if (elGoldMB) elGoldMB.textContent = `${goldMB.toFixed(2)} MB`;
-    if (elGoldRed) elGoldRed.textContent = `-${Number(goldPct).toFixed(1)}%`;
+    if (elGoldMB) elGoldMB.textContent = `${goldMB.toFixed(2)} MB (-${Number(goldPct).toFixed(1)}%)`;
+
+    const elGoldIndexInfo = document.getElementById('benchGoldIndexInfo');
+    if (elGoldIndexInfo && data && data.storage) {
+      const idxMB = data.storage.gold_index_mb !== undefined ? Number(data.storage.gold_index_mb).toFixed(2) : '0.00';
+      const totMB = data.storage.gold_total_mb !== undefined ? Number(data.storage.gold_total_mb).toFixed(2) : goldMB.toFixed(2);
+      const vsSilver = data.storage.reduction_silver_vs_gold_pct !== undefined ? ` | vs Silver: -${Number(data.storage.reduction_silver_vs_gold_pct).toFixed(1)}%` : '';
+      elGoldIndexInfo.textContent = `Storage puro: ${goldMB.toFixed(2)} MB + Indici B-Tree: ${idxMB} MB (Totale collStats: ${totMB} MB${vsSilver})`;
+    }
 
     if (fillBronze) fillBronze.style.width = '100%';
     if (fillSilver) fillSilver.style.width = `${(silverMB / bronzeMB * 100).toFixed(1)}%`;
@@ -135,6 +142,9 @@ const lakehouseView = {
   async loadEvaluationData() {
     const data = await api.getEvaluation();
 
+    const elTitle = document.getElementById('mlEvalTitle');
+    const elSubtitle = document.getElementById('mlEvalSubtitle');
+
     const elIsoAcc = document.getElementById('mlIsoAcc');
     const elIsoPrec = document.getElementById('mlIsoPrec');
     const elIsoRec = document.getElementById('mlIsoRec');
@@ -148,8 +158,17 @@ const lakehouseView = {
     if (data && data.isolation_forest) {
       const iso = data.isolation_forest || {};
       const ae  = data.lstm_autoencoder || {};
+      const base = data.baseline || {};
 
-      // "Accuracy" non è una metrica onesta per dataset sbilanciati — mostriamo PR-AUC
+      if (elTitle && data.total_samples) {
+        const casesStr = data.cases_evaluated ? `${data.cases_evaluated} Casi, ` : '';
+        elTitle.textContent = `Valutazione Quantitativa Modelli ML (${casesStr}${Number(data.total_samples).toLocaleString()} Record Temporali)`;
+      }
+      if (elSubtitle && base.positive_samples !== undefined) {
+        elSubtitle.textContent = `Concordanza con Pseudo-Ground Truth Euristico (${Number(base.positive_samples).toLocaleString()} campioni critici, Prevalenza baseline ${Number(base.base_rate_pct || 0).toFixed(2)}%)`;
+      }
+
+      // Mostriamo PR-AUC (Average Precision) coerente con l'intestazione della tabella
       if (elIsoAcc) elIsoAcc.textContent = `PR-AUC ${(iso.average_precision_pr_auc || 0).toFixed(3)}`;
       if (elIsoPrec) elIsoPrec.textContent = (iso.precision_anomaly || 0).toFixed(3);
       if (elIsoRec) elIsoRec.textContent = (iso.recall_anomaly || 0).toFixed(3);

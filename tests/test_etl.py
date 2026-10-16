@@ -70,9 +70,39 @@ def test_clean_case():
     assert cleaned["HR_imputed"].iloc[0] == False
 
     assert "SPO2_imputed" in cleaned.columns
+    assert "SBP_imputed" in cleaned.columns
+    assert "DBP_imputed" in cleaned.columns
     assert cleaned["HR_outlier"].iloc[3] == True   # 15 < 20
     assert cleaned["HR_outlier"].iloc[4] == True   # 300 > 250
     assert cleaned["SPO2_outlier"].iloc[3] == True # 40 < 50
     assert cleaned["DBP_outlier"].iloc[3] == True  # 190 > 180 (da TRACK_SPECS)
     assert "nibp_age_s" in cleaned.columns
+
+
+def test_nibp_imputation_and_outlier_non_propagation():
+    """Verifica che il LOCF NIBP tracci SBP_imputed e non propaghi un outlier sulle righe successive."""
+    df = pd.DataFrame({
+        "Time": [0.0, 1.0, 2.0, 3.0],
+        "Solar8000/HR": [75.0, 75.0, 75.0, 75.0],
+        # t=0: 120 (valido), t=1: NaN (imputato da 120), t=2: 300 (outlier > 250), t=3: NaN
+        "Solar8000/NIBP_SBP": [120.0, np.nan, 300.0, np.nan],
+    })
+
+    cleaned = clean_case(df, case_id=2)
+
+    # t=1 è imputato tramite LOCF dal valore valido 120.0
+    assert cleaned["Solar8000/NIBP_SBP"].iloc[1] == 120.0
+    assert cleaned["SBP_imputed"].iloc[1] == True
+    assert cleaned["SBP_outlier"].iloc[1] == False
+
+    # t=2 conserva il valore grezzo 300.0 ed è marcato come outlier, non imputato
+    assert cleaned["Solar8000/NIBP_SBP"].iloc[2] == 300.0
+    assert cleaned["SBP_outlier"].iloc[2] == True
+    assert cleaned["SBP_imputed"].iloc[2] == False
+
+    # t=3: l'outlier 300.0 NON viene propagato (eredita invece l'ultimo valore valido 120.0)
+    assert cleaned["Solar8000/NIBP_SBP"].iloc[3] == 120.0
+    assert cleaned["SBP_outlier"].iloc[3] == False
+    assert cleaned["SBP_imputed"].iloc[3] == True
+
 

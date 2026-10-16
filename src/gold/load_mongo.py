@@ -256,8 +256,8 @@ def load_case_to_mongo(client, db, df, case_id, clinical_info, run_id=None):
     validate_records(records)
 
     now = datetime.datetime.now(datetime.timezone.utc)
-    p_version = getattr(config, "PIPELINE_VERSION", "1.0.0")
-    rid = run_id or now.strftime("%Y%m%d_%H%M%S")
+    p_version = getattr(config, "PIPELINE_VERSION", "1.1.0")
+    rid = run_id or config.get_or_create_run_id()
 
     # 1. Imposta lo stato su 'loading' nel registry
     db['registry'].update_one(
@@ -286,6 +286,15 @@ def load_case_to_mongo(client, db, df, case_id, clinical_info, run_id=None):
         db['vital_signals'].insert_many(records)
     except PyMongoError as e:
         print(f"❌ Errore durante l'inserimento in vital_signals per il caso #{case_id}: {e}")
+        # Pulizia residui parziali e marcatura esplicita dello stato failed per il recupero successivo
+        try:
+            db['vital_signals'].delete_many({"metadata.case_id": int(case_id)})
+            db['registry'].update_one(
+                {"case_id": int(case_id)},
+                {"$set": {"status": "failed", "last_error": str(e)}}
+            )
+        except Exception:
+            pass
         raise
 
     # 4. Commit applicativo
@@ -309,6 +318,27 @@ def load_case_to_mongo(client, db, df, case_id, clinical_info, run_id=None):
     return len(records)
 
 
+def recover_incomplete_loads(db, active_case_ids=None):
+    """Bonifica eventuali casi rimasti bloccati in stato 'loading'/'failed' o fuori dal perimetro Silver attivo."""
+    incomplete_docs = list(db['registry'].find({"status": {"$ne": "committed"}}, {"case_id": 1, "status": 1}))
+    for doc in incomplete_docs:
+        cid = int(doc["case_id"])
+        db['vital_signals'].delete_many({"metadata.case_id": cid})
+    if incomplete_docs:
+        print(f"ℹ Bonificati {len(incomplete_docs)} casi incompleti (loading/failed) prima del caricamento.")
+
+    # Riallinea il Gold se il perimetro attivo del Silver è stato ridotto (es. da 1000 a 50 casi)
+    if active_case_ids:
+        stale_docs = list(db['registry'].find({"case_id": {"$nin": list(active_case_ids)}}, {"case_id": 1}))
+        if stale_docs:
+            stale_ids = [int(d["case_id"]) for d in stale_docs]
+            for sid in stale_ids:
+                db['vital_signals'].delete_many({"metadata.case_id": sid})
+            db['registry'].delete_many({"case_id": {"$in": stale_ids}})
+            db['anomalies_detected'].delete_many({"case_id": {"$in": stale_ids}})
+            print(f"ℹ Rimossi dal Gold {len(stale_ids)} casi non appartenenti al perimetro Silver corrente.")
+
+
 def process_silver_to_gold(silver_dir, bronze_dir=None):
     """Itera su tutti i file Parquet del layer Silver e li inserisce in MongoDB Gold."""
     bronze_dir = bronze_dir or config.BRONZE_DIR
@@ -317,18 +347,31 @@ def process_silver_to_gold(silver_dir, bronze_dir=None):
     ensure_timeseries_collections(db)
     seed_track_metadata(db)
 
-    run_id = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+    run_id = config.get_or_create_run_id()
+    p_version = getattr(config, "PIPELINE_VERSION", "1.1.0")
     clinical_info = load_clinical_info(bronze_dir)
-    parquet_files = list(silver_dir.rglob("case_*.parquet"))
+    parquet_files = sorted(
+        silver_dir.rglob("case_*.parquet"),
+        key=lambda p: int(p.stem.split('_')[1]) if p.stem.split('_')[1].isdigit() else 0
+    )
+    active_case_ids = {int(p.stem.split('_')[1]) for p in parquet_files}
+    recover_incomplete_loads(db, active_case_ids=active_case_ids)
 
     for p_file in tqdm(parquet_files, desc="Caricamento in MongoDB (Gold)"):
         try:
             case_id = int(p_file.stem.split('_')[1])
             df = pd.read_parquet(p_file)
 
-            # Salta solo i casi già committed
+            # Salta solo i casi già committed con la medesima versione di pipeline e numero di righe
             existing = db['registry'].find_one({"case_id": case_id})
-            if existing and existing.get("status") == "committed":
+            if (
+                existing
+                and existing.get("status") == "committed"
+                and existing.get("pipeline_version") == p_version
+                and existing.get("record_count") == len(df)
+            ):
+                if existing.get("run_id") != run_id:
+                    db['registry'].update_one({"case_id": case_id}, {"$set": {"run_id": run_id}})
                 continue
 
             load_case_to_mongo(client, db, df, case_id, clinical_info, run_id=run_id)
@@ -341,4 +384,5 @@ if __name__ == '__main__':
     print("=== INIZIO CARICAMENTO IN MONGODB GOLD ===")
     process_silver_to_gold(config.SILVER_DIR)
     print("=== PIPELINE GOLD COMPLETATA CON SUCCESSO ===")
+
 

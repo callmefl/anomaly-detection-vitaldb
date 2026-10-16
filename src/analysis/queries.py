@@ -47,8 +47,8 @@ def metric_keys():
 def list_loaded_cases(db, status="committed"):
     """Restituisce l'elenco dei casi clinici con commit completato (status='committed'), consultando `registry`.
 
-    Filtra i casi con stato 'committed' (o privi di campo status per retrocompatibilità con documenti storici),
-    escludendo rigorosamente i record con stato 'loading' o 'failed'.
+    Filtra rigorosamente i casi con stato 'committed', escludendo i record con stato 'loading',
+    'failed' o privi di attestazione di commit.
 
     Args:
         db: Istanza PyMongo del database.
@@ -57,11 +57,7 @@ def list_loaded_cases(db, status="committed"):
     Returns:
         pd.DataFrame: Tabella dei casi registrati con `case_id`, `record_count`, `schema_version`, `status`, `provenance`.
     """
-    if status == "committed":
-        filter_query = {"$or": [{"status": "committed"}, {"status": {"$exists": False}}]}
-    else:
-        filter_query = {"status": status}
-
+    filter_query = {"status": status}
     cursor = db['registry'].find(filter_query, {"_id": 0}).sort("case_id", 1)
     return pd.DataFrame(list(cursor))
 

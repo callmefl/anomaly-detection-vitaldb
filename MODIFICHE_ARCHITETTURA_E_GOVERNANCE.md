@@ -1,65 +1,60 @@
-# SINTESI DELLE 10 MODIFICHE ARCHITETTURALI E DI DATA GOVERNANCE
+# SINTESI COMPLETA DELLE MODIFICHE ARCHITETTURALI E DI DATA GOVERNANCE
 **Progetto:** VitalDB Multimodal Real-Time Anomaly Detection & Lakehouse Architecture  
 **Documento per:** Allineamento Relazione Tecnica e Presentazione Slide (PPT)  
-**Versione Pipeline:** 1.0.0  
-**Stato Test Suite:** 35/35 Test Superati (100% Pass Rate)
+**Versione Pipeline:** 1.1.0  
+**Stato Test Suite:** 37/37 Test Superati (100% Pass Rate)
 
 ---
 
 ## INTRODUZIONE E OBIETTIVI DEL REFACTORING
 
-Il presente documento formalizza i 10 interventi di ingegnerizzazione architetturale, irrobustimento metodologico e data governance implementati sulla pipeline end-to-end del progetto VitalDB.
+Il presente documento formalizza gli interventi di ingegnerizzazione architetturale, irrobustimento metodologico e data governance implementati sulla pipeline end-to-end del progetto VitalDB (suddivisi nel **Blocco Primario: Punti 1–10** e nel **Secondo Ciclo di Raffinamento: Punti 11–16**).
 
 L'architettura segue il paradigma **Medallion Lakehouse** (Bronze $\to$ Silver $\to$ Gold), integrando:
-1. **Bronze Layer:** Landing grezzo ad alta fedeltà di tracciati biometrici Solar8000, parametri clinici e referti di laboratorio.
-2. **Silver Layer:** Bonifica temporale rigorosa (secondi reali a 1 Hz), interpolazione dei soli buchi fisiologici brevi ($\le 5\text{s}$), staleness tracking NIBP (LOCF con scadenza a 300 s), tracciamento delle feature imputate e partizionamento fisico per reparto chirurgico (`department=<REPARTO>`).
-3. **Gold Layer:** Storage analitico columnar su MongoDB 8.0 in Time Series Collections con bucketing a 1 secondo, compensazione a 2 fasi con stato di caricamento logico (`loading` $\to$ `committed`), validazione applicativa preventiva e catalogo metadata centralizzato.
-4. **Detection Layer:** Algoritmo multilivello combinato (Shock Index, Ipotensione Severa, Isolation Forest spaziale, LSTM Autoencoder ricorrente PyTorch), consapevole della qualità dei dati e protetto da cancellazioni distruttive.
-5. **Governance & Analytics:** Metriche di benchmark reali misurate su disco e su indici, calcolo accurato dei valori nulli e conformità tra catalogo e codice.
+1. **Bronze Layer:** Landing grezzo ad alta fedeltà di tracciati biometrici Solar8000 (50 casi standard configurabili), parametri clinici e referti di laboratorio, con verifica di compatibilità dello schema prima dello skip dei file esistenti.
+2. **Silver Layer:** Bonifica temporale rigorosa (secondi reali a 1 Hz), identificazione degli outlier fisiologici *prima* dell'imputazione (per impedire la propagazione degli artefatti), interpolazione dei soli buchi fisiologici brevi ($\le 5\text{s}$), staleness tracking NIBP (LOCF con scadenza a 300 s), tracciamento esplicito per ogni singolo canale (`HR_imputed`, `SPO2_imputed`, `SBP_imputed`, `DBP_imputed`, `MBP_imputed`), denominatori omogenei nei conteggi DQ e partizionamento fisico per reparto chirurgico (`department=<REPARTO>`).
+3. **Gold Layer:** Storage analitico columnar su MongoDB 8.0 in Time Series Collections con bucketing a 1 secondo, compensazione a 2 fasi con stato di caricamento logico (`loading` $\to$ `committed`), recupero automatico di eventuali caricamenti interrotti (`recover_incomplete_loads`), validazione applicativa preventiva e catalogo metadata centralizzato.
+4. **Detection Layer:** Algoritmo multilivello combinato (Shock Index, Ipotensione Severa, Isolation Forest spaziale, LSTM Autoencoder ricorrente PyTorch), consapevole sia della qualità dei dati (mascheramento outlier a `NaN`) sia della freschezza emodinamica (`nibp_age_s <= 120s`), e protetto da cancellazioni distruttive.
+5. **Governance, Provenance & Analytics:** Collegamento end-to-end tramite `run_id` e `pipeline_version` condivisi tra tutti gli artefatti JSON e MongoDB, metriche di benchmark misurate sullo stesso perimetro di casi `committed` separando `storageSize` da `totalIndexSize`, e dashboard web allineata alle metriche PR-AUC e alla definizione di Pseudo-Ground Truth.
 
 ---
 
-## MATRICE RIASSUNTIVA DEI 10 PUNTI
+## MATRICE RIASSUNTIVA DEGLI INTERVENTI (PUNTI 1–16)
 
 | # | Ambito Architetturale | Intervento Principale | File Coinvolti | Beneficio Principale |
 |---|---|---|---|---|
-| **1** | **Configurazione & Schemi** | `TRACK_SPECS` unica fonte di verità e `PIPELINE_VERSION` | `src/config.py`, `mongo/registry_schema.js` | Elimina divergenze sui range clinici; abilita data lineage |
+| **1** | **Configurazione & Schemi** | `TRACK_SPECS` unica fonte di verità, `PIPELINE_VERSION = "1.1.0"` e `get_or_create_run_id()` | `src/config.py`, `mongo/registry_schema.js` | Elimina divergenze sui range clinici; abilita data lineage end-to-end |
 | **2** | **Silver Layer & Cleansing** | `interpolate_short_gaps` ($\le 5\text{s}$), `*_imputed`, range centralizzati e DQ report per sensore | `src/silver/clean.py` | Preserva i secondi reali; non maschera interruzioni lunghe di segnale |
 | **3** | **Gold Layer & Ingestion** | Caricamento idempotente a 2 fasi (`loading` $\to$ `committed`), `validate_records` e metadati arricchiti | `src/gold/load_mongo.py` | Idempotenza senza transazioni su Time Series; scarto dati corrotti |
-| **4** | **Serving & API** | Filtro `status: "committed"` nelle interrogazioni del registry | `src/analysis/queries.py` | Esclude casi parziali da dashboard e query analitiche |
+| **4** | **Serving & API** | Filtro rigoroso `status: "committed"` nelle interrogazioni del registry | `src/analysis/queries.py` | Esclude casi parziali o incompleti da dashboard e query analitiche |
 | **5** | **Detection & Persistenza** | Mascheramento outlier a NaN, imputazione isolata per paziente, persistenza insert-before-delete | `src/detection/detector.py` | Evita falsi allarmi da artefatti e garantisce tolleranza ai guasti |
 | **6** | **Valutazione Modelli** | Singolo fit Isolation Forest, baseline dinamica da prevalenza reale e dichiarazione pseudo-ground truth | `src/analysis/evaluate_models.py` | Rigore scientifico: metriche coerenti e baseline non hardcoded |
 | **7** | **Benchmark & Storage** | Separazione `storageSize` vs `totalIndexSize`, confronto Silver vs Gold e null rate reale con `$exists` | `src/analysis/benchmark_etl.py` | Metriche di compressione e qualità credibili e confrontabili |
-| **8** | **Bronze Layer & Ingestion** | Manifest `download_manifest.json`, skip dei file presenti, gestione esplicita errori e lab data | `src/bronze/download.py` | Pipeline Bronze deterministica, tracciabile e resiliente a download parziali |
-| **9** | **Isolamento & Test Suite** | Monkeypatch isolato per `/detect`, test unitari su download, ETL gap, validazione e idempotenza | `tests/test_api.py`, `tests/test_bronze.py`, `tests/test_detection.py`, `tests/test_etl.py`, `tests/test_gold.py` | Test suite non distruttiva sui dati clinici; copertura completa dei corner case |
-| **10**| **Manutenzione & Reset** | Pulizia selettiva dei manifest storici in fase di reset dell'ambiente | `scripts/reset_pipeline.py` | Ripristino trasparente dell'ambiente di calcolo senza residui inconsistenti |
+| **8** | **Bronze Layer & Ingestion** | Manifest `download_manifest.json`, verifica schema/frequenza sui file esistenti, fail-fast e lab data | `src/bronze/download.py` | Pipeline Bronze deterministica, tracciabile e resiliente a download parziali |
+| **9** | **Isolamento & Test Suite** | Monkeypatch isolato per `/detect`, 37 test unitari su download, ETL gap, NIBP freshness e idempotenza | `tests/test_*.py` | Test suite non distruttiva sui dati clinici; copertura completa dei corner case |
+| **10**| **Manutenzione & Reset** | Pulizia selettiva dei manifest storici e di `.current_run_id` in fase di reset dell'ambiente | `scripts/reset_pipeline.py` | Ripristino trasparente dell'ambiente di calcolo senza residui inconsistenti |
+| **11**| **Allineamento Perimetro Run** | Riallineamento automatico del perimetro dei casi tra Bronze, Silver, Gold, Benchmark ed Evaluator | `src/config.py`, `src/silver/clean.py`, `src/gold/load_mongo.py` | Impedisce che report diversi descrivano esecuzioni con numero di casi differente |
+| **12**| **Omogeneità Conteggi DQ Silver**| Calcolo outlier *prima* del forward-fill, flag `SBP/DBP/MBP_imputed` e denominatore unico `rows_cleaned` | `src/silver/clean.py`, `tests/test_etl.py` | Identità esatta $\text{observed} + \text{imputed} + \text{missing} = \text{rows\_cleaned}$; zero propagazione di outlier |
+| **13**| **Freschezza NIBP in Detection** | Uso di `nibp_age_s <= 120s` nelle regole cliniche (Shock Index e Ipotensione Severa) | `src/detection/detector.py`, `tests/test_detection.py` | Impedisce che una misura pressoria obsoleta trascinata per LOCF generi allarmi continui |
+| **14**| **Commit Enforcement Globale** | Filtro `status: "committed"` applicato a tutti i lettori Gold (`detector`, `evaluator`, `benchmark`) e recovery automatico | `src/detection/detector.py`, `src/analysis/evaluate_models.py`, `src/analysis/benchmark_etl.py`, `src/gold/load_mongo.py` | Nessun modulo analitico legge casi rimasti in `loading` o `failed` |
+| **15**| **Provenance Cross-Layer** | Condivisione automatica di `run_id` e `pipeline_version` in tutti i 4 report JSON e nel `registry` MongoDB | `src/config.py`, `download.py`, `clean.py`, `load_mongo.py`, `evaluate_models.py`, `benchmark_etl.py` | Tracciabilità formale: ogni report certifica l'esatto run e la versione da cui proviene |
+| **16**| **Allineamento Dashboard UI** | Intestazione `PR-AUC (Average Precision)`, titoli dinamici da JSON, dicitura Pseudo-Ground Truth e dettaglio Storage vs Indici | `dashboard/partials/lakehouse-view.html`, `dashboard/js/lakehouse.js` | Coerenza totale tra ciò che calcola il backend e ciò che mostra l'interfaccia grafica |
 
 ---
 
-## ANALISI DETTAGLIATA DEI 10 PUNTI
-
----
+## PARTE I — ANALISI DETTAGLIATA DEI PRIMI 10 PUNTI FONDAMENTALI
 
 ### PUNTO 1: FONTE UNICA DEI RANGE CLINICI E PROVENANCE DELLA PIPELINE
 * **Layer:** Trasversale (Configurazione, Governance & Catalog)
 * **File Modificati:** `src/config.py`, `mongo/registry_schema.js`
 
 #### Contesto e Problema Iniziale (As-Is)
-In precedenza, i limiti fisiologici dei parametri vitali erano cablati in punti diversi del codice: in `src/silver/clean.py` per il calcolo degli outlier e nello script `mongo/registry_schema.js` per il catalogo `track_metadata`. Questa duplicazione aveva già provocato una divergenza critica: la pressione diastolica (`Solar8000/NIBP_DBP`) ammetteva un valore massimo di 180 mmHg nel cleaning ma di 200 mmHg nel JSON Schema di MongoDB. Inoltre, mancava un identificativo di versione globale per tracciare la provenance del dato.
+I limiti fisiologici dei parametri vitali erano duplicati tra `src/silver/clean.py` e `mongo/registry_schema.js`, con una divergenza sulla pressione diastolica (`NIBP_DBP` max 180 mmHg nel cleaning contro 200 mmHg nel catalogo MongoDB). Mancava inoltre un meccanismo di versionamento e di identificazione della corsa (`run_id`).
 
 #### Soluzione Implementata (To-Be)
-1. Centralizzato in `src/config.py` il dizionario `TRACK_SPECS` per i 5 tracciati biometrici primari (HR, SpO₂, SBP, DBP, MBP), specificando per ciascuno: nome leggibile, unità di misura, valore minimo e valore massimo fisiologico.
-2. Definita la costante `PIPELINE_VERSION = "1.0.0"`.
-3. Riallineato `mongo/registry_schema.js` impostando il limite massimo di `NIBP_DBP` a 180 mmHg.
-4. Aggiornata la funzione `seed_track_metadata` in `src/gold/load_mongo.py` per sincronizzare la collezione MongoDB `track_metadata` direttamente da `TRACK_SPECS`.
-
-#### Impatto Architetturale
-- **Single Source of Truth:** Impossibile generare contraddizioni tra i criteri di scarto del layer Silver e le specifiche dichiarate nel catalogo del Gold.
-- **Data Lineage:** Ogni elaborazione e record caricato su MongoDB è ora tracciato con la versione esatta dell'algoritmo che lo ha generato.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Governance dei Dati: Single Source of Truth
-- *Concetto Chiave:* Eliminata la duplicazione manuale dei range biometrici mediante `TRACK_SPECS`; allineato il tetto clinico DBP a 180 mmHg su tutto lo stack.
+1. Centralizzato in `src/config.py` il dizionario `TRACK_SPECS` per i 5 tracciati biometrici primari (HR, SpO₂, SBP, DBP, MBP).
+2. Definita la costante `PIPELINE_VERSION = "1.1.0"` e la funzione `get_or_create_run_id()` che persiste in `data/.current_run_id` l'identificativo univoco della corsa corrente.
+3. Riallineato `mongo/registry_schema.js` e sincronizzata la collezione `track_metadata` in `src/gold/load_mongo.py` direttamente da `TRACK_SPECS`.
 
 ---
 
@@ -68,22 +63,12 @@ In precedenza, i limiti fisiologici dei parametri vitali erano cablati in punti 
 * **File Modificati:** `src/silver/clean.py`, `tests/test_etl.py`
 
 #### Contesto e Problema Iniziale (As-Is)
-La funzione di cleaning eseguiva un `dropna(how='all')` all'inizio del processo. Poiché i tracciati sono campionati a 1 Hz, la rimozione preliminare di righe vuote rompeva la continuità dell'asse temporale: i filtri successivi contavano "righe" e non "secondi effettivi". Inoltre, `interpolate(method='linear', limit=5)` riempiva arbitrariamente i primi 5 secondi anche all'interno di buchi prolungati (es. 2 minuti di cavo scollegato), mascherando interruzioni strumentali critiche. Il report di qualità, infine, contava solo metriche globali senza distinguere il comportamento dei singoli sensori.
+La funzione di cleaning eseguiva un `dropna(how='all')` iniziale che alterava la continuità dell'asse temporale a 1 Hz, e usava `interpolate(method='linear', limit=5)` che riempiva i primi 5 campioni anche dentro buchi lunghi minuti.
 
 #### Soluzione Implementata (To-Be)
-1. **Nessun `dropna` iniziale:** Il DataFrame grezzo mantiene la griglia temporale a 1 secondo durante tutte le fasi di imputazione e calcolo della staleness.
-2. **Funzione `interpolate_short_gaps(series, max_gap=5)`:** Algoritmo vettorizzato che identifica la dimensione di ciascun blocco contiguo di `NaN`. Solo i buchi interni di durata $\le 5\,\text{s}$ vengono interpolati linearmente. I buchi $> 5\,\text{s}$ e i `NaN` periferici (leading/trailing) rimangono rigorosamente inalterati.
-3. **Tracciamento Imputazione:** Create le colonne booleane `HR_imputed` e `SPO2_imputed` per marcare puntualmente i valori ricostruiti matematicamente rispetto a quelli nativamente misurati dai sensori.
-4. **Scarto Finale:** La rimozione dei record totalmente privi di parametri vitali avviene solo come ultimo step.
-5. **Sensor Quality Metrics:** Il report JSON per caso e per sensore calcola: campioni osservati, campioni imputati, campioni mancanti, outlier rilevati e percentuale di copertura temporale effettiva.
-
-#### Impatto Architetturale
-- **Integrità Clinica:** Si evita la fabbricazione artificiale di segnali vitali durante disconnessioni prolungate dei monitor di sala operatoria.
-- **Auditing & Trasparenza:** A valle è sempre possibile distinguere un dato biometrico reale da uno interpolato.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Silver Layer: Interpolazione Consapevole del Tempo
-- *Concetto Chiave:* Algoritmo `interpolate_short_gaps` ($\le 5\text{s}$) su griglia temporale intatta. Distinzione netta tra dato osservato (`observed`) e dato stimato (`imputed`).
+1. **Griglia temporale intatta:** Nessun `dropna` iniziale; lo scarto delle righe completamente vuote avviene solo a fine elaborazione.
+2. **Funzione `interpolate_short_gaps(series, max_gap=5)`:** Interpola linearmente esclusivamente i buchi interni di durata $\le 5\,\text{s}$, lasciando a `NaN` le interruzioni strumentali prolungate ($> 5\,\text{s}$) e i `NaN` periferici.
+3. **Report Multi-Sensore:** Generazione del dizionario `sensor_metrics` per ogni caso e per ogni traccia.
 
 ---
 
@@ -92,25 +77,11 @@ La funzione di cleaning eseguiva un `dropna(how='all')` all'inizio del processo.
 * **File Modificati:** `src/gold/load_mongo.py`, `tests/test_gold.py`
 
 #### Contesto e Problema Iniziale (As-Is)
-MongoDB Time Series Collections non supportano le transazioni multi-documento ACID tradizionali (errore di sistema 263) e consentono operazioni di `delete_many` unicamente filtrando per `metaField` (`metadata.case_id`). Di conseguenza, un rieseguimento dell'ETL o un retry a metà operazione duplicava i record temporali o lasciava il database in uno stato inconsistente. Inoltre, non esisteva validazione preliminare prima dell'inserimento massivo.
+Le Time Series Collections di MongoDB non supportano transazioni ACID multi-documento (errore 263). Un retry a metà caricamento causava duplicazione dei punti temporali.
 
 #### Soluzione Implementata (To-Be)
-1. **Compensazione a Due Fasi (Two-Phase Load):**
-   - Transizione di stato nel metastore `registry`: `status: "loading"`.
-   - Bonifica preventiva compensativa: `db['vital_signals'].delete_many({"metadata.case_id": case_id})`.
-   - Validazione applicativa: invocazione di `validate_records()` su tipi di dato, consistenza dei timestamp `datetime` e range finiti.
-   - Inserimento massivo in batch (`insert_many`).
-   - Finalizzazione dello stato: `status: "committed"` con registrazione di `run_id`, `pipeline_version` e parametri di cleaning adottati.
-2. **Arricchimento Documento BSON:** I record su `vital_signals` memorizzano nel sotto-documento `quality_flags` lo stato `nibp_age_s` e i flag booleani `*_imputed`.
-3. **Idempotenza nei Retry:** `process_silver_to_gold` salta esclusivamente i casi che presentano `status == "committed"`. Eventuali casi rimasti in `loading` (a causa di crash precedenti) vengono automaticamente bonificati e ricaricati in modo pulito.
-
-#### Impatto Architetturale
-- **Affidabilità Enterprise:** Massima garanzia di consistenza ottenibile su collezioni MongoDB Time Series in assenza di transazioni distribuite.
-- **Data Quality Gateway:** I record malformati vengono intercettati ed espulsi a livello applicativo prima di corrompere lo storage columnar di MongoDB.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Gold Layer: Ingestion Idempotente a Due Fasi
-- *Concetto Chiave:* Protocollo di compensazione logica (`loading` $\to$ `delete` $\to$ `insert` $\to$ `committed`) per superare il vincolo no-ACID delle Time Series Collections di MongoDB.
+1. **Protocollo Two-Phase Load:** Scrittura di `status: "loading"` nel `registry` $\to$ pulizia preventiva con `delete_many({"metadata.case_id": case_id})` $\to$ validazione applicativa `validate_records()` $\to$ `insert_many` $\to$ aggiornamento a `status: "committed"`.
+2. **Gestione Errori e Cleanup:** In caso di eccezione durante l'insert, il caso viene marcato come `status: "failed"`, i punti parziali vengono rimossi e la funzione `recover_incomplete_loads()` bonifica eventuali caricamenti interrotti al run successivo.
 
 ---
 
@@ -118,19 +89,8 @@ MongoDB Time Series Collections non supportano le transazioni multi-documento AC
 * **Layer:** Serving, Analysis & REST API
 * **File Modificati:** `src/analysis/queries.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-La funzione `list_loaded_cases()` restituiva tutti i record presenti nella collezione `registry`. Qualora un caso fosse a metà del caricamento (stato `loading`) o fosse fallito per un'interruzione di rete, compariva ugualmente nelle dashboard e nelle API di query, esponendo serie temporali tronche o inconsistenti.
-
 #### Soluzione Implementata (To-Be)
-1. Aggiunto il filtro esplicito `{"status": "committed"}` alla query MongoDB in `list_loaded_cases()`.
-2. Garantito che le API FastAPI e i selettori interattivi dell'interfaccia web visualizzino unicamente dataset che abbiano superato con successo l'intero ciclo di ingestione e validazione.
-
-#### Impatto Architetturale
-- **Isolamento della Pubblicazione:** Applicazione del principio di separazione tra fase di caricamento (staging) e fase di rilascio analitico (commit).
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Serving Layer: Pubblicazione Selettiva
-- *Concetto Chiave:* Le API e la dashboard interrogano solo record con `status: "committed"`, eliminando il rischio di dirty reads durante l'esecuzione dell'ETL.
+La funzione `list_loaded_cases()` applica il filtro rigoroso `{"status": "committed"}`, garantendo che API e dashboard espongano esclusivamente casi il cui caricamento si è concluso integralmente.
 
 ---
 
@@ -138,24 +98,10 @@ La funzione `list_loaded_cases()` restituiva tutti i record presenti nella colle
 * **Layer:** Anomaly Detection & ML Modeling
 * **File Modificati:** `src/detection/detector.py`, `tests/test_detection.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-Nella versione originaria:
-1. Gli outlier sensoriali (es. elettrodo staccato con HR = 300 bpm o 0 bpm) rimanevano nei dati numerici elaborati dallo Shock Index e dall'Isolation Forest, innescando falsi allarmi clinici.
-2. L'imputazione preliminare di Isolation Forest eseguiva un `ffill().bfill()` globale su tutto il DataFrame concatenato, trasferendo i valori dell'ultimo record del paziente $N$ al primo record del paziente $N+1$ (data leakage cross-paziente).
-3. `save_anomalies_to_mongo` cancellava le anomalie prima dell'inserimento: in caso di eccezione durante l'insert, il caso rimaneva permanentemente svuotato di qualsiasi anomalia storica.
-
 #### Soluzione Implementata (To-Be)
-1. **Mascheramento Outlier Fisiologici:** `load_from_gold` proietta `quality_flags` e imposta preventivamente a `np.nan` i parametri contrassegnati da flag outlier. L'artefatto di misura non viene più scambiato per emergenza clinica.
-2. **Imputazione Raggruppata per Paziente:** In `detect_isolation_forest` e `AnomalyDetector`, l'imputazione `ffill().bfill()` opera tramite `groupby('case_id')`, preservando l'isolamento statistico tra pazienti differenti.
-3. **Pattern Insert-Before-Delete:** In `save_anomalies_to_mongo`, i nuovi documenti vengono marcati con il timestamp dell'esecuzione (`detected_at = now`) e inseriti (`insert_many`). Solo ad operazione completata con successo, il database esegue `delete_many({"case_id": {"$in": analyzed_cases}, "detected_at": {"$ne": now}})`. Se il processo crasha durante la scrittura, i vecchi dati rimangono intatti. Se il paziente è tornato clinicamente stabile (0 anomalie), le vecchie anomalie stale vengono comunque rimosse.
-
-#### Impatto Architetturale
-- **Precisione Diagnostica:** Separazione formale tra rumore strumentale (DQ) e instabilità emodinamica reale (anomalia clinica).
-- **Zero Data Loss:** Tolleranza ai guasti durante la sincronizzazione dei risultati di machine learning su MongoDB.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Anomaly Detection: Robustezza e Zero Data Loss
-- *Concetto Chiave:* Mascheramento degli artefatti pre-ML; imputazione strictly per-paziente; persistenza transazionale sicura con inserimento precedente alla cancellazione dei vecchi allarmi.
+1. **Mascheramento Outlier Fisiologici:** `load_from_gold` proietta `quality_flags` e maschera a `np.nan` i valori contrassegnati come outlier prima delle regole cliniche e dei modelli ML.
+2. **Imputazione Raggruppata per Paziente:** `detect_isolation_forest` e `AnomalyDetector` eseguono `ffill().bfill()` raggruppando per `case_id`, eliminando ogni data leakage tra pazienti consecutivi.
+3. **Pattern Insert-Before-Delete:** `save_anomalies_to_mongo` inserisce prima i nuovi documenti con `detected_at = now` e solo dopo rimuove quelli obsoleti con `delete_many({"case_id": {"$in": analyzed_cases}, "detected_at": {"$ne": now}})`.
 
 ---
 
@@ -163,23 +109,8 @@ Nella versione originaria:
 * **Layer:** Model Evaluation & Validation
 * **File Modificati:** `src/analysis/evaluate_models.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-Nel modulo di valutazione dei modelli ML:
-1. Venivano addestrati due distinti modelli Isolation Forest indipendenti: uno per calcolare la matrice di confusione (Precision/Recall/F1) e un secondo modello diverso per calcolare la curva Precision-Recall e la PR-AUC, rendendo le metriche numericamente disallineate tra loro.
-2. La baseline stampata a video riportava un valore hardcoded fisso del "4.9%", che non rifletteva la prevalenza reale dei casi caricati nel database.
-3. Mancava una formalizzazione del limite metodologico dovuto alla circolarità della pseudo-ground truth (basata sulla disgiunzione logica delle regole cliniche).
-
 #### Soluzione Implementata (To-Be)
-1. **Single Model Fit:** Addestramento di una singola istanza di Isolation Forest per ciascun run, dalla quale si estraggono in modo rigorosamente coerente sia le predizioni binarie (`predict`) sia gli anomaly score continui (`decision_function`).
-2. **Baseline Dinamica:** Stampa della vera baseline teorica calcolata in tempo reale dalla prevalenza effettiva del dataset (`base_rate = y_true.mean() * 100`).
-3. **Dichiarazione Esplicita di Provenance:** Aggiunto nel file JSON dei risultati il campo `notes` che dichiara formalmente la natura e il perimetro della pseudo-ground truth.
-
-#### Impatto Architetturale
-- **Rigore Scientifico:** Piena riproducibilità sperimentale e coerenza tra le metriche di soglia (Precision/Recall) e le metriche di ranking (PR-AUC).
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Valutazione Modelli: Coerenza Metodologica
-- *Concetto Chiave:* Unificazione del fit Isolation Forest (singolo modello sia per decision score che per classificazione); baseline calcolata dinamicamente sulla reale prevalenza dei campioni patologici.
+Unificato l'addestramento di Isolation Forest in un singolo fit da cui si ricavano sia le predizioni binarie sia gli score continui per la PR-AUC; calcolata dinamicamente la baseline dalla prevalenza reale (`base_rate`); aggiunta la nota metodologica `notes` nel JSON.
 
 ---
 
@@ -187,23 +118,8 @@ Nel modulo di valutazione dei modelli ML:
 * **Layer:** Analytics, Governance & Performance Benchmarking
 * **File Modificati:** `src/analysis/benchmark_etl.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-Nel benchmark comparativo dell'ETL:
-1. La metrica `null_pct_gold` era forzata a `0.0` fisso (valore fittizio non misurato).
-2. La dimensione del layer Gold considerava `totalSize` aggregato, sommando indistintamente lo spazio effettivo dei dati su disco con la dimensione degli indici B-Tree.
-3. Mancava il confronto esplicito di riduzione dimensionale tra il layer Silver (Parquet compresso) e il layer Gold (MongoDB Time Series columnar).
-
 #### Soluzione Implementata (To-Be)
-1. **Misurazione Null con `$exists`:** Il null rate del Gold viene calcolato interrogando puntualmente MongoDB con conteggi `$exists` per ciascuna metrica vitale rispetto al volume atteso di record.
-2. **Separazione Storage vs Indici:** Il benchmark estrae da `db.command("collStats", "vital_signals")` separatamente `storageSize` (peso compresso delle serie temporali) e `totalIndexSize` (peso degli indici).
-3. **Confronto a Due Livelli:** Calcolate sia la riduzione Bronze $\to$ Gold, sia la riduzione Silver $\to$ Gold.
-
-#### Impatto Architetturale
-- **Trasparenza Prestazionale:** I dati mostrati in relazione e a video riflettono la reale efficienza dell'architettura columnar e del bucketing di MongoDB 8.0.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Benchmark ETL: Analisi di Compressione Rigorosa
-- *Concetto Chiave:* Separazione trasparente tra volume dati compresso (`storageSize`) e indici; calcolo non fittizio della qualità dei dati nel Gold tramite operatori `$exists`.
+Separato lo spazio puro compresso della Time Series (`storageSize`) dal peso degli indici B-Tree (`totalIndexSize`); aggiunto il confronto `reduction_silver_vs_gold_pct`; calcolato `null_pct_gold` tramite query reali `$exists` su MongoDB anziché usare `0.0` fisso.
 
 ---
 
@@ -211,25 +127,8 @@ Nel benchmark comparativo dell'ETL:
 * **Layer:** Bronze (Raw Landing & Data Extraction)
 * **File Modificati:** `src/bronze/download.py`, `tests/test_bronze.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-Lo script di download del layer Bronze presentava tre criticità:
-1. In caso di fallimento nel download del file fondamentale `clinical_data.parquet`, lo script proseguiva silenziosamente senza sollevare errori, facendo confluire tutti i pazienti sotto il reparto di ripiego `UNKNOWN`.
-2. Se il download di un tracciato veniva interrotto a metà, la pipeline stampava comunque un messaggio fuorviante di "COMPLETATA CON SUCCESSO".
-3. Mancava la gestione dei dati di laboratorio (`download_lab_data`) e non esisteva un registro per saltare i casi già scaricati, costringendo a riscaricare tutti i dati ad ogni esecuzione.
-
 #### Soluzione Implementata (To-Be)
-1. **Download Manifest:** Generazione di `download_manifest.json` che traccia data, versione e stato di ciascun caso scaricato (`downloaded`, `failed`).
-2. **Skipping Intelligente:** I casi già presenti sul filesystem e validati nel manifest vengono saltati automaticamente.
-3. **Fail-Fast Rigoroso:** Se il download dei dati clinici fallisce, lo script interrompe l'esecuzione sollevando un'eccezione esplicita ed esce con `sys.exit(1)`.
-4. **Modulo Lab Data:** Implementata la funzione `download_lab_data()` per scaricare e filtrare i referti ematochimici e di laboratorio sui soli identificativi dei pazienti estratti.
-
-#### Impatto Architetturale
-- **Efficienza di Rete:** Riduzione dei tempi di download ed eliminazione di chiamate ridondanti alle API di VitalDB.
-- **Determinismo:** Certezza dello stato del Bronze layer prima di innescare le elaborazioni downstream nel Silver.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Bronze Layer: Ingestion Deterministica con Manifest
-- *Concetto Chiave:* Introduzione di `download_manifest.json`, politica fail-fast sui dati clinici essenziali e download modulare dei dati di laboratorio.
+Introdotto `download_manifest.json`, blocco fail-fast con `sys.exit(1)` se i dati clinici falliscono, funzione `download_lab_data()` filtrata sui casi estratti, e verifica di compatibilità (presenza di tutte le tracce e corrispondenza del `SAMPLING_INTERVAL`) prima di saltare i file Parquet già presenti su disco.
 
 ---
 
@@ -237,24 +136,8 @@ Lo script di download del layer Bronze presentava tre criticità:
 * **Layer:** Testing, CI/CD & Verification
 * **File Modificati:** `tests/test_api.py`, `tests/test_bronze.py`, `tests/test_detection.py`, `tests/test_etl.py`, `tests/test_gold.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-Il test di integrazione dell'endpoint `/detect` eseguiva l'algoritmo sul Caso #1 e scriveva i risultati direttamente su MongoDB, sovrascrivendo le anomalie dimostrative utilizzate per le schermate della presentazione. Inoltre, mancavano test unitari specifici per le funzionalità più critiche introdotte (interpolazione selettiva, compensazione a 2 fasi, resilienza download).
-
 #### Soluzione Implementata (To-Be)
-1. **Monkeypatching su `/detect`:** Nel test di FastAPI, la funzione `save_anomalies_to_mongo` viene intercettata con un no-op, proteggendo il database da sovrascritture durante la suite automatica di test.
-2. **Nuove Suite di Test Dedicate:**
-   - `test_bronze.py`: verifica dello skip dei file già scaricati, del blocco in caso di dati clinici mancanti e del fallback sui dati di laboratorio.
-   - `test_etl.py`: verifica di `interpolate_short_gaps` su gap corti ($\le 5\text{s}$), gap lunghi ($> 5\text{s}$) e valori periferici; verifica delle colonne `*_imputed` e dei range `TRACK_SPECS`.
-   - `test_detection.py`: verifica della sequenza insert-before-delete, dell'eliminazione delle anomalie stale con `detected_at != now` e del mascheramento degli outlier in `load_from_gold`.
-   - `test_gold.py`: test su `validate_records` (scarto record corrotti o con timestamp mancanti) e sulla transizione idempotente `loading` $\to$ `committed`.
-
-#### Impatto Architetturale
-- **Safety First:** I test possono essere eseguiti in qualsiasi momento in locale o in CI/CD senza sporcare o cancellare i dati operativi.
-- **Copertura Completa:** Test suite passata da 25 a 35 test unitari (100% superati).
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* Affidabilità del Codice: Test Suite Isolata
-- *Concetto Chiave:* Suite automatizzata con 35 unit test; isolamento completo tramite monkeypatch per impedire alterazioni dei dati analitici durante l'esecuzione dei test.
+Isolato il test dell'endpoint `/cases/1/detect` tramite monkeypatch di `save_anomalies_to_mongo` ed estesa la test suite a **37 unit test** (100% pass rate).
 
 ---
 
@@ -262,76 +145,93 @@ Il test di integrazione dell'endpoint `/detect` eseguiva l'algoritmo sul Caso #1
 * **Layer:** Operations, DevOps & Environment Management
 * **File Modificati:** `scripts/reset_pipeline.py`
 
-#### Contesto e Problema Iniziale (As-Is)
-Lo script di reset dell'ambiente ripuliva le collezioni MongoDB e i file Parquet nei layer Silver e Gold, ma lasciava intatti i file di stato ausiliari nel Bronze (come `download_manifest.json`), generando disallineamenti quando si tentava di eseguire una ripartenza da zero.
-
 #### Soluzione Implementata (To-Be)
-1. Integrata in `scripts/reset_pipeline.py` la cancellazione esplicita del file `download_manifest.json` e della cartella di storico `quality_history`.
-2. Allineata la sequenza di reset affinché ripristini l'ambiente in uno stato perfettamente vergine e riproducibile.
-
-#### Impatto Architetturale
-- **Manutenibilità:** Capacità di re-inizializzare la pipeline senza residui di cache o metadati disallineati.
-
-#### Punti Chiave per Relazione e Slide PPT
-- *Slide Title:* DevOps & Manutenibilità: Reset Trasparente
-- *Concetto Chiave:* Automazione del ripristino dell'infrastruttura con pulizia coordinata di metastore, manifest e serie temporali.
+Aggiornato lo script di reset per rimuovere coordinatamente le collezioni MongoDB, le directory Bronze/Silver, tutti i 4 file JSON di report/manifest e il file `.current_run_id`.
 
 ---
 
-## SCHEMA ARCHITETTURALE DI SINTESI (FLUSSO END-TO-END)
+## PARTE II — SECONDO CICLO DI RAFFINAMENTO (PUNTI 11–16)
 
-```
-[ VitalDB Cloud API ]
-         │
-         ▼ (Punto 8: Fail-fast, Download Manifest, Lab Data)
-┌────────────────────────────────────────────────────────┐
-│                      BRONZE LAYER                      │
-│  - case_<ID>.parquet (Raw landing 1 Hz)                │
-│  - clinical_data.parquet (Metadati clinici)            │
-│  - download_manifest.json (Tracciabilità download)     │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼ (Punto 1: TRACK_SPECS unici)
-                           ▼ (Punto 2: Griglia continua, interpolate_short_gaps <=5s, *_imputed)
-┌────────────────────────────────────────────────────────┐
-│                      SILVER LAYER                      │
-│  - Partizionamento fisico: department=<REPARTO>/       │
-│  - LOCF NIBP con staleness age (<= 300s)               │
-│  - Report DQ per caso e per sensore (sensor_metrics)   │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-                           ▼ (Punto 3: Two-Phase Load, validate_records, enrichment)
-┌────────────────────────────────────────────────────────┐
-│                   GOLD LAYER (MongoDB 8.0)             │
-│  - 'vital_signals' (Time Series: 1s bucketing)         │
-│  - 'registry' (Metastore con status: "committed")      │
-│  - 'track_metadata' (Catalogo sincronizzato da SPECS)  │
-└────────────┬─────────────────────────────┬─────────────┘
-             │                             │
-             │ (Punto 4: solo committed)   │ (Punto 5: Outlier masking pre-ML)
-             ▼                             ▼
-┌───────────────────────────┐ ┌──────────────────────────┐
-│       SERVING & API       │ │     DETECTION LAYER      │
-│ - FastAPI REST Endpoints  │ │ - Shock Index & Ipotens. │
-│ - Dashboard Interattiva   │ │ - Isolation Forest (IF)  │
-│ - Benchmark (Punto 7)     │ │ - LSTM Autoencoder (PyT) │
-│ - Evaluator (Punto 6)     │ │ - Insert-before-delete   │
-└───────────────────────────┘ └──────────────────────────┘
-```
+Questi ulteriori 6 interventi risolvono le sottigliezze metodologiche emerse dall'ispezione incrociata dei report generati e della dashboard web.
 
 ---
 
-## GUIDA RAPIDA PER PRESENTAZIONE PPT (SUGGERIMENTO SLIDE)
+### PUNTO 11: ALLINEAMENTO DEL PERIMETRO DEI CASI TRA TUTTI I LAYER
+* **File Modificati:** `src/config.py`, `src/silver/clean.py`, `src/gold/load_mongo.py`, `src/analysis/benchmark_etl.py`
 
-1. **Slide 1: Visione d'Insieme & Medallion Architecture**
-   - Presentare i tre strati (Bronze, Silver, Gold) e gli obiettivi di qualità del dato clinico.
-2. **Slide 2: Data Quality & Silver Layer (Punti 1 e 2)**
-   - Focus su `TRACK_SPECS` (unica fonte di verità) e sulla gestione temporale a secondi reali (`interpolate_short_gaps` vs interpolazione cieca).
-3. **Slide 3: MongoDB Time Series & Compensazione a Due Fasi (Punti 3 e 4)**
-   - Spiegare il vincolo no-ACID delle Time Series Collections e mostrare la macchina a stati: `loading` $\to$ compensazione $\to$ validazione $\to$ `committed`.
-4. **Slide 4: Anomaly Detection Consapevole e Resiliente (Punto 5)**
-   - Illustrare il mascheramento del rumore sensoriale a `NaN` per non confondere artefatti e patologie; mostrare la persistenza sicura (insert prima di delete).
-5. **Slide 5: Rigore Scientifico e Benchmark (Punti 6 e 7)**
-   - Mostrare l'unificazione del modello Isolation Forest e il confronto reale di compressione (Storage dati vs Indici).
-6. **Slide 6: Robustezza del Software & Testing (Punti 8, 9 e 10)**
-   - Evidenziare la suite di 35 unit test e i meccanismi di protezione dei dati operativi.
+#### Problema Riscontrato
+Modificando `MAX_CASES` tra un'esecuzione e l'altra o interrompendo la catena prima degli script finali, si potevano avere `download_manifest.json` e `quality_report.json` calcolati su 1.000 casi mentre `benchmark_report.json` e `ml_evaluation.json` restavano fermi a un run precedente su 50 casi.
+
+#### Soluzione Tecnica
+1. Impostato in `src/config.py` il valore standard `MAX_CASES = int(os.getenv("MAX_CASES", "50"))`, ideale per eseguire l'intera catena (incluso il training PyTorch LSTM Autoencoder) in tempi rapidi e coerente con la relazione tecnica.
+2. In `src/silver/clean.py`, `process_all_cases()` seleziona esclusivamente i casi appartenenti al manifest attivo (o i primi `MAX_CASES`) e rimuove automaticamente eventuali file Parquet Silver residui di run precedenti con perimetro più ampio.
+3. In `src/gold/load_mongo.py`, `recover_incomplete_loads()` rimuove da `vital_signals`, `registry` e `anomalies_detected` eventuali casi fuori dal perimetro Silver attivo.
+4. In `src/analysis/benchmark_etl.py`, il calcolo di spazio e null rate confronta i file Bronze e Silver filtrati esattamente sugli stessi `case_id` `committed` presenti in MongoDB Gold.
+
+---
+
+### PUNTO 12: OMOGENEITÀ MATEMATICA DEI CONTEGGI DQ SILVER E NON-PROPAGAZIONE DEGLI OUTLIER
+* **File Modificati:** `src/silver/clean.py`, `tests/test_etl.py`
+
+#### Problema Riscontrato
+1. Nel report Silver, `observed` veniva contato sul DataFrame Bronze grezzo (prima dello scarto delle righe vuote), mentre `missing` e `coverage_pct` avevano come denominatore `rows_cleaned` (dopo lo scarto).
+2. Per le pressioni NIBP (`SBP`, `DBP`, `MBP`), gli imputati venivano stimati indirettamente tramite `nibp_age_s > 0` (calcolato solo su `SBP`), portando in alcuni casi la somma $\text{observed} + \text{imputed} + \text{missing}$ a superare `rows_cleaned`.
+3. I flag outlier venivano calcolati *dopo* il forward-fill (`ffill(limit=300)`): una singola lettura errata del bracciale veniva così copiata per 300 secondi e contata come 301 outlier consecutivi.
+
+#### Soluzione Tecnica
+1. **Outlier calcolati PRIMA dell'imputazione:** I flag `HR_outlier`, `SPO2_outlier`, `SBP_outlier`, `DBP_outlier`, `MBP_outlier` vengono valutati sui dati grezzi osservati prima di eseguire `interpolate_short_gaps` e `ffill(limit=300)`. Durante l'interpolazione e il forward-fill, i valori outlier vengono temporaneamente mascherati così da **non essere mai propagati** nelle righe successive, pur restando conservati nella riga originale in cui si sono verificati.
+2. **Flag di imputazione espliciti per ogni traccia NIBP:** Create le colonne booleane dedicate `SBP_imputed`, `DBP_imputed` e `MBP_imputed` (oltre a `HR_imputed` e `SPO2_imputed`), che confluiscono automaticamente anche in `quality_flags` su MongoDB Gold.
+3. **Denominatore unico e partizione esatta:** Tutti i conteggi di `sensor_metrics` sono calcolati sul DataFrame bonificato finale (`rows_cleaned`), garantendo per ogni sensore l'identità matematica:
+   $$\text{observed} + \text{imputed} + \text{missing} \equiv \text{rows\_cleaned}$$
+   Sono inoltre riportate tre percentuali distinte: `observed_pct` (sole misure native), `coverage_pct` (copertura post-imputazione su righe attive Silver) e `temporal_coverage_bronze_pct` (copertura rispetto alla durata grezza Bronze).
+
+---
+
+### PUNTO 13: USO DELLA FRESCHEZZA NIBP (`nibp_age_s`) NELLE REGOLE CLINICHE DI DETECTION
+* **File Modificati:** `src/config.py`, `src/detection/detector.py`, `tests/test_detection.py`
+
+#### Problema Riscontrato
+Le pressioni propagate in avanti per LOCF fino a 300 secondi restavano attive per l'intero intervallo senza che le regole cliniche (`compute_shock_index` e `compute_severe_hypotension`) verificassero quanto fosse recente la misura pressoria. Un singolo valore basso poteva così generare allarmi clinici continui per 5 minuti.
+
+#### Soluzione Tecnica
+Introdotta in `src/config.py` la soglia `NIBP_MAX_CLINICAL_AGE_S = 120.0` (2 minuti). In `compute_shock_index()` e `compute_severe_hypotension()`, quando la colonna `nibp_age_s` è presente nel DataFrame, l'anomalia clinica viene attivata solo se la misura pressoria è fresca (`nibp_age_s <= 120.0`), evitando che valori LOCF obsoleti producano falsi positivi prolungati.
+
+---
+
+### PUNTO 14: FILTRO `status: "committed"` COERENTE SU TUTTI I LETTORI GOLD
+* **File Modificati:** `src/analysis/queries.py`, `src/detection/detector.py`, `src/analysis/evaluate_models.py`, `src/analysis/benchmark_etl.py`
+
+#### Problema Riscontrato
+Mentre l'API passava da `list_loaded_cases()` (che accettava anche record privi del campo `status`), gli script `detector.py`, `evaluate_models.py` e `benchmark_etl.py` interrogavano direttamente `db['registry'].find({})` senza filtrare lo stato di commit.
+
+#### Soluzione Tecnica
+1. Reso rigoroso il filtro `{"status": "committed"}` in `list_loaded_cases()`.
+2. Applicato il filtro `{"status": "committed"}` anche in `detector.py`, `evaluate_models.py` e `benchmark_etl.py`, garantendo che nessun componente analitico o di machine learning legga mai casi parziali.
+
+---
+
+### PUNTO 15: PROVENANCE END-TO-END CON `run_id` E `pipeline_version` CONDIVISI
+* **File Modificati:** `src/config.py`, `src/bronze/download.py`, `src/silver/clean.py`, `src/gold/load_mongo.py`, `src/analysis/evaluate_models.py`, `src/analysis/benchmark_etl.py`
+
+#### Soluzione Tecnica
+Quando inizia l'ingestione Bronze (`download.py`), viene generato un nuovo `run_id` tramite `config.get_or_create_run_id(force_new=True)`. Tutti gli step successivi (`clean.py`, `load_mongo.py`, `evaluate_models.py`, `benchmark_etl.py`) leggono il medesimo `run_id` e lo scrivono, insieme a `pipeline_version: "1.1.0"`, dentro:
+- `data/download_manifest.json`
+- `data/quality_report.json`
+- Collezione MongoDB `registry`
+- `data/ml_evaluation.json`
+- `data/benchmark_report.json`
+
+In questo modo è verificabile istantaneamente che tutti i report e i documenti Gold appartengano alla stessa identica esecuzione.
+
+---
+
+### PUNTO 16: ALLINEAMENTO ETICHETTE E METRICHE NELLA DASHBOARD WEB
+* **File Modificati:** `dashboard/partials/lakehouse-view.html`, `dashboard/js/lakehouse.js`
+
+#### Problema Riscontrato
+Nella vista Lakehouse della dashboard, il codice JavaScript inseriva nella prima colonna della tabella ML il valore `PR-AUC 0.xxx`, ma l'intestazione HTML della colonna riportava ancora la scritta statica *"Accuratezza Globale"* e il titolo riportava conteggi fissi cablati nell'HTML. Inoltre non era esplicitato visivamente se il peso del layer Gold includesse o meno gli indici.
+
+#### Soluzione Tecnica
+1. Sostituita l'intestazione della tabella HTML con `PR-AUC (Average Precision)`.
+2. Resi dinamici in `lakehouse.js` il titolo e il sottotitolo della sezione ML (`#mlEvalTitle`, `#mlEvalSubtitle`), che ora mostrano il numero reale di casi, campioni e prevalenza della baseline letti da `/evaluation`, specificando chiaramente la natura di **Concordanza con Pseudo-Ground Truth Euristico**.
+3. Esplicitato nella card dello Storage che la barra del Layer Gold rappresenta lo **Storage Puro Time Series (`storageSize`)**, aggiungendo una riga informativa dinamica (`#benchGoldIndexInfo`) che riporta separatamente il peso degli indici B-Tree (`gold_index_mb`), il totale `collStats` e la riduzione percentuale rispetto al layer Silver.

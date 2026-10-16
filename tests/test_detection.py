@@ -168,3 +168,21 @@ def test_load_from_gold_masks_outliers():
     assert df[HR_KEY].iloc[1] == 75.0
 
 
+def test_clinical_rules_respect_nibp_freshness():
+    """Verifica che Shock Index e Ipotensione Severa non attivino falsi allarmi su pressioni LOCF obsolete."""
+    df = pd.DataFrame({
+        "Solar8000_HR": [110.0, 110.0],
+        "Solar8000_NIBP_SBP": [100.0, 100.0],  # SI = 1.1 > 0.9
+        "Solar8000_NIBP_MBP": [55.0, 55.0],    # < 65 mmHg
+        "Solar8000_PLETH_SPO2": [85.0, 85.0],  # < 90%
+        "nibp_age_s": [10.0, 240.0],           # t=0 misura fresca (10s), t=1 misura obsoleta (240s > 120s)
+    })
+
+    res = apply_clinical_rules(df)
+    assert res["shock_index_anomaly"].iloc[0] == True
+    assert res["shock_index_anomaly"].iloc[1] == False
+    assert res["severe_hypotension_anomaly"].iloc[0] == True
+    assert res["severe_hypotension_anomaly"].iloc[1] == False
+
+
+

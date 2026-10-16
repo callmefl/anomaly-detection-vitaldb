@@ -44,7 +44,8 @@ def find_available_cases(tracks):
 def download_case(case_id, tracks, interval, output_dir):
     """Scarica il tracciato biometrico temporale di un singolo caso e lo salva in formato Parquet grezzo.
     
-    Se il file esiste già ed ha dimensione maggiore di 0 byte, il download viene saltato.
+    Se il file esiste già, verifica che contenga tutte le tracce richieste e che la frequenza
+    di campionamento corrisponda a `interval` prima di saltare il download.
 
     Args:
         case_id (int): Identificativo univoco del caso clinico.
@@ -57,12 +58,23 @@ def download_case(case_id, tracks, interval, output_dir):
     """
     output_file = output_dir / f"case_{case_id}.parquet"
     if output_file.exists() and output_file.stat().st_size > 0:
-        return {
-            "case_id": case_id,
-            "status": "skipped_existing",
-            "file": str(output_file.name),
-            "size_bytes": output_file.stat().st_size
-        }
+        try:
+            df_existing = pd.read_parquet(output_file)
+            has_tracks = all(t in df_existing.columns for t in tracks) and "Time" in df_existing.columns
+            interval_ok = True
+            if "Time" in df_existing.columns and len(df_existing) >= 2:
+                dt = float(df_existing["Time"].iloc[1] - df_existing["Time"].iloc[0])
+                interval_ok = abs(dt - float(interval)) < 1e-4
+            if has_tracks and interval_ok:
+                return {
+                    "case_id": case_id,
+                    "status": "skipped_existing",
+                    "records": len(df_existing),
+                    "file": str(output_file.name),
+                    "size_bytes": output_file.stat().st_size
+                }
+        except Exception:
+            pass  # Se il file esistente è illeggibile o incompatibile, procedi al ri-download
 
     try:
         data = vitaldb.load_case(case_id, tracks, interval)
@@ -163,9 +175,12 @@ if __name__ == '__main__':
     print("=== INIZIO FASE DI INGESTIONE BRONZE ===")
     config.BRONZE_DIR.mkdir(parents=True, exist_ok=True)
     manifest_path = config.DATA_DIR / "download_manifest.json"
+    run_id = config.get_or_create_run_id(force_new=True)
 
     manifest = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "run_id": run_id,
+        "pipeline_version": getattr(config, "PIPELINE_VERSION", "1.1.0"),
         "max_cases_configured": config.MAX_CASES,
         "sampling_interval": config.SAMPLING_INTERVAL,
         "tracks": config.VITAL_TRACKS,
@@ -202,7 +217,7 @@ if __name__ == '__main__':
         manifest["success"] = True
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
-        print(f"✓ Manifest di download salvato in: {manifest_path}")
+        print(f"✓ Manifest di download salvato in: {manifest_path} (run_id: {run_id})")
         print("=== INGESTIONE BRONZE COMPLETATA CON SUCCESSO ===")
 
     except Exception as e:
@@ -212,3 +227,4 @@ if __name__ == '__main__':
             json.dump(manifest, f, indent=2)
         print(f"❌ Errore irreversibile durante l'ingestione Bronze: {e}")
         sys.exit(1)
+
