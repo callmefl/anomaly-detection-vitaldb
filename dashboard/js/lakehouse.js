@@ -19,7 +19,7 @@ const lakehouseView = {
    */
   async renderArchitectureFlow() {
     // Legge il conteggio reale dei punti dal backend (health check)
-    let totalPoints = 311173; // fallback se API non raggiungibile
+    let totalPoints = 5402386; // fallback 500 casi se API non raggiungibile
     try {
       const health = await api.checkHealth();
       if (health && health.total_points) totalPoints = health.total_points;
@@ -37,9 +37,9 @@ const lakehouseView = {
         </div>
         <div class="node-title">Dati Biometrici Grezzi</div>
         <ul class="node-feature-list">
-          <li>${getIcon('check')} Download da API VitalDB (${totalPoints.toLocaleString()} record)</li>
+          <li>${getIcon('check')} Download da API VitalDB (${totalPoints.toLocaleString()} record Gold)</li>
           <li>${getIcon('check')} Tracce Solar8000 (HR, SpO₂, NIBP)</li>
-          <li>${getIcon('check')} Formato Parquet non compresso (3.88 MB)</li>
+          <li>${getIcon('check')} Formato Parquet grezzo (<span id="nodeBronzeMB">33.95 MB</span>)</li>
           <li>${getIcon('check')} Dati clinici e di laboratorio grezzi</li>
         </ul>
       </div>
@@ -54,7 +54,7 @@ const lakehouseView = {
         <ul class="node-feature-list">
           <li>${getIcon('check')} Bonifica righe vuote e rumore di fondo</li>
           <li>${getIcon('check')} Forward-fill LOCF + Interpolazione lineare</li>
-          <li>${getIcon('check')} Flag outlier fisiologici (HR, SpO₂, NIBP)</li>
+          <li>${getIcon('check')} Flag outlier e imputazione per traccia (+12 col.)</li>
           <li>${getIcon('check')} Partizionamento per reparto: <code>department=&lt;REPARTO&gt;</code></li>
         </ul>
       </div>
@@ -68,8 +68,8 @@ const lakehouseView = {
         <div class="node-title">Time Series & Governance</div>
         <ul class="node-feature-list">
           <li>${getIcon('check')} MongoDB Time Series Collections (Bucketing 1s)</li>
-          <li>${getIcon('check')} Metastore artigianale in collection <code>registry</code></li>
-          <li>${getIcon('check')} Compensazione manuale Silver→Gold (insert + registry)</li>
+          <li>${getIcon('check')} Metastore in collection <code>registry</code> (committed)</li>
+          <li>${getIcon('check')} Caricamento a 2 fasi (<code>loading</code> → <code>committed</code>)</li>
           <li>${getIcon('check')} JSON Schema validation & metaField strutturato</li>
         </ul>
       </div>
@@ -82,31 +82,41 @@ const lakehouseView = {
   async loadBenchmarkData() {
     const data = await api.getBenchmark();
     
-    // Valori effettivi misurati dalla pipeline
-    const bronzeMB = data ? data.storage.bronze_mb : 3.88;
-    const silverMB = data ? data.storage.silver_mb : 2.24;
-    const goldMB = data ? data.storage.gold_mb : 0.42;
+    // Valori effettivi misurati dalla pipeline (fallback sui 500 casi)
+    const bronzeMB = data ? data.storage.bronze_mb : 33.95;
+    const silverMB = data ? data.storage.silver_mb : 44.52;
+    const goldMB = data ? data.storage.gold_mb : 15.60;
 
-    const parquetLatency = data ? data.query_latency.single_case_parquet_ms : 13.48;
-    const mongoLatency = data ? data.query_latency.single_case_mongo_ms : 3.63;
-    const speedup = data ? data.query_latency.speedup_factor : 3.7;
+    const parquetLatency = data ? data.query_latency.single_case_parquet_ms : 26.95;
+    const mongoLatency = data ? data.query_latency.single_case_mongo_ms : 12.02;
+    const speedup = data ? data.query_latency.speedup_factor : 2.2;
+
+    const elNodeBronzeMB = document.getElementById('nodeBronzeMB');
+    if (elNodeBronzeMB) elNodeBronzeMB.textContent = `${bronzeMB.toFixed(2)} MB`;
 
     // Aggiornamento Storage Bars
     const elBronzeMB = document.getElementById('benchBronzeMB');
     const elSilverMB = document.getElementById('benchSilverMB');
     const elGoldMB = document.getElementById('benchGoldMB');
-    const elGoldRed = document.getElementById('benchGoldReduction');
 
     const fillBronze = document.getElementById('fillBronzeStorage');
     const fillSilver = document.getElementById('fillSilverStorage');
     const fillGold = document.getElementById('fillGoldStorage');
 
-    const silverPct = data ? data.storage.reduction_silver_pct : ((1 - silverMB / bronzeMB) * 100).toFixed(1);
-    const goldPct   = data ? data.storage.reduction_gold_pct   : ((1 - goldMB   / bronzeMB) * 100).toFixed(1);
+    const silverPct = Number(data ? data.storage.reduction_silver_pct : ((1 - silverMB / bronzeMB) * 100));
+    const goldPct   = Number(data ? data.storage.reduction_gold_pct   : ((1 - goldMB   / bronzeMB) * 100));
+
+    // Se reduction_silver_pct < 0 significa che Silver è cresciuto per l'aggiunta dei flag di governance
+    const silverDeltaStr = silverPct >= 0
+      ? `-${silverPct.toFixed(1)}%`
+      : `+${Math.abs(silverPct).toFixed(1)}% con flag DQ`;
+    const goldDeltaStr = goldPct >= 0
+      ? `-${goldPct.toFixed(1)}%`
+      : `+${Math.abs(goldPct).toFixed(1)}%`;
 
     if (elBronzeMB) elBronzeMB.textContent = `${bronzeMB.toFixed(2)} MB`;
-    if (elSilverMB) elSilverMB.textContent = `${silverMB.toFixed(2)} MB (-${Number(silverPct).toFixed(1)}%)`;
-    if (elGoldMB) elGoldMB.textContent = `${goldMB.toFixed(2)} MB (-${Number(goldPct).toFixed(1)}%)`;
+    if (elSilverMB) elSilverMB.textContent = `${silverMB.toFixed(2)} MB (${silverDeltaStr})`;
+    if (elGoldMB) elGoldMB.textContent = `${goldMB.toFixed(2)} MB (${goldDeltaStr})`;
 
     const elGoldIndexInfo = document.getElementById('benchGoldIndexInfo');
     if (elGoldIndexInfo && data && data.storage) {
@@ -116,9 +126,10 @@ const lakehouseView = {
       elGoldIndexInfo.textContent = `Storage puro: ${goldMB.toFixed(2)} MB + Indici B-Tree: ${idxMB} MB (Totale collStats: ${totMB} MB${vsSilver})`;
     }
 
-    if (fillBronze) fillBronze.style.width = '100%';
-    if (fillSilver) fillSilver.style.width = `${(silverMB / bronzeMB * 100).toFixed(1)}%`;
-    if (fillGold) fillGold.style.width = `${(goldMB / bronzeMB * 100).toFixed(1)}%`;
+    const maxStorageMB = Math.max(bronzeMB, silverMB, goldMB, 1);
+    if (fillBronze) fillBronze.style.width = `${Math.min(100, (bronzeMB / maxStorageMB) * 100).toFixed(1)}%`;
+    if (fillSilver) fillSilver.style.width = `${Math.min(100, (silverMB / maxStorageMB) * 100).toFixed(1)}%`;
+    if (fillGold) fillGold.style.width = `${Math.min(100, (goldMB / maxStorageMB) * 100).toFixed(1)}%`;
 
     // Aggiornamento Latenza Query
     const elParquetLat = document.getElementById('benchParquetLatency');
@@ -129,11 +140,12 @@ const lakehouseView = {
     const fillMongo = document.getElementById('fillMongoLatency');
 
     if (elParquetLat) elParquetLat.textContent = `${parquetLatency.toFixed(2)} ms`;
-    if (elMongoLat) elMongoLat.textContent = `${mongoLatency.toFixed(2)} ms`;
+    if (elMongoLat) elMongoLat.textContent = `${mongoLatency.toFixed(2)} ms (${speedup.toFixed(1)}x più veloce)`;
     if (elSpeedup) elSpeedup.textContent = `${speedup.toFixed(1)}x`;
 
-    if (fillParquet) fillParquet.style.width = '100%';
-    if (fillMongo) fillMongo.style.width = `${(mongoLatency / parquetLatency * 100).toFixed(1)}%`;
+    const maxLat = Math.max(parquetLatency, mongoLatency, 1);
+    if (fillParquet) fillParquet.style.width = `${Math.min(100, (parquetLatency / maxLat) * 100).toFixed(1)}%`;
+    if (fillMongo) fillMongo.style.width = `${Math.min(100, (mongoLatency / maxLat) * 100).toFixed(1)}%`;
   },
 
   /**

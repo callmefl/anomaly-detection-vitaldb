@@ -106,9 +106,9 @@ TRACK_SPECS = {
 VITAL_TRACKS = list(TRACK_SPECS.keys())
 
 # === Parametri pipeline ===
-SAMPLING_INTERVAL = 1.0          # Intervallo di campionamento in secondi (1 Hz)
-MAX_CASES = int(os.getenv("MAX_CASES", "50"))  # Perimetro standard per la sperimentazione (default: 50 casi)
-NIBP_MAX_CLINICAL_AGE_S = 120.0  # Età massima (s) di una misura NIBP per attivare regole cliniche acute
+SAMPLING_INTERVAL = 1.0           # Intervallo di campionamento in secondi (1 Hz)
+MAX_CASES = int(os.getenv("MAX_CASES", "500"))  # Perimetro standard per la sperimentazione (default: 500 casi)
+NIBP_MAX_CLINICAL_AGE_S = 120.0   # Età massima (s) di una misura NIBP per attivare regole cliniche acute
 
 # Crea le directory dati se non esistono
 for d in [BRONZE_DIR, SILVER_DIR, RAW_DIR]:

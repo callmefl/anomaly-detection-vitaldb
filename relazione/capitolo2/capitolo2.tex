@@ -33,26 +33,35 @@ L'ingestione seleziona in modo automatico i casi clinici tramite la funzione \te
 
 I tracciati acquisiti vengono persistiti in locale nella cartella \texttt{data/bronze/} all'interno di file conformi allo standard Apache Parquet, con convenzione di denominazione \texttt{case\_<ID>.parquet}. La scelta del formato Parquet per lo strato grezzo rispetto al testo semplice CSV è motivata dalla natura colonnare e compressa del formato, che riduce in misura rilevante lo spazio occupato su disco e memorizza in modo nativo i tipi di dato numerici a virgola mobile a 64 bit, scongiurando qualsiasi perdita di precisione numerica o ambiguità di codifica.
 
-Contestualmente all'acquisizione dei segnali temporali, la procedura estrae le informazioni cliniche e perioperatorie mediante la funzione \texttt{load\_clinical\_data} resa disponibile dalla libreria di VitalDB, salvandole nel file ausiliario \texttt{data/bronze/clinical\_data.parquet}. Questo file raccoglie attributi fondamentali quali l'età del paziente, il sesso, l'indice di massa corporea e il reparto chirurgico di ricovero.
+Contestualmente all'acquisizione dei segnali temporali, la procedura estrae le informazioni cliniche e perioperatorie salvandole nel file ausiliario \texttt{data/bronze/clinical\_data.parquet}, che raccoglie attributi fondamentali quali l'età del paziente, il sesso, l'indice di massa corporea e il reparto chirurgico di ricovero. Poiché l'implementazione predefinita della funzione \texttt{vitaldb.load\_clinical\_data()} nella libreria Python ufficiale presenta un noto difetto che restituisce una tabella vuota se invocata senza argomenti espliciti, il modulo \texttt{download.py} interroga in via prioritaria l'endpoint REST ufficiale (\texttt{https://api.vitaldb.net/cases}), mantenendo l'SDK parametrizzato come meccanismo di fallback. Qualora entrambe le modalità dovessero fallire o restituire zero record, la pipeline applica una politica \textbf{fail-fast} interrompendo immediatamente l'esecuzione con codice di uscita non nullo (\texttt{sys.exit(1)}): questo blocco preventivo è motivato dal fatto che un'ingestione priva della mappatura dei reparti chirurgici degraderebbe silenziosamente l'intero partizionamento del successivo livello \textbf{Silver}, riversando tutti i pazienti nella partizione residuale \texttt{department=UNKNOWN}. A completamento del contesto clinico, la funzione \texttt{download\_lab\_data} scarica e filtra sui soli \texttt{case\_id} della coorte anche i referti ematochimici perioperatori, persistendoli in \texttt{data/bronze/lab\_data.parquet}.
 
-In conformità con i principi di \textbf{data governance}, il livello \textbf{Bronze} adotta una politica di immutabilità rigorosa: i file vengono memorizzati esattamente nello stato in cui sono stati emessi dalla sorgente remota. Non viene applicata alcuna rimozione di valori nulli, né viene effettuata alcuna correzione di scala o troncamento temporale. Inoltre, per gestire con robustezza eventuali interruzioni di connettività durante il download su larga scala, la procedura aggiorna dinamicamente un file di registro \texttt{download\_manifest.json}, consentendo alla pipeline di riprendere l'esecuzione dal punto esatto in cui era stata sospesa senza duplicare i trasferimenti di rete.
+In conformità con i principi di \textbf{data governance}, il livello \textbf{Bronze} adotta una politica di immutabilità rigorosa: i file vengono memorizzati esattamente nello stato in cui sono stati emessi dalla sorgente remota, senza alcuna rimozione di valori nulli o alterazione temporale. Per garantire una tracciabilità formale (\textbf{data lineage}) lungo l'intera catena, l'avvio dello script \texttt{download.py} genera un identificativo univoco di esecuzione (\texttt{run\_id}, persistito in \texttt{data/.current\_run\_id} tramite \texttt{config.get\_or\_create\_run\_id}) che viene inciso, insieme alla versione della pipeline (\texttt{pipeline\_version = "1.1.0"}), all'interno del registro strutturato \texttt{download\_manifest.json}. Tale manifest censisce per ogni singolo caso l'esito puntuale (\texttt{downloaded}, \texttt{skipped\_existing} o \texttt{failed}), il numero di campioni e il peso in byte. Inoltre, prima di saltare il download di un file Parquet già presente su disco (\texttt{skipped\_existing}), la funzione \texttt{download\_case} ispeziona la struttura del file per verificare che contenga effettivamente tutte le cinque tracce richieste più la colonna \texttt{Time} e che il passo di campionamento coincida con \texttt{SAMPLING\_INTERVAL} ($1.0\text{ s}$): questa verifica impedisce che file residui generati da esecuzioni precedenti con configurazioni o frequenze differenti inquinino silenziosamente la corsa corrente.
 
 \section{Layer Silver per la bonifica e il partizionamento dei dati}
-I dati clinici immagazzinati nel livello \textbf{Bronze} non possono essere impiegati direttamente per l'addestramento di modelli predittivi o per il monitoraggio in tempo reale a causa della notevole quantità di rumore, discontinuità e valori nulli. Il livello \textbf{Silver}, orchestrato dallo script \texttt{src/silver/clean.py}, si fa carico della bonifica del dato, della gestione dei valori mancanti, dell'etichettatura degli outlier fisiologici e della riorganizzazione fisica dei file su file system.
+I dati clinici immagazzinati nel livello \textbf{Bronze} non possono essere impiegati direttamente per l'addestramento di modelli predittivi o per il monitoraggio in tempo reale a causa della notevole quantità di rumore, discontinuità e valori nulli. Il livello \textbf{Silver}, orchestrato dallo script \texttt{src/silver/clean.py}, si fa carico della bonifica del dato, della gestione dei valori mancanti, dell'etichettatura degli outlier fisiologici, del tracciamento esplicito delle imputazioni per singolo canale e della riorganizzazione fisica dei file su file system. Prima di avviare l'elaborazione, la funzione \texttt{process\_all\_cases} riallinea automaticamente il perimetro dei casi rispetto al \texttt{download\_manifest.json} attivo (o al limite configurato \texttt{MAX\_CASES = 500}), rimuovendo eventuali file Parquet \textbf{Silver} orfani di esecuzioni precedenti con perimetro differente, così da garantire che tutti i layer descrivano esattamente la medesima coorte.
 
-Il primo passo del processo consiste nell'eliminazione selettiva delle righe totalmente vuote. In molte fasi dell'intervento, ad esempio prima dell'ingresso effettivo del paziente in sala operatoria o dopo il distacco dei monitor, la registrazione produce timestamp privi di qualsiasi misurazione su tutte e cinque le tracce contemporaneamente. Queste righe non apportano alcun contenuto informativo e vengono rimosse per non appesantire inutilmente le strutture dati successive.
+Un requisito metodologico fondamentale nella pulizia di serie temporali a $1\text{ Hz}$ consiste nel preservare l'integrità della griglia temporale durante le operazioni di interpolazione. Se si eliminassero in apertura le righe completamente vuote (\texttt{dropna(how='all')}), due campioni originariamente separati da un'interruzione di molti minuti diverrebbero artificialmente adiacenti nell'indice del DataFrame, falsando il significato fisico delle finestre temporali espresse in numero di campioni. Per questa ragione, nel modulo \texttt{clean.py} la griglia temporale a $1\text{ Hz}$ viene mantenuta intatta durante tutte le fasi di controllo e imputazione, posticipando lo scarto delle righe prive di qualsiasi misurazione su tutte e cinque le tracce (5.565.384 campioni grezzi ridotti a 5.402.386 secondi attivi, con 162.998 righe vuote rimosse ai margini dell'intervento) esclusivamente al termine del flusso di pulizia.
 
-Successivamente, il modulo applica una strategia differenziata di imputazione per gestire la disomogeneità fisiologica delle sorgenti sensoristiche:
-per i segnali fisiologici continui, segnatamente la frequenza cardiaca (\texttt{Solar8000/HR}) e la saturazione periferica (\texttt{Solar8000/PLETH\_SPO2}), le brevi perdite di segnale causate da artefatti di movimento vengono sanate mediante interpolazione lineare:
+La prima trasformazione eseguita sulla griglia integra consiste nell'identificazione degli outlier fisiologici \textbf{prima} di qualsiasi operazione di interpolazione o trascinamento in avanti. Per eliminare il rischio di divergenze tra i moduli Python di pulizia e gli schemi di catalogo del database, i limiti fisiologici di plausibilità sono stati centralizzati in un'unica fonte di verità (\textbf{Single Source of Truth}), rappresentata dal dizionario \texttt{TRACK\_SPECS} nel modulo \texttt{src/config.py}:
+frequenza cardiaca considerata valida tra $20$ e $250$ bpm;
+saturazione periferica considerata valida tra il $50\%$ e il $100\%$;
+pressione sistolica considerata valida tra $40$ e $250$ mmHg;
+pressione diastolica considerata valida tra $10$ e $180$ mmHg (uniformando il limite superiore tra codice di pulizia e catalogo metadati);
+pressione media considerata valida tra $20$ e $220$ mmHg.
+
+I valori osservati che cadono al di fuori di questi intervalli non vengono cancellati distruttivamente dalla riga originale, bensì etichettati tramite cinque flag booleani dedicati (\texttt{HR\_outlier}, \texttt{SPO2\_outlier}, \texttt{SBP\_outlier}, \texttt{DBP\_outlier}, \texttt{MBP\_outlier}). Calcolare questi flag sui dati grezzi prima dell'imputazione — e mascherare temporaneamente gli outlier durante il calcolo dell'interpolazione e del forward-fill — risponde a una precisa motivazione clinica e statistica: se gli outlier venissero valutati dopo il trascinamento LOCF, una singola lettura pressoria aberrante causata dalla compressione accidentale del bracciale da parte del chirurgo verrebbe propagata in avanti per i successivi 300 secondi, trasformando un artefatto puntuale di un secondo in 301 secondi consecutivi di falsi outlier e corrompendo le statistiche di qualità.
+
+Successivamente, il modulo applica una strategia differenziata di imputazione (con tracciamento esplicito tramite flag booleani \texttt{*\_imputed} per ciascuno dei cinque canali) per gestire la disomogeneità fisiologica delle sorgenti sensoristiche:
+per i segnali fisiologici continui, segnatamente la frequenza cardiaca (\texttt{Solar8000/HR}) e la saturazione periferica (\texttt{Solar8000/PLETH\_SPO2}), le brevi perdite di segnale causate da artefatti di movimento vengono sanate mediante la funzione dedicata \texttt{interpolate\_short\_gaps(series, max\_gap=5)}:
 $$y(t) = y(t_0) + \frac{y(t_1) - y(t_0)}{t_1 - t_0} (t - t_0)$$
-Per evitare di fabbricare andamenti biologici fittizi durante interruzioni prolungate del monitoraggio (quali il temporaneo distacco degli elettrodi o le interferenze da elettrobisturi), l'interpolazione viene rigorosamente circoscritta a intervalli di ampiezza non superiore a cinque secondi ($t_1 - t_0 \le 5\text{ s}$). Questa scelta è motivata dalla fisiologia cardiovascolare: su scale temporali inferiori a cinque secondi la variazione di frequenza cardiaca è dominata da inerzia baroriflessa, rendendo l'ipotesi di linearità statisticamente plausibile;
-per i segnali pressori non invasivi (\texttt{NIBP\_SBP}, \texttt{NIBP\_DBP}, \texttt{NIBP\_MBP}), la misurazione è intrinsecamente intermittente, avvenendo a intervalli discreti compresi tipicamente tra due e cinque minuti mediante il ciclo oscillometrico del bracciale. In questo scenario, l'interpolazione lineare risulterebbe priva di fondamento clinico, poiché creerebbe una fittizia transizione continua tra stati distanti nel tempo. Viene pertanto adottata la tecnica \textbf{Last Observation Carried Forward} (LOCF), propagando l'ultimo valore valido:
+A differenza del metodo standard \texttt{.interpolate(limit=5)} della libreria \texttt{pandas} — che riempie indiscriminatamente i primi cinque campioni anche all'inizio di un'interruzione strumentale lunga diversi minuti, generando "code" sintetiche prive di significato biologico — la funzione \texttt{interpolate\_short\_gaps} calcola preliminarmente l'ampiezza complessiva di ciascun blocco contiguo di valori mancanti e applica l'interpolazione lineare \textbf{esclusivamente} ai buchi interni di durata totale $\le 5\text{ s}$ compresi tra due misure valide. Le interruzioni di durata superiore a cinque secondi e i valori mancanti periferici vengono lasciati intatti a \texttt{NaN}, mentre i punti effettivamente ricostruiti vengono marcati nei flag booleani \texttt{HR\_imputed} e \texttt{SPO2\_imputed};
+per i segnali pressori non invasivi (\texttt{NIBP\_SBP}, \texttt{NIBP\_DBP}, \texttt{NIBP\_MBP}), la misurazione è intrinsecamente intermittente, avvenendo a intervalli discreti compresi tipicamente tra due e cinque minuti mediante il ciclo oscillometrico del bracciale. In questo scenario viene adottata la tecnica \textbf{Last Observation Carried Forward} (LOCF), propagando l'ultimo valore valido non-outlier:
 $$y(t) = y(t_{\text{last}}) \quad \forall t \in [t_{\text{last}}, t_{\text{last}} + 300\text{ s}]$$
-La propagazione è limitata a una finestra massima di 300 secondi (cinque minuti), oltre la quale la misura cessa di essere considerata clinicamente attendibile e viene lasciata indefinita.
+La propagazione è limitata a una finestra massima di 300 secondi (cinque minuti) e viene tracciata individualmente per ciascuna componente pressoria tramite le colonne booleane \texttt{SBP\_imputed}, \texttt{DBP\_imputed} e \texttt{MBP\_imputed}. Tracciare separatamente le tre componenti (anziché dedurre il numero di imputazioni indirettamente dalla sola età del bracciale) garantisce conteggi di qualità esatti anche nei rari istanti in cui il monitor restituisce una lettura parziale.
 
-A supporto della trasparenza analitica e dell'auditing clinico, il modulo calcola contestualmente la variabile temporale \texttt{nibp\_age\_s}:
+A supporto della trasparenza analitica, dell'auditing clinico e del filtraggio a valle nelle regole diagnostiche, il modulo calcola contestualmente la variabile temporale \texttt{nibp\_age\_s}:
 $$\texttt{nibp\_age\_s} = t - t_{\text{last\_cuff}}$$
-Tale grandezza quantifica in ogni secondo l'età della misurazione pressoria corrente. Questo metadato si rivela determinante per il processo decisionale: qualora un algoritmo segnali un'ipotensione in presenza di un valore elevato di \texttt{nibp\_age\_s} (ad esempio superiore a 240 secondi), l'anestesista è tempestivamente informato che il dato riflette una misurazione remota e può disporre un gonfiaggio manuale del bracciale prima di intraprendere terapie farmacologiche aggressive.
+Tale grandezza quantifica in ogni secondo l'età dell'ultima misurazione pressoria valida registrata su almeno un canale del bracciale. Questo metadato si rivela determinante sia per il clinico sia per il motore di \textbf{anomaly detection}: come vedremo nel Capitolo 4, le regole cliniche interrogano direttamente \texttt{nibp\_age\_s} per inibire l'emissione di allarmi emodinamici qualora la pressione propagata per LOCF abbia superato la soglia di freschezza clinica di 120 secondi.
 
 \begin{figure}[ht]
     \centering
@@ -61,44 +70,37 @@ Tale grandezza quantifica in ogni secondo l'età della misurazione pressoria cor
     \label{fig:before_after}
 \end{figure}
 
-La Figura~\ref{fig:before_after} mette a confronto l'andamento del tracciato della frequenza cardiaca di un paziente reale prima e dopo l'intervento di bonifica. Nella parte superiore, il segnale grezzo estratto dal livello \textbf{Bronze} presenta evidenti salti e interruzioni causati da temporanee perdite di aderenza del sensore; nella parte inferiore, il segnale pulito del livello \textbf{Silver} si presenta continuo, omogeneo e pienamente utilizzabile per le analisi predittive.
-
-Accanto all'imputazione dei valori mancanti, il livello \textbf{Silver} effettua un controllo di plausibilità fisiologica identificando i valori palesemente incompatibili con la sopravvivenza umana o attribuibili a malfunzionamenti hardware:
-frequenza cardiaca considerata valida tra $20$ e $250$ bpm;
-saturazione periferica considerata valida tra il $50\%$ e il $100\%$;
-pressione sistolica considerata valida tra $40$ e $250$ mmHg;
-pressione diastolica considerata valida tra $10$ e $180$ mmHg;
-pressione media considerata valida tra $20$ e $220$ mmHg.
-
-I valori al di fuori di questi intervalli non vengono arbitrariamente cancellati, bensì etichettati tramite appositi flag booleani (\texttt{HR\_outlier}, \texttt{SPO2\_outlier}, \texttt{SBP\_outlier}, \texttt{DBP\_outlier}, \texttt{MBP\_outlier}). In tal modo la pipeline conserva l'evidenza dell'anomalia rilevata a beneficio degli stadi successivi, senza alterare distruttivamente la serie storica.
+La Figura~\ref{fig:before_after} mette a confronto l'andamento del tracciato della frequenza cardiaca di un paziente reale prima e dopo l'intervento di bonifica. Nella parte superiore, il segnale grezzo estratto dal livello \textbf{Bronze} presenta evidenti salti e interruzioni causati da temporanee perdite di aderenza del sensore; nella parte inferiore, il segnale pulito del livello \textbf{Silver} si presenta continuo nei micro-gap fisiologici ma fedele alle reali interruzioni prolungate.
 
 L'implementazione concreta di queste trasformazioni è descritta nel Listato~\ref{lst:clean_imputation}, estratto dal modulo \texttt{src/silver/clean.py}.
 
-\begin{lstlisting}[caption={Algoritmo di bonifica controllata, imputazione e tracciamento della freschezza temporale nel layer Silver.}, label={lst:clean_imputation}]
+\begin{lstlisting}[caption={Algoritmo di identificazione preventiva degli outlier, interpolazione selettiva dei gap brevi e tracciamento esplicito nel layer Silver.}, label={lst:clean_imputation}]
 // Codice estratto da src/silver/clean.py
-# 1. Filtra le righe completamente prive di segnali vitali
-df_clean = df.dropna(subset=vital_tracks, how='all').copy()
+# 1. Identifica gli outlier fisiologici SUI DATI GREZZI (da config.TRACK_SPECS) prima dell'imputazione
+for track_name, flag_col in outlier_map.items():
+    spec = config.TRACK_SPECS.get(track_name, {})
+    val = df_clean[track_name]
+    df_clean[flag_col] = val.notna() & ((val < spec["min"]) | (val > spec["max"]))
 
-# 2. Segnali continui (HR e SpO2): interpolazione lineare breve (max 5 sec)
-cont_tracks = ['Solar8000/HR', 'Solar8000/PLETH_SPO2']
-df_clean[cont_tracks] = df_clean[cont_tracks].interpolate(method='linear', limit=5)
+# 2. Segnali continui (HR e SpO2): interpola solo buchi interni <= 5s senza propagare outlier
+clean_hr, hr_imp = interpolate_short_gaps(raw_hr.mask(out_hr), max_gap=5)
+df_clean['Solar8000/HR'] = clean_hr.where(~out_hr, raw_hr)
+df_clean['HR_imputed'] = hr_imp & (~out_hr)
 
-# 3. Segnali emodinamici a intervalli (NIBP): LOCF con tetto di staleness a 300s
-nibp_tracks = ['Solar8000/NIBP_SBP', 'Solar8000/NIBP_DBP', 'Solar8000/NIBP_MBP']
-if nibp_tracks:
-    nibp_measured = df_clean[nibp_tracks[0]].notna()
-    last_measure_time = df_clean['Time'].where(nibp_measured).ffill()
-    df_clean['nibp_age_s'] = (df_clean['Time'] - last_measure_time).fillna(9999.0).astype(float)
-    df_clean[nibp_tracks] = df_clean[nibp_tracks].ffill(limit=300)
+# 3. Segnali NIBP: calcolo nibp_age_s e LOCF individuale (max 300s) senza trascinare outlier
+last_measure_time = time_series.where(any_valid_nibp).ffill()
+df_clean['nibp_age_s'] = (time_series - last_measure_time).fillna(9999.0).astype(float)
+for t, o, imp_col in present_nibp:
+    filled_col = df_clean[t].mask(df_clean[o]).ffill(limit=300)
+    df_clean[t] = filled_col.where(~df_clean[o], df_clean[t])
+    df_clean[imp_col] = was_na & df_clean[t].notna()
 
-# 4. Outlier fisiologici (etichettatura senza rimozione distruttiva)
-df_clean['HR_outlier']   = (df_clean['Solar8000/HR'] < 20) | (df_clean['Solar8000/HR'] > 250)
-df_clean['SPO2_outlier'] = (df_clean['Solar8000/PLETH_SPO2'] < 50) | (df_clean['Solar8000/PLETH_SPO2'] > 100)
-df_clean['MBP_outlier']  = (df_clean['Solar8000/NIBP_MBP'] < 20) | (df_clean['Solar8000/NIBP_MBP'] > 220)
+# 4. Scarta solo alla fine le righe in cui tutte le tracce vitali sono simultaneamente nulle
+df_clean = df_clean.dropna(subset=vital_cols, how='all').copy()
 \end{lstlisting}
 
 \begin{techbox}[brandTeal]{Sintesi di data governance nel layer Silver}
-La separazione tra dati puliti e metadati di controllo assicura che il dato fisiologico non venga corrotto: l'imputazione lineare è ristretta alla scala del baroriflesso ($\le 5\text{ s}$), il metodo LOCF è vincolato a un intervallo clinicamente credibile ($\le 300\text{ s}$) con auditing esplicito della freschezza temporale tramite $\texttt{nibp\_age\_s}$, e le anomalie numeriche vengono tracciate tramite flag booleani senza alterazione distruttiva del dato.
+L'architettura del layer Silver garantisce che nessun artefatto venga propagato o nascosto: i limiti fisiologici sono letti da un'unica fonte centralizzata (\texttt{TRACK\_SPECS}), gli outlier sono marcati prima dell'imputazione così da non essere trascinati dal forward-fill, l'interpolazione lineare è circoscritta ai soli buchi interni $\le 5\text{ s}$ (\texttt{interpolate\_short\_gaps}), e ciascuno dei 5 canali dispone di un flag booleano dedicato (\texttt{*\_imputed}) oltre al contatore di freschezza $\texttt{nibp\_age\_s}$.
 \end{techbox}
 
 Infine, i dati bonificati vengono salvati in formato Parquet all'interno di una gerarchia di directory partizionata fisicamente per reparto chirurgico di appartenenza (\texttt{department}):
@@ -108,13 +110,13 @@ Questa organizzazione ricalca il principio del \textbf{partition pruning} dei mo
 \section{Evoluzione del modello dati da tabella piatta a documento BSON}
 L'architettura della pipeline non si limita a innalzare la qualità intrinseca dei valori numerici, ma trasforma radicalmente il modello concettuale del dato nel passaggio verso il livello \textbf{Gold}.
 
-Nei livelli \textbf{Bronze} e \textbf{Silver}, i dati risiedono sotto forma di tabelle piatte bidimensionali all'interno di file Parquet. Questo modello tabulare classico, pur risultando ideale per elaborazioni vettoriali in memoria tramite librerie quali \texttt{pandas}, mostra evidenti limiti nel contesto dell'archiviazione distribuita e del monitoraggio clinico in tempo reale: ogni riga ripete pedissequamente gli identificatori del paziente, non consente di esprimere relazioni gerarchiche native tra segnali e metadati, e richiede schemi rigidi poco adatti all'evoluzione dei parametri monitorati.
+Nei livelli \textbf{Bronze} e \textbf{Silver}, i dati risiedono sotto forma di tabelle piatte bidimensionali all'interno di file Parquet (6 colonne nel \textbf{Bronze}, arricchite a 18 colonne nel \textbf{Silver} per includere i dieci flag booleani di outlier e imputazione, l'età della misura pressoria \texttt{nibp\_age\_s} e l'identificativo \texttt{case\_id}). Questo modello tabulare classico, pur risultando ideale per elaborazioni vettoriali in memoria tramite librerie quali \texttt{pandas}, mostra evidenti limiti nel contesto dell'archiviazione distribuita e del monitoraggio clinico in tempo reale: ogni riga ripete pedissequamente gli identificatori del paziente, alloca colonne booleane anche quando tutti i flag sono falsi e richiede schemi rigidi poco adatti all'evoluzione dei parametri monitorati.
 
 Nel livello \textbf{Gold}, il dato viene rimodellato come documento gerarchico BSON all'interno di MongoDB. La struttura del documento, mostrata nel Listato~\ref{lst:bson_gold}, è articolata in quattro sezioni logiche:
 il campo radice \texttt{timestamp}, che definisce l'ordinamento temporale ed è memorizzato come oggetto nativo \texttt{ISODate};
 il sotto-documento \texttt{metadata}, che raccoglie in modo compatto tutte le proprietà immutabili del paziente e del sensore, tra cui l'identificativo del caso (\texttt{case\_id}), il nome del monitor sorgente (\texttt{sensor\_name}), il reparto chirurgico, l'età e il sesso;
-il sotto-documento \texttt{metrics}, che incapsula i valori numerici delle misurazioni fisiologiche correnti, opportunamente sanitizzati sostituendo i caratteri di barra con trattini bassi per evitare conflitti con la sintassi a percorsi di MongoDB;
-il sotto-documento \texttt{quality\_flags}, che eredita i flag booleani generati nel livello \textbf{Silver}, preservando la qualifica di affidabilità di ciascuna misurazione.
+il sotto-documento \texttt{metrics}, che incapsula i soli valori numerici delle misurazioni fisiologiche effettivamente presenti in quel secondo, opportunamente sanitizzati sostituendo i caratteri di barra con trattini bassi per evitare conflitti con la sintassi a percorsi di MongoDB;
+il sotto-documento \texttt{quality\_flags}, che eredita dal livello \textbf{Silver} sia i cinque flag booleani \texttt{*\_outlier} sia i cinque flag \texttt{*\_imputed} e il contatore di freschezza \texttt{nibp\_age\_s}, preservando integralmente la qualifica di affidabilità e provenienza di ciascuna misurazione.
 
 \begin{lstlisting}[caption={Evoluzione del dato dal formato Parquet piatto al documento BSON nel layer Gold.}, label={lst:bson_gold}]
 // Documento gerarchico BSON archiviato nella collezione 'vital_signals'
@@ -124,7 +126,7 @@ il sotto-documento \texttt{quality\_flags}, che eredita i flag booleani generati
   "metadata": {
     "case_id": 1,
     "sensor_name": "Solar8000",
-    "department": "General Surgery",
+    "department": "General surgery",
     "age": 64,
     "sex": "M"
   },
@@ -136,11 +138,11 @@ il sotto-documento \texttt{quality\_flags}, che eredita i flag booleani generati
     "Solar8000_NIBP_MBP": 93.3
   },
   "quality_flags": {
-    "HR_outlier": false,
-    "SPO2_outlier": false,
-    "SBP_outlier": false,
-    "DBP_outlier": false,
-    "MBP_outlier": false
+    "HR_outlier": false, "SPO2_outlier": false,
+    "SBP_outlier": false, "DBP_outlier": false, "MBP_outlier": false,
+    "HR_imputed": false, "SPO2_imputed": false,
+    "SBP_imputed": true, "DBP_imputed": true, "MBP_imputed": true,
+    "nibp_age_s": 14.0
   }
 }
 \end{lstlisting}

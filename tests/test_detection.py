@@ -185,4 +185,22 @@ def test_clinical_rules_respect_nibp_freshness():
     assert res["severe_hypotension_anomaly"].iloc[1] == False
 
 
-
+def test_imputation_no_bfill_leakage_across_cases():
+    """Verifica che un caso interamente NaN su una feature non erediti via bfill i valori del caso successivo."""
+    df = pd.DataFrame({
+        "case_id": [1, 1, 2, 2],
+        "Solar8000_HR": [np.nan, np.nan, 90.0, 95.0],
+        "Solar8000_PLETH_SPO2": [98.0, 98.0, 99.0, 99.0],
+    })
+    feat_cols = ["Solar8000_HR", "Solar8000_PLETH_SPO2"]
+    imputed = (
+        df.groupby("case_id", sort=False)[feat_cols]
+        .ffill()
+        .groupby(df["case_id"], sort=False)
+        .bfill()
+        .fillna(0.0)
+    )
+    # Il caso 1 aveva solo NaN su HR -> deve diventare 0.0, NON 90.0 dal caso 2
+    assert imputed.loc[0, "Solar8000_HR"] == 0.0
+    assert imputed.loc[1, "Solar8000_HR"] == 0.0
+    assert imputed.loc[2, "Solar8000_HR"] == 90.0

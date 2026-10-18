@@ -18,9 +18,17 @@ from src.detection.detector import (
     AnomalyDetector, LSTMAutoencoderDetector, FEATURE_COLS, HR_KEY
 )
 
+# Forza il line-buffering su stdout anche quando eseguito via 'docker exec' senza TTY (-t)
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
+
 def evaluate_anomaly_models():
     """Valuta quantitativamente i modelli di Machine Learning rispetto alla concordanza con le regole cliniche."""
-    print("=== AVVIO VALUTAZIONE QUANTITATIVA MACHINE LEARNING ===")
+    print("=== AVVIO VALUTAZIONE QUANTITATIVA MACHINE LEARNING ===", flush=True)
     
     client = MongoClient(config.MONGO_URI)
     db = client[config.DB_NAME]
@@ -30,15 +38,15 @@ def evaluate_anomaly_models():
     case_ids = [c["case_id"] for c in registry_cases]
     
     if not case_ids:
-        print("Nessun caso committed trovato nel database.")
+        print("Nessun caso committed trovato nel database.", flush=True)
         return
         
     df = load_from_gold(db, case_ids)
     if df.empty:
-        print("DataFrame vuoto da MongoDB.")
+        print("DataFrame vuoto da MongoDB.", flush=True)
         return
         
-    print(f"Estratti {len(df)} punti temporali per {len(case_ids)} casi.")
+    print(f"Estratti {len(df)} punti temporali per {len(case_ids)} casi.", flush=True)
     
     # 1. Calcola Regole Cliniche (Concordanza con euristiche cliniche di riferimento)
     df = compute_shock_index(df)
@@ -51,34 +59,42 @@ def evaluate_anomaly_models():
     base_rate = float(positive_samples / total_samples) if total_samples > 0 else 0.0
     trivial_baseline_accuracy = 1.0 - base_rate
 
-    print(f"\n--- ANALISI BASE RATE E ACCURACY PARADOX ---")
-    print(f"Totale punti esaminati: {total_samples}")
-    print(f"Eventi critici clinici (Positivi): {positive_samples} ({base_rate * 100:.2f}%)")
-    print(f"Accuratezza Classificatore Banale (predice sempre Normale): {trivial_baseline_accuracy * 100:.2f}%")
+    print(f"\n--- ANALISI BASE RATE E ACCURACY PARADOX ---", flush=True)
+    print(f"Totale punti esaminati: {total_samples}", flush=True)
+    print(f"Eventi critici clinici (Positivi): {positive_samples} ({base_rate * 100:.2f}%)", flush=True)
+    print(f"Accuratezza Classificatore Banale (predice sempre Normale): {trivial_baseline_accuracy * 100:.2f}%", flush=True)
 
-    # 2. Calcolo feature omogenee con la pipeline di produzione (raggruppate per case_id)
-    g = df.groupby("case_id")[HR_KEY]
-    df['HR_rolling_mean'] = g.transform(lambda s: s.rolling(5, min_periods=1).mean())
-    df['HR_rolling_std']  = g.transform(lambda s: s.rolling(5, min_periods=1).std()).fillna(0.0)
+    # 2. Calcolo feature omogenee con la pipeline di produzione (raggruppate per case_id, Cython nativo)
+    g = df.groupby("case_id", sort=False)[HR_KEY]
+    df['HR_rolling_mean'] = g.rolling(5, min_periods=1).mean().reset_index(level=0, drop=True)
+    df['HR_rolling_std']  = g.rolling(5, min_periods=1).std().reset_index(level=0, drop=True).fillna(0.0)
     df['HR_delta']        = g.diff().fillna(0.0)
     feature_cols = [c for c in FEATURE_COLS if c in df.columns]
 
     # 3. Isolation Forest ML: singolo fit con imputazione per caso per predizioni e score PR-AUC
-    print("\nAddestramento e scoring Isolation Forest...")
+    print("\nAddestramento e scoring Isolation Forest...", flush=True)
     if 'case_id' in df.columns:
-        X_df = df.groupby('case_id')[feature_cols].transform(lambda s: s.ffill().bfill()).fillna(0.0)
+        X_df = (
+            df.groupby('case_id', sort=False)[feature_cols]
+            .ffill()
+            .groupby(df['case_id'], sort=False)
+            .bfill()
+            .fillna(0.0)
+        )
     else:
         X_df = df[feature_cols].ffill().bfill().fillna(0.0)
     X_imputed = X_df.values
+    del X_df
 
     from sklearn.ensemble import IsolationForest
     clf_if = IsolationForest(contamination=0.05, random_state=42)
     preds_if = clf_if.fit_predict(X_imputed)
     y_if = (preds_if == -1)
     if_scores = -clf_if.score_samples(X_imputed)
+    del X_imputed
 
     # 4. LSTM Autoencoder Neurale (PyTorch)
-    print("Addestramento e scoring LSTM Autoencoder...")
+    print("Addestramento e scoring LSTM Autoencoder...", flush=True)
     ae = LSTMAutoencoderDetector(percentile=95.0, epochs=10)
     y_ae = ae.fit_predict(df, feature_cols)
     ae_scores = ae.reconstruction_error_

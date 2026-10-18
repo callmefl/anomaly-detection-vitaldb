@@ -43,25 +43,21 @@ FEATURE_COLS = [
 ]
 
 
-def load_from_gold(db, case_ids):
-    """Estrae le serie temporali dei casi richiesti dalla Time Series Collection 'vital_signals' di MongoDB.
-    
-    Ordinamento deterministico per paziente e timestamp per evitare interleaving di serie temporali.
-    Proietta quality_flags e nibp_age_s, mascherando a NaN le metriche contrassegnate come outlier fisiologici
-    prima dell'applicazione di regole cliniche e modelli di machine learning.
+# Forza il line-buffering su stdout anche quando eseguito via 'docker exec' senza TTY (-t)
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
 
-    Args:
-        db: Istanza PyMongo del database.
-        case_ids (list): Lista degli identificativi numerici dei casi clinici da filtrare.
-        
-    Returns:
-        pd.DataFrame: Tabella denormalizzata con colonne `timestamp`, `case_id`, metriche vitali e flag di qualità.
-    """
+
+def _fetch_gold_batch(db, batch_case_ids, outlier_metric_map):
+    """Estrae e converte in DataFrame un singolo blocco di case_id da MongoDB Gold."""
     cursor = db['vital_signals'].find(
-        {"metadata.case_id": {"$in": case_ids}},
+        {"metadata.case_id": {"$in": batch_case_ids}},
         {"_id": 0, "timestamp": 1, "metadata": 1, "metrics": 1, "quality_flags": 1}
     ).sort([("metadata.case_id", 1), ("timestamp", 1)])
-    
+
     data = []
     for doc in cursor:
         row = {"timestamp": doc["timestamp"], "case_id": doc["metadata"]["case_id"]}
@@ -73,13 +69,34 @@ def load_from_gold(db, case_ids):
             if k.endswith("_outlier") or k.endswith("_imputed"):
                 row[k] = v
         data.append(row)
-        
-    df = pd.DataFrame(data)
-    if df.empty:
-        return df
 
-    # Maschera a NaN le metriche segnalate come outlier fisiologici: evita che artefatti
-    # sensoriali (es. cavo staccato) vengano confusi con vere emergenze cliniche (es. arresto/shock)
+    df_batch = pd.DataFrame(data)
+    del data
+    if df_batch.empty:
+        return df_batch
+
+    for out_flag, metric_col in outlier_metric_map.items():
+        if out_flag in df_batch.columns and metric_col in df_batch.columns:
+            df_batch.loc[df_batch[out_flag] == True, metric_col] = np.nan
+
+    return df_batch
+
+
+def load_from_gold(db, case_ids):
+    """Estrae le serie temporali dei casi richiesti dalla Time Series Collection 'vital_signals' di MongoDB.
+    
+    Ordinamento deterministico per paziente e timestamp per evitare interleaving di serie temporali.
+    Proietta quality_flags e nibp_age_s, mascherando a NaN le metriche contrassegnate come outlier fisiologici
+    prima dell'applicazione di regole cliniche e modelli di machine learning.
+    Per dataset ampi (> 25 casi), carica a blocchi per evitare picchi di RAM dovuti a milioni di dict Python.
+
+    Args:
+        db: Istanza PyMongo del database.
+        case_ids (list): Lista degli identificativi numerici dei casi clinici da filtrare.
+        
+    Returns:
+        pd.DataFrame: Tabella denormalizzata con colonne `timestamp`, `case_id`, metriche vitali e flag di qualità.
+    """
     outlier_metric_map = {
         "HR_outlier": HR_KEY,
         "SPO2_outlier": SPO2_KEY,
@@ -87,11 +104,29 @@ def load_from_gold(db, case_ids):
         "DBP_outlier": DBP_KEY,
         "MBP_outlier": MBP_KEY,
     }
-    for out_flag, metric_col in outlier_metric_map.items():
-        if out_flag in df.columns and metric_col in df.columns:
-            df.loc[df[out_flag] == True, metric_col] = np.nan
 
-    return df
+    if len(case_ids) <= 25:
+        return _fetch_gold_batch(db, case_ids, outlier_metric_map)
+
+    sorted_ids = sorted(case_ids)
+    batch_size = 25
+    chunks = []
+    total = len(sorted_ids)
+    print(f"⏳ Estrazione serie temporali da MongoDB Gold per {total} casi...", flush=True)
+
+    for i in range(0, total, batch_size):
+        batch_ids = sorted_ids[i : i + batch_size]
+        df_chunk = _fetch_gold_batch(db, batch_ids, outlier_metric_map)
+        if not df_chunk.empty:
+            chunks.append(df_chunk)
+        done = min(i + batch_size, total)
+        if done % 50 == 0 or done == total:
+            print(f"  -> Caricati {done}/{total} casi da MongoDB Gold...", flush=True)
+
+    if not chunks:
+        return pd.DataFrame()
+
+    return pd.concat(chunks, ignore_index=True)
 
 
 def compute_shock_index(df, threshold=0.9, max_nibp_age_s=None):
@@ -197,9 +232,13 @@ def detect_isolation_forest(df, contamination=0.05):
     """
     if 'case_id' in df.columns:
         feat_cols = [c for c in df.columns if c != 'case_id']
-        df_clean = df.copy()
-        df_clean[feat_cols] = df.groupby('case_id')[feat_cols].transform(lambda g: g.ffill().bfill()).fillna(0.0)
-        X = df_clean[feat_cols]
+        X = (
+            df.groupby('case_id', sort=False)[feat_cols]
+            .ffill()
+            .groupby(df['case_id'], sort=False)
+            .bfill()
+            .fillna(0.0)
+        )
     else:
         X = df.ffill().bfill().fillna(0.0)
     
@@ -257,43 +296,56 @@ class LSTMAutoencoderDetector:
         self.scaler = StandardScaler()
         self.model = None
 
-    def _make_windows_per_case(self, df, feature_cols):
-        """Divide la serie in finestre scorrevoli raggruppate per paziente (senza crossover tra casi)."""
-        # Imputazione locale e scalatura globale
+    def _make_window_views_per_case(self, df, feature_cols):
+        """Crea viste zero-copy (sliding_window_view) per ogni paziente senza concatenare gigabyte in RAM."""
         if 'case_id' in df.columns:
-            X_df = df.groupby('case_id')[feature_cols].transform(lambda g: g.ffill().bfill()).fillna(0.0)
+            X_df = (
+                df.groupby('case_id', sort=False)[feature_cols]
+                .ffill()
+                .groupby(df['case_id'], sort=False)
+                .bfill()
+                .fillna(0.0)
+            )
         else:
             X_df = df[feature_cols].ffill().bfill().fillna(0.0)
 
-        X_scaled = self.scaler.fit_transform(X_df.values)
+        X_scaled = self.scaler.fit_transform(X_df.values).astype(np.float32)
+        del X_df
         df_scaled = pd.DataFrame(X_scaled, columns=feature_cols, index=df.index)
 
         windows_list = []
         target_indices = []
 
         if 'case_id' in df.columns:
-            df_scaled['case_id'] = df['case_id'].values
-            groups = df_scaled.groupby('case_id', sort=False)
+            groups = df_scaled.groupby(df['case_id'], sort=False)
         else:
             groups = [(0, df_scaled)]
 
         for _, group in groups:
-            cols = [c for c in group.columns if c != 'case_id']
-            vals = group[cols].values
+            vals = group.values
             T = len(vals)
             if T < self.window_size:
                 continue
             # sliding_window_view: creazione finestre a costo di allocazione zero (zero-copy)
-            wins = np.lib.stride_tricks.sliding_window_view(vals, window_shape=(self.window_size, vals.shape[1])).squeeze(axis=1)
+            wins = np.lib.stride_tricks.sliding_window_view(
+                vals, window_shape=(self.window_size, vals.shape[1])
+            ).squeeze(axis=1)
             windows_list.append(wins)
             # Mappa ogni finestra i all'indice del suo ultimo punto compreso (i + ws - 1)
             case_idx = group.index.values
-            target_indices.extend(case_idx[self.window_size - 1 :])
+            target_indices.append(case_idx[self.window_size - 1 :])
 
         if not windows_list:
-            return np.empty((0, self.window_size, len(feature_cols))), np.array([], dtype=int)
+            return [], np.array([], dtype=int)
 
-        return np.concatenate(windows_list, axis=0), np.array(target_indices, dtype=int)
+        return windows_list, np.concatenate(target_indices)
+
+    def _make_windows_per_case(self, df, feature_cols):
+        """Metodo di compatibilità che restituisce le finestre concatenate."""
+        windows_list, target_indices = self._make_window_views_per_case(df, feature_cols)
+        if not windows_list:
+            return np.empty((0, self.window_size, len(feature_cols)), dtype=np.float32), target_indices
+        return np.concatenate(windows_list, axis=0), target_indices
 
     def fit_predict(self, df, feature_cols):
         if not _TORCH_AVAILABLE or LSTMAutoencoder is None:
@@ -305,9 +357,11 @@ class LSTMAutoencoderDetector:
         torch.manual_seed(42)
         np.random.seed(42)
 
-        windows, target_indices = self._make_windows_per_case(df, feature_cols)
+        windows_list, target_indices = self._make_window_views_per_case(df, feature_cols)
+        counts = np.array([len(w) for w in windows_list], dtype=int)
+        total_windows = int(counts.sum()) if len(counts) > 0 else 0
         
-        if len(windows) == 0:
+        if total_windows == 0:
             self.threshold_ = 0.0
             self.reconstruction_error_ = np.zeros(len(df))
             return np.zeros(len(df), dtype=bool)
@@ -316,16 +370,24 @@ class LSTMAutoencoderDetector:
         self.model = _make_lstm_autoencoder_class()(n_features=n_features, hidden_size=self.hidden_size)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         loss_fn = nn.MSELoss()
-        X_tensor = torch.tensor(windows, dtype=torch.float32)
 
         # Sottoinsieme rappresentativo uniforme per il training (max 15.000 finestre)
+        # Estratto direttamente dalle viste zero-copy senza allocare l'intero tensore da 3.3 GB
         max_train = 15000
-        if len(windows) > max_train:
-            indices = np.linspace(0, len(windows) - 1, max_train, dtype=int)
-            train_tensor = X_tensor[indices]
+        if total_windows > max_train:
+            indices = np.linspace(0, total_windows - 1, max_train, dtype=int)
+            cum_counts = np.cumsum(counts)
+            group_ids = np.searchsorted(cum_counts, indices, side='right')
+            starts = np.concatenate(([0], cum_counts[:-1]))
+            local_ids = indices - starts[group_ids]
+            train_np = np.empty((max_train, self.window_size, n_features), dtype=np.float32)
+            for k, (g_idx, l_idx) in enumerate(zip(group_ids, local_ids)):
+                train_np[k] = windows_list[g_idx][l_idx]
+            train_tensor = torch.from_numpy(train_np)
             n_epochs = min(self.epochs, 5)
         else:
-            train_tensor = X_tensor
+            train_np = np.ascontiguousarray(np.concatenate(windows_list, axis=0), dtype=np.float32)
+            train_tensor = torch.from_numpy(train_np)
             n_epochs = self.epochs
 
         batch_sz = min(512, max(32, len(train_tensor)))
@@ -342,26 +404,28 @@ class LSTMAutoencoderDetector:
                 loss.backward()
                 optimizer.step()
 
-        # Valutazione errore di ricostruzione su TUTTE le finestre
+        # Valutazione errore di ricostruzione su TUTTE le finestre a blocchi dalle viste zero-copy
         self.model.eval()
-        eval_dataset = torch.utils.data.TensorDataset(X_tensor)
-        eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=4096, shuffle=False)
+        eval_batch_size = 4096
         mse_list = []
         with torch.no_grad():
-            for (batch_x,) in eval_loader:
-                reconstructed = self.model(batch_x)
-                # Calcola l'errore quadratico per ogni punto: (batch, T, features)
-                sq_err = (batch_x - reconstructed) ** 2
-                
-                # Media temporale per ogni feature
-                mean_time_err = torch.mean(sq_err, dim=1) # (batch, features)
-                
-                # Per evitare la diluizione causata da feature mancanti (che essendo costanti
-                # tramite ffill avrebbero errore 0), calcoliamo l'errore della finestra 
-                # come il MASSIMO errore tra tutte le feature, non la media.
-                batch_mse, _ = torch.max(mean_time_err, dim=1)
-                
-                mse_list.append(batch_mse.numpy())
+            for wins in windows_list:
+                for start_idx in range(0, len(wins), eval_batch_size):
+                    batch_np = np.ascontiguousarray(wins[start_idx : start_idx + eval_batch_size], dtype=np.float32)
+                    batch_x = torch.from_numpy(batch_np)
+                    reconstructed = self.model(batch_x)
+                    # Calcola l'errore quadratico per ogni punto: (batch, T, features)
+                    sq_err = (batch_x - reconstructed) ** 2
+                    
+                    # Media temporale per ogni feature
+                    mean_time_err = torch.mean(sq_err, dim=1) # (batch, features)
+                    
+                    # Per evitare la diluizione causata da feature mancanti (che essendo costanti
+                    # tramite ffill avrebbero errore 0), calcoliamo l'errore della finestra 
+                    # come il MASSIMO errore tra tutte le feature, non la media.
+                    batch_mse, _ = torch.max(mean_time_err, dim=1)
+                    
+                    mse_list.append(batch_mse.numpy())
         mse_per_window = np.concatenate(mse_list)
 
         # Mappatura corretta: assegna l'errore di ciascuna finestra esattamente al punto target (i + ws - 1)
@@ -439,19 +503,28 @@ def save_anomalies_to_mongo(db, df_anomalies):
     any_anomaly = df_anomalies[flag_cols].any(axis=1)
     rows = df_anomalies[any_anomaly]
 
-    documents = []
-    for _, row in rows.iterrows():
-        methods = [c.replace('_anomaly', '') for c in flag_cols if bool(row[c])]
-        documents.append({
-            "case_id": int(row["case_id"]),
-            "timestamp": row["timestamp"],
-            "methods": methods,
-            "detected_at": now,
-        })
+    method_names = [c.replace('_anomaly', '') for c in flag_cols]
+    flag_matrix = rows[flag_cols].to_numpy(dtype=bool)
+    case_ids_arr = rows["case_id"].to_numpy(dtype=int)
+    timestamps_list = rows["timestamp"].tolist()
 
-    # 1. Inserisce prima i nuovi documenti
+    documents = [
+        {
+            "case_id": int(cid),
+            "timestamp": ts,
+            "methods": [method_names[j] for j, is_active in enumerate(flags) if is_active],
+            "detected_at": now,
+        }
+        for cid, ts, flags in zip(case_ids_arr, timestamps_list, flag_matrix)
+    ]
+
+    # 1. Inserisce prima i nuovi documenti (a blocchi da 20.000 se il payload è molto grande)
     if documents:
-        db['anomalies_detected'].insert_many(documents)
+        if len(documents) <= 20000:
+            db['anomalies_detected'].insert_many(documents)
+        else:
+            for i in range(0, len(documents), 20000):
+                db['anomalies_detected'].insert_many(documents[i : i + 20000])
 
     # 2. Rimuove le vecchie anomalie (detected_at != now) per i casi esaminati
     # Se un caso è tornato a 0 anomalie, i suoi vecchi record vengono comunque ripuliti
@@ -475,34 +548,38 @@ def run_detection_pipeline(db, case_ids, if_contamination=0.05, ae_percentile=95
 
     I risultati vengono aggregati e salvati automaticamente su MongoDB Gold.
     """
+    print(f"=== AVVIO ANOMALY DETECTION SU {len(case_ids)} CASI ===", flush=True)
     df = load_from_gold(db, case_ids)
     if df.empty:
-        print("⚠️ Nessun dato temporale recuperato per i casi richiesti.")
+        print("⚠️ Nessun dato temporale recuperato per i casi richiesti.", flush=True)
         return df
-    # Calcolo feature dinamiche strettamente raggruppate per singolo paziente (evita cross-contamination tra casi)
-    g = df.groupby("case_id")[HR_KEY]
-    df['HR_rolling_mean'] = g.transform(lambda s: s.rolling(5, min_periods=1).mean())
-    df['HR_rolling_std']  = g.transform(lambda s: s.rolling(5, min_periods=1).std()).fillna(0.0)
+
+    print(f"✓ Caricati {len(df)} record totali. Calcolo feature dinamiche...", flush=True)
+    # Calcolo feature dinamiche strettamente raggruppate per singolo paziente (Cython nativo, veloce)
+    g = df.groupby("case_id", sort=False)[HR_KEY]
+    df['HR_rolling_mean'] = g.rolling(5, min_periods=1).mean().reset_index(level=0, drop=True)
+    df['HR_rolling_std']  = g.rolling(5, min_periods=1).std().reset_index(level=0, drop=True).fillna(0.0)
     df['HR_delta']        = g.diff().fillna(0.0)
     feature_cols = [c for c in FEATURE_COLS if c in df.columns]
-    print(f"=== AVVIO ANOMALY DETECTION SU {len(case_ids)} CASI ({len(df)} RECORD) ===")
+
     # 1. Regole Cliniche (Shock Index & Ipotensione Severa)
-    print("  [1/3] Calcolo Regole Cliniche (Shock Index & Ipotensione Severa)...")
+    print("  [1/3] Calcolo Regole Cliniche (Shock Index & Ipotensione Severa)...", flush=True)
     df = apply_clinical_rules(df)
 
     # 2. Isolation Forest ML
-    print("  [2/3] Addestramento ed inferenza Isolation Forest...")
+    print("  [2/3] Addestramento ed inferenza Isolation Forest...", flush=True)
     df['isolation_forest_anomaly'] = AnomalyDetector(method='isolation_forest', contamination=if_contamination) \
         .fit_predict(df, feature_cols)
 
     # 3. LSTM Autoencoder Neurale ML
-    print("  [3/3] Addestramento ed inferenza LSTM Autoencoder PyTorch...")
+    print("  [3/3] Addestramento ed inferenza LSTM Autoencoder PyTorch...", flush=True)
     df['autoencoder_anomaly'] = AnomalyDetector(method='lstm_autoencoder', percentile=ae_percentile) \
         .fit_predict(df, feature_cols)
 
     # Persistenza risultati su MongoDB
+    print("  [4/4] Salvataggio anomalie su MongoDB Gold...", flush=True)
     saved = save_anomalies_to_mongo(db, df)
-    print(f"✓ {saved} punti anomali registrati nella collezione 'anomalies_detected'.")
+    print(f"✓ {saved} punti anomali registrati nella collezione 'anomalies_detected'.", flush=True)
     return df
 
 
@@ -514,7 +591,7 @@ if __name__ == '__main__':
 
     all_cases = [doc["case_id"] for doc in db['registry'].find({"status": "committed"}, {"case_id": 1})]
     if not all_cases:
-        print("⚠️ Nessun caso committed nel registry. Eseguire prima il caricamento dei casi.")
+        print("⚠️ Nessun caso committed nel registry. Eseguire prima il caricamento dei casi.", flush=True)
     else:
         run_detection_pipeline(db, all_cases)
 
