@@ -49,35 +49,108 @@ def detect_case(case_id: int):
 Accanto agli endpoint analitici, FastAPI ospita due montaggi di file statici: la rotta \texttt{/dashboard}, che distribuisce l'intera interfaccia web interattiva, e la rotta \texttt{/presentazione}, che rende fruibili le slide illustrative del progetto per la discussione accademica.
 
 \section{Dashboard web e interfaccia utente interattiva}
-A corredo dell'infrastruttura dati è stata sviluppata un'interfaccia grafica web concepita per consentire al personale sanitario o all'analista di esplorare i tracciati biometrici, analizzare le anomalie e ispezionare i parametri di governance.
+A corredo dell'infrastruttura dati è stata sviluppata un'interfaccia grafica web concepita per consentire al personale sanitario e all'analista di esplorare i tracciati biometrici, analizzare le anomalie e ispezionare i parametri di governance. L'applicazione rifugge la complessità e la pesantezza di framework monolitici, impiegando standard aperti del web: un'architettura in HTML5 semantico, fogli di stile CSS3 con variabili a token per la gestione dinamica del tema chiaro e scuro (\textbf{light/dark mode}), e logica di coordinamento in JavaScript puro.
 
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.92\textwidth]{dashboard_screenshot.png}
-    \caption{Panoramica dell'interfaccia grafica web della dashboard per il monitoraggio e la governance.}
-    \label{fig:dashboard}
-\end{figure}
+Per garantire modularità e manutenibilità senza richiedere strumenti di compilazione esterni quali Webpack o Vite, il codice adotta un sistema di caricamento asincrono a componenti parziali implementato nello script \texttt{dashboard/js/loader.js}. Il file principale \texttt{index.html} definisce dei contenitori dichiarativi denominati slot mediante l'attributo personalizzato \texttt{data-include} (ad esempio \texttt{<div data-include="partials/sidebar.html"></div>}). All'avvio dell'applicazione, la funzione \texttt{loadPartials} individua tutti gli slot mediante \texttt{querySelectorAll}, invia richieste HTTP parallele tramite \texttt{Promise.all} e l'API \texttt{fetch}, e provvede a sostituire ciascun tag con il frammento HTML recuperato. Al fine di impedire che il browser mantenga in cache versioni obsolete dei file durante gli aggiornamenti, il caricatore accoda a ciascuna richiesta un parametro di versione esplicito (\texttt{?v=3.8}), realizzando una tecnica efficace di invalidazione della cache (\textbf{cache busting}).
 
-Come mostrato nella Figura~\ref{fig:dashboard}, l'interfaccia è stata realizzata seguendo i principi di un'estetica moderna e funzionale. Dal punto di vista architetturale, la dashboard rifugge la complessità e la pesantezza di framework monolitici, impiegando standard aperti del web: un'architettura in html5 semantico, fogli di stile css3 con variabili a token per la gestione dinamica del tema chiaro e scuro (\textbf{light/dark mode}), e codice in javascript puro. L'aspetto tipografico è valorizzato da caratteri tipografici dedicati, tra cui \textbf{Figtree} per le intestazioni, \textbf{Space Grotesk} per i testi di interfaccia e \textbf{JetBrains Mono} per i valori numerici e i timestamp.
-
-Per garantire modularità e manutenibilità senza richiedere strumenti di compilazione esterni quali Webpack o Vite, il codice dell'interfaccia adotta un sistema di caricamento modulare asincrono implementato nello script \texttt{dashboard/js/loader.js}. Il file principale \texttt{index.html} definisce dei contenitori dichiarativi denominati slot mediante l'attributo personalizzato \texttt{data-include} (ad esempio \texttt{<div data-include="partials/sidebar.html"></div>}). All'avvio dell'applicazione, la funzione \texttt{loadPartials} individua tutti gli slot mediante \texttt{querySelectorAll}, invia richieste HTTP parallele tramite \texttt{Promise.all} e l'API \texttt{fetch}, e provvede a sostituire ciascun tag con il contenuto HTML recuperato. Al fine di impedire che il browser mantenga in cache versioni obsolete dei file durante gli aggiornamenti, il caricatore accoda a ciascuna richiesta un parametro di versione esplicito (\texttt{?v=3.8}), realizzando una tecnica efficace di invalidazione della cache (\textbf{cache busting}).
-
-La piattaforma si articola su due ambienti di lavoro principali, accessibili tramite selettore in testata: la vista di telemetria clinica e la vista di governance del \textbf{lakehouse}.
+La piattaforma si articola su due ambienti di lavoro principali, accessibili tramite il commutatore in testata: la vista di telemetria clinica e la vista di governance del \textbf{lakehouse} e benchmark.
 
 \subsection{Vista di telemetria clinica e anomaly detection}
-Questo spazio di lavoro è dedicato al monitoraggio del paziente e alla rilevazione delle instabilità. L'ambiente si compone dei seguenti moduli integrati:
-la barra laterale (\textbf{sidebar}), che elenca tutti i pazienti caricati nel livello \textbf{Gold} fornendo un campo di ricerca rapida e badge identificativi con reparto chirurgico, età e sesso;
-il \textbf{Patient HUD} (Heads-Up Display), un banner informativo collocato in cima alla pagina che visualizza l'identificativo del paziente selezionato, il reparto e i parametri anagrafici. Il modulo ospita i comandi operativi principali: il selettore della risoluzione temporale (che consente di visualizzare il dato grezzo a 1 secondo oppure aggregazioni a 30 secondi, 60 secondi o 5 minuti), il pulsante di ricarica e il pulsante per avviare il calcolo delle anomalie;
-la \textbf{Vitals Grid}, una griglia a cinque tessere informative progettata secondo lo stile \textbf{bento-grid}. Ciascuna tessera ospita un indicatore visivo pulsante, il valore medio corrente e il range fisiologico di riferimento per la frequenza cardiaca ($60-100$ bpm), la saturazione d'ossigeno ($95-100\%$), la pressione arteriosa con valore medio ($>65$ mmHg), lo \textbf{Shock Index} e il contatore cumulativo degli eventi anomali rilevati;
-la \textbf{Consensus Matrix}, definita nel file \texttt{partials/consensus-matrix.html}, che implementa un pannello interattivo a quattro schede corrispondenti ai quattro metodi di rilevamento (Shock Index, ipotensione severa, Isolation Forest e Autoencoder). Ciascuna scheda mostra un badge con il conteggio in tempo reale degli eventi individuati e consente di cliccare per isolare ed evidenziare sui grafici esclusivamente le anomalie prodotte da quel metodo specifico. Inoltre, ciascuna scheda integra un pulsante informativo che apre una finestra modale con la spiegazione fisiologica, la formula analitica e la soglia di allarme adottata;
-i tracciati telemetrici realizzati con la libreria \textbf{Chart.js}: due grafici interattivi sincronizzati ad asse temporale comune. Il grafico superiore traccia l'andamento congiunto di frequenza cardiaca e saturazione, mentre il grafico inferiore visualizza le tre componenti pressorie (sistolica, diastolica e media). I due grafici condividono la traccia di mira (\textbf{crosshair}) e i comandi di ingrandimento temporale, consentendo una correlazione visiva immediata tra alterazioni del ritmo e variazioni pressorie. Quando viene attivato il rilevamento, i punti anomali vengono evidenziati mediante marcatori cromatici sovrapposti alle curve dei segnali;
-la tabella analitica delle anomalie, collocata a fondo pagina, che elenca cronologicamente ogni singolo secondo in cui è stata riscontrata un'irregolarità, riportando i valori biometrici istantanei, lo Shock Index calcolato e l'elenco degli algoritmi concordanti.
+La schermata principale di telemetria clinica, illustrata nella Figura~\ref{fig:dashboard_overview}, è dedicata al monitoraggio in tempo reale del paziente e all'indagine multilivello delle instabilità emodinamiche.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.98\textwidth]{dashboard_overview.png}
+    \caption{Panoramica dell'interfaccia grafica web della dashboard: catalogo casi clinici, banner del paziente (HUD), griglia KPI biometrici e matrice di rilevamento multi-algoritmo.}
+    \label{fig:dashboard_overview}
+\end{figure}
+
+L'ambiente si articola nei seguenti moduli funzionali cooperanti:
+\begin{itemize}
+    \item \textbf{Barra laterale dei casi clinici (Sidebar):} indicizza l'insieme dei 50 pazienti chirurgici archiviati nel livello \textbf{Gold}. Integra una casella di ricerca istantanea (\texttt{onSearchInput}) per filtrare per identificativo numerico o reparto, pulsanti a pillola per il filtraggio rapido (\textit{Tutti i Reparti}, \textit{Unknown}) e tessere informative per ciascun caso che espongono l'ID paziente, il reparto e il numero totale di campioni temporali registrati (ad esempio, 7.597 campioni per il Caso Clinico \#2 visualizzato).
+    \item \textbf{Patient HUD (Heads-Up Display):} collocato in testata all'area di lavoro, espone i metadati anagrafici del soggetto selezionato (\textit{Paziente Intraoperatorio \#2}) e i comandi operativi centrali:
+    \begin{itemize}
+        \item il selettore della risoluzione temporale (\textbf{downsampling}), che permette di alternare la visualizzazione nativa ad 1 secondo ad aggregazioni a 30 secondi, 60 secondi (\textit{modalità ottimale} per la fluidità di interazione su serie estese) o 300 secondi, richiedendo i dati aggregati direttamente all'endpoint FastAPI;
+        \item il pulsante di aggiornamento rapido (\textit{Ricarica});
+        \item il pulsante di attivazione \textbf{Rileva Anomalie}, che inoltra una richiesta asincrona \texttt{POST /detect/\{case\_id\}} al server FastAPI per eseguire in tempo reale l'inferenza congiunta delle regole cliniche e dei modelli di machine learning, persistendo atomicamente i risultati su MongoDB e aggiornando reattivamente l'HUD, i tracciati e il registro clinico.
+    \end{itemize}
+    \item \textbf{Griglia degli indicatori vitali (Vitals Bento-Grid):} composta da cinque schede metriche interattive che sintetizzano lo stato fisiologico istantaneo e complessivo della registrazione:
+    \begin{enumerate}
+        \item \textit{Frequenza Cardiaca:} valore corrente medio pari a 81 bpm, corredato dall'intervallo di escursione registrato (minimo 59 bpm, massimo 116 bpm);
+        \item \textit{Saturazione $SpO_2$:} valore istantaneo pari al 99.8\%, con indicazione del punto di minimo (\textit{nadir} all'85\%) rispetto alla soglia fisiologica target ($>95\%$);
+        \item \textit{Pressione Arteriosa (SBP/DBP):} valori pressori istantanei di sistolica e diastolica (104/67 mmHg), integrati dal calcolo della pressione arteriosa media (MAP media pari a 78 mmHg);
+        \item \textit{Shock Index ($HR / SBP$):} valore istantaneo pari a 0.78, contrassegnato con etichetta \textit{Borderline} (intervallo $0.7 - 0.9$) a supporto della diagnosi precoce di ipovolemia;
+        \item \textit{Anomalie Totali Uniche:} contatore cumulativo che quantifica il totale degli istanti temporali critici individuati per il caso clinico selezionato (1.939 eventi distinti nel Caso \#2).
+    \end{enumerate}
+    \item \textbf{Matrice di Rilevamento per Algoritmo (Consensus Matrix):} pannello interattivo a quattro quadranti che scorpora analiticamente il concorso dei quattro algoritmi implementati nel sistema:
+    \begin{enumerate}
+        \item \textit{Shock Index Clinico} ($HR / SBP > 0.9$): 1.429 istanti di allarme;
+        \item \textit{Ipotensione Severa} ($MBP < 65\text{ mmHg} \land SpO_2 < 90\%$): 0 istanti critici;
+        \item \textit{Isolation Forest} (rilevamento multivariato non supervisionato): 380 campioni classificati come outlier;
+        \item \textit{Autoencoder Neurale LSTM} (scostamento da ricostruzione $MSE > \tau$): 379 campioni anomali.
+    \end{enumerate}
+    Ciascuna scheda della matrice supporta la funzione di filtro interattivo (\texttt{toggleAlgoHighlight}): facendo clic su una tessera, i grafici sottostanti isolano ed evidenziano cromaticamente soltanto le anomalie riscontrate da quello specifico metodo. Inoltre, un'icona informativa apre una finestra di dialogo modale che descrive la logica algoritmica, la formula matematica e la motivazione clinica della soglia adottata.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.98\textwidth}
+        \includegraphics[width=\textwidth]{dashboard_telemetry_hr_spo2.png}
+        \caption{Traccia I: Frequenza cardiaca (linea rossa con interpolazione cubica) e saturazione $SpO_2$ (linea ciano), con marcatura dei punti anomali (sfere arancioni), fascia fisiologica di riferimento e tooltip di ispezione.}
+        \label{fig:dashboard_telemetry_hr_spo2}
+    \end{subfigure}
+    \par\vspace{0.45cm}
+    \begin{subfigure}[b]{0.98\textwidth}
+        \includegraphics[width=\textwidth]{dashboard_telemetry_nibp.png}
+        \caption{Traccia II: Pressione arteriosa non invasiva con curve di sistolica (SBP, giallo), diastolica (DBP, verde) e media arteriosa (MBP, viola tratteggiata), con linea di allerta per ipotensione critica ($MBP < 65$ mmHg).}
+        \label{fig:dashboard_telemetry_nibp}
+    \end{subfigure}
+    \caption{Tracciati telemetrici temporali sincronizzati ad alta frequenza con sovrapposizione degli eventi anomali rilevati.}
+    \label{fig:dashboard_telemetry_charts}
+\end{figure}
+
+\subsection{Tracciati telemetrici sincronizzati ed evidenziazione delle anomalie}
+L'esplorazione dinamica dei segnali biometrici è affidata a due grafici temporali continui realizzati mediante la libreria grafica \textbf{Chart.js}, presentati nella Figura~\ref{fig:dashboard_telemetry_charts}. Le due viste condividono il medesimo asse temporale UTC e implementano un plugin personalizzato per il mirino verticale sincronizzato (\texttt{synchronizedCrosshairPlugin}): spostando il puntatore del mouse su un qualsiasi istante temporale di una traccia, una linea tratteggiata verticale interseca simultaneamente entrambi i grafici, consentendo al medico di correlare istantaneamente una variazione del ritmo cardiaco con una caduta di pressione o di saturazione d'ossigeno.
+
+\begin{itemize}
+    \item \textbf{Traccia I (Frequenza Cardiaca e Saturazione):} impiega un doppio asse delle ordinate (a sinistra la frequenza in scala $40-160$ bpm, a destra la saturazione in scala $80-100\%$). La curva cardiaca (in rosso con interpolazione cubica) e la saturazione (in ciano) sono accompagnate da una fascia orizzontale di riferimento clinico che delimita la normocardia ($60-100$ bpm) e segnala il limite inferiore di ipossia moderata ($<95\%$). Come illustrato nella Figura~\ref{fig:dashboard_telemetry_hr_spo2}, al passaggio del cursore un tooltip fluttuante espone il valore esatto registrato (ad esempio, ore 00:14:00 con $HR = 61.93$ bpm e $SpO_2 = 100\%$). Quando viene eseguita la procedura di rilevamento, gli istanti temporali anomali vengono disegnati direttamente sopra le curve del segnale sotto forma di evidenti marcatori circolari arancioni.
+    \item \textbf{Traccia II (Pressione Arteriosa NIBP):} visualizza simultaneamente la pressione sistolica (curva continua giallo/arancione), diastolica (curva verde) e media arteriosa (curva viola tratteggiata). Il grafico evidenzia la linea critica di ipotensione a $MBP = 65$ mmHg, soglia clinica sotto la quale sussiste un concreto pericolo di ipoperfusione degli organi vitali. I punti anomali contrassegnati evidenziano tempestivamente sia cadute ipotensive repentine sia bruschi picchi ipertensivi intraoperatori.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.98\textwidth]{dashboard_anomalies_table.png}
+    \caption{Registro clinico degli eventi anomali: tracciamento temporale analitico con etichetta di severità multilivello, parametri biometrici istantanei, algoritmi concordanti ed esportazione dei dati in CSV.}
+    \label{fig:dashboard_anomalies_table}
+\end{figure}
+
+\subsection{Registro clinico degli eventi anomali ed esportazione dei dati}
+Al di sotto dei tracciati grafici è collocato il \textbf{Registro Clinico degli Eventi Anomali} (Figura~\ref{fig:dashboard_anomalies_table}), un modulo tabellare progettato per l'ispezione analitica e la validazione post-operatoria delle segnalazioni. 
+
+Il registro visualizza tutti i 1.939 eventi individuati per il caso clinico selezionato e integra:
+\begin{itemize}
+    \item menu a tendina per il filtraggio rapido in base alla severità dell'allarme o alla tipologia di evento;
+    \item il pulsante \textbf{Esporta CSV}, che genera istantaneamente il download dell'intero registro anomalo per facilitare l'archiviazione nella cartella clinica elettronica (EHR) o per condurre analisi statistiche retrospettive offline;
+    \item una struttura tabellare analitica a otto colonne:
+    \begin{enumerate}
+        \item \textbf{\#}: indice progressivo della segnalazione;
+        \item \textbf{TIMESTAMP (UTC)}: marcatura temporale esatta al secondo dell'evento rilevato (ad esempio, \texttt{2020-01-01 00:00:04});
+        \item \textbf{LIVELLO SEVERITÀ}: classificazione a badge cromatico graduato che sintetizza il consenso algoritmico: \textit{Advisory} (quando un solo metodo rileva l'anomalia), \textit{Warning} (quando concorrono due metodi) o \textit{Critical} (quando tre o quattro algoritmi concordano sulla criticità dell'istante);
+        \item \textbf{HR (BPM)}: frequenza cardiaca istantanea registrata;
+        \item \textbf{$SPO_2$ (\%)}: saturazione periferica d'ossigeno rilevata all'istante dell'allarme (evidenziando cali precoci, ad esempio il 90\% alla riga 1);
+        \item \textbf{NIBP (SBP/DBP)}: pressione sistolica e diastolica concomitante (ad esempio, 128/75 mmHg alla riga 11);
+        \item \textbf{SHOCK INDEX}: valore numerico istantaneo del rapporto $HR / SBP$;
+        \item \textbf{ALGORITMI RILEVATORI}: tag compatti che indicano puntualmente quale modello ha sollevato l'allarme (\texttt{IsoForest}, \texttt{Autoencoder}, \texttt{Shock Index}).
+    \end{enumerate}
+\end{itemize}
 
 \subsection{Vista di data lakehouse, governance e benchmark}
-La seconda schermata dell'interfaccia visualizza in modo trasparente le metriche di architettura dati e qualità del dato sincronizzate in tempo reale tramite le API REST:
-due schede comparative sull'ottimizzazione dello storage e della latenza, che illustrano tramite barre grafiche la contrazione progressiva dello spazio su disco dal livello \textbf{Bronze} al livello \textbf{Gold} (evidenziando la riduzione dell'89.1\%) e il fattore di accelerazione di 3.7 volte ottenuto con il \textbf{pushdown} degli indici MongoDB;
-la tabella di valutazione dei modelli di \textbf{machine learning}, sincronizzata dall'endpoint \texttt{GET /evaluation}, che presenta il confronto tra \textbf{Isolation Forest} e \textbf{LSTM Autoencoder} esponendo le metriche di Precision, Recall, F1-score e PR-AUC calcolate su 311.173 punti;
-la tabella del \textbf{Data Quality and Governance Report}, alimentata dall'endpoint \texttt{GET /quality}, che elenca analiticamente per ciascun caso clinico i campioni grezzi del \textbf{Bronze}, i campioni bonificati nel \textbf{Silver}, le righe eliminate e il conteggio degli outlier fisiologici rilevati per ciascun parametro vitale.
+La seconda schermata dell'interfaccia, accessibile mediante la scheda \textit{Benchmarks} in testata, visualizza in modo trasparente le metriche di architettura dati e qualità del dato sincronizzate in tempo reale tramite le API REST:
+\begin{itemize}
+    \item due schede comparative sull'ottimizzazione dello storage e della latenza, che illustrano tramite barre grafiche la contrazione progressiva dello spazio su disco dal livello \textbf{Bronze} al livello \textbf{Gold} (evidenziando la riduzione dell'89.1\%) e il fattore di accelerazione di 3.7 volte ottenuto con il \textbf{pushdown} degli indici MongoDB;
+    \item la tabella di valutazione dei modelli di \textbf{machine learning}, sincronizzata dall'endpoint \texttt{GET /evaluation}, che presenta il confronto tra \textbf{Isolation Forest} e \textbf{LSTM Autoencoder} esponendo le metriche di Precision, Recall, F1-score e PR-AUC calcolate su 311.173 punti;
+    \item la tabella del \textbf{Data Quality and Governance Report}, alimentata dall'endpoint \texttt{GET /quality}, che elenca analiticamente per ciascun caso clinico i campioni grezzi del \textbf{Bronze}, i campioni bonificati nel \textbf{Silver}, le righe eliminate e il conteggio degli outlier fisiologici rilevati per ciascun parametro vitale.
+\end{itemize}
 
 \section{Containerizzazione ed orchestrazione con Docker}
 Al fine di garantire l'assoluta riproducibilità dell'ambiente software, l'indipendenza dal sistema operativo ospitante e la rapidità di dispiegamento in contesti ospedalieri, l'intero sistema è stato ingegnerizzato e containerizzato mediante Docker e Docker Compose.
