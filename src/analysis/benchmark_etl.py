@@ -16,34 +16,55 @@ sys.path.append(str(ROOT_DIR))
 from src import config
 
 def run_etl_benchmark():
-    """Calcola metriche di spazio su disco, data quality e latenza di query."""
+    """Calcola metriche di spazio su disco, data quality e latenza di query sullo stesso perimetro di casi."""
     print("=== AVVIO BENCHMARK ETL & DATA QUALITY ===")
     
-    # 1. Spazio su disco
-    bronze_files = list(config.BRONZE_DIR.glob("case_*.parquet"))
-    silver_files = list(config.SILVER_DIR.rglob("case_*.parquet"))
-    
-    bronze_size_mb = sum(f.stat().st_size for f in bronze_files) / (1024 * 1024)
-    silver_size_mb = sum(f.stat().st_size for f in silver_files) / (1024 * 1024)
-    
-    # Connessione MongoDB per dimensione Gold
+    # Connessione MongoDB e individuazione dei casi committed nel layer Gold
     client = MongoClient(config.MONGO_URI)
     db = client[config.DB_NAME]
-    
+
+    try:
+        committed_docs = list(db['registry'].find({"status": "committed"}, {"_id": 0, "case_id": 1}))
+        committed_ids = {int(c["case_id"]) for c in committed_docs}
+    except Exception:
+        committed_ids = set()
+
+    # 1. Spazio su disco calcolato sullo stesso insieme di casi (Like-for-Like)
+    all_bronze_files = list(config.BRONZE_DIR.glob("case_*.parquet"))
+    all_silver_files = list(config.SILVER_DIR.rglob("case_*.parquet"))
+
+    if committed_ids:
+        bronze_files = [f for f in all_bronze_files if int(f.stem.split('_')[1]) in committed_ids]
+        silver_files = [f for f in all_silver_files if int(f.stem.split('_')[1]) in committed_ids]
+    else:
+        bronze_files = all_bronze_files
+        silver_files = all_silver_files
+
+    bronze_size_mb = sum(f.stat().st_size for f in bronze_files) / (1024 * 1024)
+    silver_size_mb = sum(f.stat().st_size for f in silver_files) / (1024 * 1024)
+
     try:
         coll_stats = db.command("collStats", "vital_signals")
-        gold_size_mb = coll_stats.get("totalSize", coll_stats.get("storageSize", 0)) / (1024 * 1024)
+        storage_size_bytes = coll_stats.get("storageSize", 0)
+        index_size_bytes = coll_stats.get("totalIndexSize", 0)
+        total_size_bytes = coll_stats.get("totalSize", storage_size_bytes + index_size_bytes)
+        gold_size_mb = storage_size_bytes / (1024 * 1024)
+        gold_index_mb = index_size_bytes / (1024 * 1024)
+        gold_total_mb = total_size_bytes / (1024 * 1024)
         gold_size_source = "collStats"
     except Exception as e:
         print(f"⚠️ collStats non disponibile: {e}. Utilizzo stima basata su Silver (×0.3).")
         gold_size_mb = silver_size_mb * 0.3  # Stima: compressione tipica Time Series ~70%
+        gold_index_mb = 0.0
+        gold_total_mb = gold_size_mb
         gold_size_source = "estimated_silver_ratio"
         
+    print(f"Casi esaminati (committed): {len(silver_files)}")
     print(f"Spazio Bronze: {bronze_size_mb:.2f} MB")
     print(f"Spazio Silver: {silver_size_mb:.2f} MB")
-    print(f"Spazio Gold (MongoDB): {gold_size_mb:.2f} MB")
+    print(f"Spazio Gold (MongoDB Time Series storage puro): {gold_size_mb:.2f} MB (Indici: {gold_index_mb:.2f} MB, Totale: {gold_total_mb:.2f} MB)")
 
-    # 2. Data Quality (Missing values reali misurati)
+    # 2. Data Quality (Missing values reali misurati sullo stesso perimetro di casi)
     bronze_nulls = 0
     total_bronze_cells = 0
     for p_file in bronze_files:
@@ -63,19 +84,41 @@ def run_etl_benchmark():
         silver_nulls += df_s[vital_s].isna().sum().sum()
 
     null_pct_silver = (silver_nulls / total_silver_cells * 100) if total_silver_cells > 0 else 0.0
+
+    # Calcolo null_pct_gold reale sui casi committed (formato sparso: le metriche nulle non vengono persistite)
+    try:
+        base_filter = {"metadata.case_id": {"$in": list(committed_ids)}} if committed_ids else {}
+        total_gold_records = db['vital_signals'].count_documents(base_filter)
+        total_gold_expected_cells = total_gold_records * len(config.VITAL_TRACKS)
+        if total_gold_expected_cells > 0:
+            total_gold_present_cells = 0
+            for track in config.VITAL_TRACKS:
+                m_key = track.replace('/', '_')
+                query_filter = dict(base_filter)
+                query_filter[f"metrics.{m_key}"] = {"$exists": True}
+                total_gold_present_cells += db['vital_signals'].count_documents(query_filter)
+            total_gold_nulls = total_gold_expected_cells - total_gold_present_cells
+            null_pct_gold = (total_gold_nulls / total_gold_expected_cells) * 100
+        else:
+            null_pct_gold = null_pct_silver
+    except Exception as e:
+        print(f"⚠️ Impossibile calcolare null_pct_gold da MongoDB: {e}")
+        null_pct_gold = null_pct_silver
     
     print(f"Missing Values Reali Bronze: {null_pct_bronze:.1f}%")
     print(f"Missing Values Reali Silver (post-LOCF): {null_pct_silver:.1f}%")
+    print(f"Missing Values Reali Gold (sparso $exists): {null_pct_gold:.1f}%")
 
     # 3. Latenza Query Like-for-Like (Mediana su N run dopo Warmup)
-    # Target di test: Caso #1
-    sample_silver_file = next((f for f in silver_files if "case_1.parquet" in f.name), silver_files[0] if silver_files else None)
+    # Target di test: Caso #1 (o primo caso disponibile)
+    sample_silver_file = next((f for f in silver_files if f.name == "case_1.parquet"), silver_files[0] if silver_files else None)
+    target_case_id = int(sample_silver_file.stem.split('_')[1]) if sample_silver_file else 1
     
     # Warmup
     if sample_silver_file:
         _ = pd.read_parquet(sample_silver_file)['Solar8000/HR'].mean()
     _ = list(db.vital_signals.aggregate([
-        {"$match": {"metadata.case_id": 1}},
+        {"$match": {"metadata.case_id": target_case_id}},
         {"$group": {"_id": "$metadata.case_id", "avg_hr": {"$avg": "$metrics.Solar8000_HR"}}}
     ]))
 
@@ -90,7 +133,7 @@ def run_etl_benchmark():
 
         t0 = time.perf_counter()
         _ = list(db.vital_signals.aggregate([
-            {"$match": {"metadata.case_id": 1}},
+            {"$match": {"metadata.case_id": target_case_id}},
             {"$group": {"_id": "$metadata.case_id", "avg_hr": {"$avg": "$metrics.Solar8000_HR"}}}
         ]))
         single_mongo_times.append((time.perf_counter() - t0) * 1000)
@@ -99,7 +142,7 @@ def run_etl_benchmark():
     t_single_mongo_ms = float(np.median(single_mongo_times)) if single_mongo_times else 0.0
     speedup_single = (t_single_parquet_ms / t_single_mongo_ms) if t_single_mongo_ms > 0 else 1.0
 
-    print(f"\n--- BENCHMARK LIKE-FOR-LIKE (Singolo Caso Clinico #1) ---")
+    print(f"\n--- BENCHMARK LIKE-FOR-LIKE (Singolo Caso Clinico #{target_case_id}) ---")
     print(f"Parquet Partizionato (Singolo Caso): {t_single_parquet_ms:.2f} ms")
     print(f"MongoDB Gold Pushdown (Singolo Caso): {t_single_mongo_ms:.2f} ms")
     print(f"Speedup MongoDB vs File: {speedup_single:.1f}x")
@@ -134,18 +177,27 @@ def run_etl_benchmark():
 
     reduction_silver = ((bronze_size_mb - silver_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
     reduction_gold = ((bronze_size_mb - gold_size_mb) / bronze_size_mb * 100) if bronze_size_mb > 0 else 0.0
+    reduction_silver_vs_gold = ((silver_size_mb - gold_size_mb) / silver_size_mb * 100) if silver_size_mb > 0 else 0.0
 
+    run_id = config.get_or_create_run_id()
     report_data = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "cases_count": len(bronze_files),
+        "run_id": run_id,
+        "pipeline_version": getattr(config, "PIPELINE_VERSION", "1.1.0"),
+        "cases_count": len(silver_files),
         "comparison_methodology": "Like-for-like: Singolo caso Parquet partizionato vs Singolo caso MongoDB pushdown (mediana su 15 iterazioni dopo warmup)",
         "storage": {
             "bronze_mb": round(bronze_size_mb, 2),
             "silver_mb": round(silver_size_mb, 2),
             "gold_mb": round(gold_size_mb, 2),
+            "gold_storage_only_mb": round(gold_size_mb, 2),
+            "gold_index_mb": round(gold_index_mb, 2),
+            "gold_total_mb": round(gold_total_mb, 2),
             "gold_size_source": gold_size_source,
+            "gold_size_definition": "gold_mb indica lo storageSize compresso della sola Time Series Collection vital_signals (esclusi indici B-Tree pari a gold_index_mb).",
             "reduction_silver_pct": round(reduction_silver, 1),
-            "reduction_gold_pct": round(reduction_gold, 1)
+            "reduction_gold_pct": round(reduction_gold, 1),
+            "reduction_silver_vs_gold_pct": round(reduction_silver_vs_gold, 1)
         },
         "query_latency": {
             "single_case_parquet_ms": round(t_single_parquet_ms, 2),
@@ -158,16 +210,17 @@ def run_etl_benchmark():
         "quality": {
             "null_pct_bronze": round(null_pct_bronze, 1),
             "null_pct_silver": round(null_pct_silver, 1),
-            "null_pct_gold": 0.0
+            "null_pct_gold": round(null_pct_gold, 1)
         }
     }
 
     report_path = config.DATA_DIR / "benchmark_report.json"
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report_data, f, indent=2)
-    print(f"✓ Benchmark Report salvato in: {report_path}")
+    print(f"✓ Benchmark Report salvato in: {report_path} (run_id: {run_id})")
 
     return report_data
 
 if __name__ == '__main__':
     run_etl_benchmark()
+

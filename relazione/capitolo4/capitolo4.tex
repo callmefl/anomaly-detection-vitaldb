@@ -1,170 +1,219 @@
 \chapter{Modelli di anomaly detection}
 
-\section{Approccio ibrido e multilivello al rilevamento di anomalie}
-Nel monitoraggio intraoperatorio continuo, l'identificazione precoce di deviazioni fisiologiche critiche costituisce un obiettivo primario per la sicurezza del paziente. La dinamica biologica di un organismo sottoposto ad anestesia generale e a stimoli chirurgici è tuttavia estremamente complessa ed eterogenea: gli eventi avversi possono manifestarsi sia sotto forma di repentine cadute pressorie sia come graduali e insidiose dissociazioni tra parametri vitali multipli.
+\section{Perché un approccio ibrido: regole cliniche + machine learning non supervisionato}
+Nel monitoraggio intraoperatorio continuo, un paziente può destabilizzarsi in modi molto diversi: talvolta con un crollo acuto e netto di un singolo parametro (ad esempio una caduta brusca della pressione arteriosa o della saturazione), altre volte con variazioni più lente e distribuite su più canali contemporaneamente.
 
-Per intercettare questo ampio spettro di condizioni, il presente progetto non si affida a un'unica tecnica di analisi, bensì implementa un approccio ibrido multilivello fondato su quattro metodologie complementari:
-due regole cliniche deterministiche dominio-specifiche, formulate sulla base delle evidenze della letteratura medica (lo \textbf{Shock Index} e la condizione di ipotensione severa);
-due algoritmi di \textbf{machine learning} non supervisionato capaci di operare sullo spazio congiunto delle serie storiche, segnatamente l'algoritmo ad alberi \textbf{Isolation Forest} e un modello neurale ricorrente basato su \textbf{LSTM Autoencoder}.
+Quando abbiamo progettato il modulo di rilevamento delle anomalie (\texttt{src/detection/detector.py}), ci siamo trovati davanti a un primo problema pratico: \textbf{nel dataset pubblico VitalDB non esistono etichette cliniche secondo-per-secondo} che indichino quando il paziente sta attraversando un evento avverso certificato da un anestesista. Questa assenza di annotazioni puntuali escludeva a priori l'addestramento di classificatori supervisionati classici (come Random Forest o XGBoost addestrati su etichette vere).
 
-La complementarità di questo schema risponde a una precisa motivazione clinica e ingegneristica: le regole cliniche hanno una solida giustificazione fisiopatologica e forniscono riscontri trasparenti e immediatamente comprensibili dal personale medico, ma falliscono nell'identificare anomalie multivariate sfumate che precedono l'evento conclamato; al contrario, i modelli di \textbf{machine learning} non supervisionato eccellono nel riconoscere correlazioni inattese e configurazioni atipiche ad alta dimensionalità, sebbene necessitino di una contestualizzazione per distinguere gli artefatti statistici dalle vere emergenze cliniche.
+D'altra parte, affidarsi solo a regole cliniche a soglia fissa oppure solo ad algoritmi non supervisionati presentava limiti opposti:
+\begin{itemize}
+    \item le \textbf{regole cliniche deterministiche} hanno un significato medico immediato e trasparente (l'anestesista sa subito perché è scattato l'allarme), ma vedono solo una o due variabili alla volta e si attivano solo quando la soglia critica è già stata superata;
+    \item i \textbf{modelli di machine learning non supervisionato} possono analizzare contemporaneamente tutte le variabili e le loro derivate temporali senza bisogno di etichette, ma non conoscono il significato fisiologico dei numeri: producono un punteggio di atipicità statistica che, da solo, è più difficile da interpretare al letto del paziente.
+\end{itemize}
 
-\section{Regole cliniche dominio-specifiche}
-Le regole cliniche implementate nello script \texttt{src/detection/detector.py} operano direttamente sulle grandezze fisiologiche archiviate nel livello \textbf{Gold}, valutando soglie note nella pratica anestesiologica.
+Per questo motivo abbiamo scelto un \textbf{approccio ibrido a quattro metodi complementari}:
+\begin{enumerate}
+    \item due \textbf{regole cliniche dominio-specifiche}: lo \textbf{Shock Index} ($\text{SI} > 0,9$) e l'\textbf{ipotensione severa concomitante a ipossiemia} ($\text{MBP} < 65\text{ mmHg} \land \text{SpO}_2 < 90\%$);
+    \item due \textbf{modelli di machine learning non supervisionato} sullo spazio multivariato a 8 feature: l'algoritmo ad alberi \textbf{Isolation Forest} (che isola i punti anomali istantanei nello spazio a 8 dimensioni) e una rete neurale ricorrente \textbf{LSTM Autoencoder} in PyTorch (che valuta la ricostruzione di finestre scorrevoli di 30 secondi).
+\end{enumerate}
+Affiancare un modello ad alberi a un modello ricorrente ci ha permesso di confrontare un approccio veloce basato sulla densità puntuale (Isolation Forest) con uno capace di considerare l'andamento sequenziale negli ultimi 30 secondi (LSTM Autoencoder).
+
+\section{Caricamento dal layer Gold e regole cliniche con filtro di freschezza}
+Prima di calcolare qualsiasi regola o feature, la funzione \texttt{load\_from\_gold(db, case\_ids)} in \texttt{src/detection/detector.py} estrae le serie dal layer \textbf{Gold} applicando tre accorgimenti importanti sia per la stabilità della memoria sia per la qualità dei dati:
+\begin{enumerate}
+    \item \textbf{Filtro sui soli casi \texttt{committed} e lettura a batch da 25 casi:} se non viene passata una lista esplicita di casi, la funzione interroga il catalogo \texttt{registry} prelevando esclusivamente gli identificativi con stato \texttt{\{"status": "committed"\}}. Inoltre, quando il numero di pazienti da caricare supera i 25 (come nell'esecuzione completa sui 500 casi), l'estrazione da \texttt{vital\_signals} viene suddivisa in blocchi da \texttt{batch\_size = 25} casi tramite la funzione ausiliaria \texttt{\_fetch\_gold\_batch}, ordinando ogni blocco per \texttt{("metadata.case\_id", 1)} e \texttt{("timestamp", 1)}. Abbiamo introdotto questo caricamento a blocchi perché una singola query su 5,4 milioni di documenti BSON causava picchi eccessivi di memoria nel cursore PyMongo;
+    \item \textbf{Mascheramento attivo degli outlier fisiologici:} come visto nel Capitolo~2, il layer \textbf{Silver} conserva i valori grezzi fuori scala per finalità di audit e si limita a marcarli con i flag booleani \texttt{quality\_flags.*\_outlier}. Se passassimo quei valori direttamente alle regole o ai modelli, un singolo artefatto da bisturi elettrico ($\text{HR} = 320\text{ bpm}$) o uno sgonfiaggio del bracciale pressorio farebbe scattare falsi allarmi. Per evitarlo, \texttt{load\_from\_gold()} controlla ciascuno dei 5 flag \texttt{*\_outlier} e sostituisce in memoria i valori corrispondenti con \texttt{np.nan} prima di avviare l'analisi;
+    \item \textbf{Vincolo di freschezza clinica della pressione (\texttt{nibp\_age\_s} $\le 120\text{ s}$):} nel layer \textbf{Silver} le misure intermittenti del bracciale pressorio vengono propagate in avanti tramite \textbf{forward-fill} fino a $300\text{ s}$ (5 minuti) per non lasciare buchi continui nella matrice usata dai modelli multivariati. Tuttavia, dal punto di vista medico, fare scattare un allarme acuto di Shock Index o di ipotensione severa basandosi su una pressione misurata quattro o cinque minuti prima non sarebbe corretto: un singolo episodio ipotensivo già risolto continuerebbe a generare un allarme fittizio per 300 secondi consecutivi. Per evitare questo effetto, entrambe le regole cliniche leggono il contatore \texttt{quality\_flags.nibp\_age\_s} e applicano la soglia configurata in \texttt{config.NIBP\_MAX\_CLINICAL\_AGE\_S = 120.0} secondi: una misura NIBP viene usata dalle regole cliniche solo se è stata acquisita negli ultimi 2 minuti.
+\end{enumerate}
 
 \subsection{Shock Index clinico}
-Lo \textbf{Shock Index} ($SI$) è un indicatore emodinamico adimensionale ampiamente utilizzato nei reparti di rianimazione e pronto soccorso per la valutazione tempestiva del rischio di shock ipovolemico, emorragico o cardiogeno. Esso è definito matematicamente come il rapporto tra la frequenza cardiaca ($HR$) e la pressione arteriosa sistolica ($SBP$):
-$$SI = \frac{\text{Solar8000\_HR}}{\text{Solar8000\_NIBP\_SBP}}$$
+Lo \textbf{Shock Index} ($\text{SI}$) è un indicatore emodinamico adimensionale molto usato in anestesia e rianimazione per individuare precocemente stati di shock ipovolemico o emorragico. È definito come il rapporto tra la frequenza cardiaca ($\text{HR}$) e la pressione arteriosa sistolica ($\text{SBP}$):
+$$\text{SI} = \frac{\text{Solar8000\_HR}}{\text{Solar8000\_NIBP\_SBP}}$$
 
-In un soggetto adulto sano in condizioni stazionarie di riposo, il valore normale dello \textbf{Shock Index} oscilla tra $0.5$ e $0.7$. Quando la gittata sistolica cala a seguito di un'emorragia o di una vasodilatazione indotta dai farmaci anestetici, il sistema nervoso autonomo tenta di compensare aumentando la frequenza cardiaca (tachicardia riflessa) mentre la pressione sistolica tende a diminuire. Il modulo contrassegna come anomalo qualsiasi istante temporale in cui si verifichi la condizione:
-$$SI > 0.9$$
-Il superamento di questa soglia testimonia il fallimento dei meccanismi fisiologici di compenso e segnala un'instabilità emodinamica imminente che richiede un'immediata infusione di fluidi o l'infusione di vasopressori.
+In un adulto stabile il valore normale oscilla tra $0,5$ e $0,7$. Quando il volume circolante cala (ad esempio per un sanguinamento intraoperatorio) o si verifica una forte vasodilatazione da anestetici, l'organismo compensa aumentando la frequenza cardiaca mentre la pressione sistolica scende, facendo salire il rapporto. La funzione \texttt{compute\_shock\_index(df, threshold=0.9, max\_nibp\_age\_s=None)} marca come anomalo ogni secondo in cui:
+$$\text{SI} > 0,9 \quad \land \quad \texttt{nibp\_age\_s} \le 120\text{ s}$$
+Inoltre, per evitare divisioni per zero o valori negativi privi di senso, i campioni con $\text{SBP} \le 0$ vengono sostituiti con \texttt{np.nan} prima di calcolare il rapporto.
 
-\subsection{Ipotensione severa}
-La seconda euristica clinica mira a identificare stati di grave compromissione perfusiva e ipossia cellulare. La regola valuta la compresenza simultanea di una pressione arteriosa media insufficiente e di una desaturazione d'ossigeno periferico:
-$$\text{Solar8000\_NIBP\_MBP} < 65 \text{ mmHg} \quad \land \quad \text{Solar8000\_PLETH\_SPO2} < 90\%$$
+\subsection{Ipotensione severa concomitante a ipossiemia}
+La seconda regola clinica, implementata in \texttt{compute\_severe\_hypotension(df, mbp\_threshold=65.0, spo2\_threshold=90.0, max\_nibp\_age\_s=None)}, intercetta gli episodi in cui una perfusione arteriosa insufficiente si associa contemporaneamente a una caduta della saturazione periferica d'ossigeno:
+$$\text{Solar8000\_NIBP\_MBP} < 65\text{ mmHg} \quad \land \quad \text{Solar8000\_PLETH\_SPO2} < 90\% \quad \land \quad \texttt{nibp\_age\_s} \le 120\text{ s}$$
 
-Il mantenimento di una pressione arteriosa media ($MBP$) al di sopra di $65$ mmHg è universalmente riconosciuto nelle linee guida cliniche come la soglia minima necessaria per garantire l'autoregolazione del flusso ematico nei distretti cerebrale e renale. Quando tale ipoperfusione si associa a una caduta della saturazione al di sotto del $90\%$, l'organismo entra in una condizione di grave sofferenza ipossico-ischemica. La coincidenza temporale dei due segnali costituisce un allarme di massima priorità in sala operatoria.
+In anestesia, mantenere la pressione arteriosa media ($\text{MBP}$) sopra i $65\text{ mmHg}$ è considerato il requisito minimo per garantire la perfusione degli organi vitali (cervello, cuore e reni). Quando sotto questa soglia si verifica anche una desaturazione sotto il $90\%$, il paziente entra rapidamente in sofferenza ipossica-ischemica.
 
-\section{Ingegnerizzazione delle feature temporali}
-Per consentire agli algoritmi di \textbf{machine learning} di catturare non soltanto i valori istantanei dei parametri ma anche la dinamica evolutiva e la tendenza temporale delle serie biometriche, la procedura esegue una fase di estrazione di feature temporali derivate.
+\section{Ingegnerizzazione delle feature temporali sulla frequenza cardiaca}
+Se passassimo ai modelli di machine learning soltanto i 5 segnali vitali istantanei, un algoritmo come Isolation Forest (che non ha memoria storica) vedrebbe ogni secondo come scollegato dal precedente e non distinguerebbe una frequenza cardiaca stabile a $95\text{ bpm}$ da una che è appena balzata da $60$ a $95\text{ bpm}$ in due secondi.
 
-A partire dal segnale della frequenza cardiaca (\texttt{Solar8000/HR}), che presenta la cadenza di campionamento più continua e regolare a frequenza di 1 Hz, vengono calcolate tre feature dinamiche fondamentali. Indicando con $x_t$ il valore della frequenza cardiaca all'istante temporale $t$ (in secondi) e con $W = 5$ campioni l'ampiezza della finestra temporale retrospettiva, le metriche vengono definite formalmente come:
-la media mobile a cinque campioni (\texttt{HR\_rolling\_mean}), che attenua le micro-oscillazioni e gli artefatti ad alta frequenza senza introdurre ritardi significativi:
-$$\mu_t = \frac{1}{W} \sum_{k=0}^{W-1} x_{t-k}$$
-la deviazione standard mobile a cinque campioni (\texttt{HR\_rolling\_std}), che quantifica la dispersione e l'instabilità istantanea del battito cardiaco nel brevissimo termine:
-$$\sigma_t = \sqrt{\frac{1}{W-1} \sum_{k=0}^{W-1} (x_{t-k} - \mu_t)^2}$$
-la differenza prima (\texttt{HR\_delta}), che misura la velocità istantanea di accelerazione o decelerazione del ritmo cardiaco:
-$$\Delta x_t = x_t - x_{t-1}$$
+Per dare anche ai modelli una misura della dinamica a brevissimo termine senza esplodere il numero di colonne, nella funzione \texttt{run\_detection\_pipeline} abbiamo calcolato tre feature derivate a partire dal segnale più continuo e regolare del dataset, la frequenza cardiaca (\texttt{Solar8000\_HR}, campionata a 1 Hz). Indicando con $x_t$ il valore di $\text{HR}$ al secondo $t$ e usando una finestra retrospettiva di $W = 5$ campioni (\texttt{rolling(5, min\_periods=1)}), calcoliamo:
+\begin{itemize}
+    \item la \textbf{media mobile a 5 secondi} (\texttt{HR\_rolling\_mean}), che smorza le oscillazioni istantanee:
+    $$\mu_t = \frac{1}{W} \sum_{k=0}^{W-1} x_{t-k}$$
+    \item la \textbf{deviazione standard mobile a 5 secondi} (\texttt{HR\_rolling\_std}, con \texttt{.fillna(0.0)} sul primo campione), che misura l'instabilità locale del battito:
+    $$\sigma_t = \sqrt{\frac{1}{W-1} \sum_{k=0}^{W-1} (x_{t-k} - \mu_t)^2}$$
+    \item la \textbf{differenza prima} (\texttt{HR\_delta}, calcolata con \texttt{.diff().fillna(0.0)}), che misura l'accelerazione o la decelerazione istantanea del battito da un secondo al successivo:
+    $$\Delta x_t = x_t - x_{t-1}$$
+\end{itemize}
 
-L'introduzione di $\Delta x_t$ riveste un ruolo fisiologico cruciale: una repentina variazione positiva di $\Delta x_t$ (oltre 10--15 bpm in un singolo secondo) riflette una scarica adrenergica massiva indotta da un risveglio intraoperatorio o da uno stimolo algico chirurgico acuto, mentre un crollo improvviso testimonia un riflesso vagale o un blocco atrioventricolare.
+Tutte e tre le trasformazioni sono calcolate raggruppando esplicitamente per paziente tramite \texttt{df.groupby("case\_id", sort=False)["Solar8000\_HR"]}. Questo evita che i primi 4 secondi di un paziente vengano calcolati facendo media o differenza con gli ultimi secondi del paziente precedente.
 
-Al fine di garantire l'assoluta correttezza metodologica, il calcolo di queste finestre mobili viene vincolato al raggruppamento per singolo paziente mediante la trasformazione \texttt{df.groupby("case\_id")}. Questo accorgimento impedisce rigorosamente che i confini temporali di un caso clinico si sovrappongano a quelli del caso successivo, scongiurando qualsiasi contaminazione analitica tra pazienti differenti nei punti di transizione.
-
-Il vettore complessivo delle feature impiegato dai modelli di \textbf{machine learning} comprende otto grandezze numeriche: le cinque metriche vitali originarie (frequenza cardiaca, saturazione d'ossigeno e le tre componenti pressorie) affiancate dalle tre feature dinamiche derivate sulla frequenza. Al contrario, la variabile \texttt{nibp\_age\_s} calcolata nel livello \textbf{Silver} viene deliberatamente esclusa dal vettore; essa rappresenta infatti un metadato di governance attestante la freschezza temporale della misura e non una proprietà biologica intrinseca del paziente.
+Il vettore finale passato ai modelli di machine learning è quindi composto da \textbf{8 feature numeriche}: i 5 canali biometrici (\texttt{Solar8000\_HR}, \texttt{Solar8000\_PLETH\_SPO2}, \texttt{Solar8000\_NIBP\_SBP}, \texttt{Solar8000\_NIBP\_DBP}, \texttt{Solar8000\_NIBP\_MBP}) più le 3 feature dinamiche (\texttt{HR\_rolling\_mean}, \texttt{HR\_rolling\_std}, \texttt{HR\_delta}). Abbiamo invece escluso dal vettore delle feature \texttt{nibp\_age\_s}, perché rappresenta l'età tecnica della misura del bracciale e non una grandezza fisiologica del paziente.
 
 \section{Modelli di machine learning non supervisionato}
-L'approccio basato sull'apprendimento non supervisionato prescinde dalla presenza di etichette a priori e mira a identificare pattern anomali nello spazio delle otto feature biometriche.
 
-\subsection{Isolation Forest}
-Il primo algoritmo impiegato è l'\textbf{Isolation Forest}, un metodo di ensemble basato su alberi decisionali isolanti (\textbf{iTree}) particolarmente efficace per serie storiche ad alta dimensionalità.
+\subsection{Imputazione locale per paziente e correzione del bug di data leakage nel \texttt{.bfill()}}
+Poiché né \texttt{IsolationForest} di scikit-learn né i tensori di PyTorch accettano valori \texttt{NaN} in ingresso, prima di eseguire i modelli dobbiamo riempire gli eventuali buchi rimasti dopo la pulizia Silver (ad esempio i tratti in cui il bracciale NIBP è rimasto spento per più di 300 secondi o i punti appena mascherati a \texttt{NaN} perché outlier).
 
-Il principio teorico dell'algoritmo sfrutta le proprietà geometriche delle anomalie: i punti anomali sono pochi rispetto alla popolazione complessiva e tendono a posizionarsi in regioni periferiche e poco dense dello spazio vettoriale. L'algoritmo partiziona ricorsivamente lo spazio campionario selezionando casualmente una feature ed effettuando un taglio uniforme tra il valore minimo e massimo osservato. Poiché i campioni normali sono densamente raggruppati, essi richiedono un numero elevato di partizioni per essere isolati all'interno di una foglia; al contrario, le istanze anomale, trovandosi isolate nello spazio, vengono separate con pochissimi tagli decisionali.
+Durante la revisione del codice ci siamo accorti di un bug insidioso che avevamo introdotto nella prima versione di \texttt{detector.py} e \texttt{evaluate\_models.py}. Avevamo scritto:
+$$\texttt{df.groupby("case\_id")[feat\_cols].ffill().bfill()}$$
+Il problema è nel comportamento di Pandas: il metodo \texttt{.ffill()} invocato su un oggetto \texttt{GroupBy} viene eseguito correttamente dentro ciascun paziente, ma restituisce un normale \texttt{DataFrame} non più raggruppato. Di conseguenza, il successivo \texttt{.bfill()} agiva sull'intero DataFrame concatenato: se un paziente iniziava l'intervento senza ancora una lettura NIBP valida nei primi minuti, quei \texttt{NaN} iniziali potevano essere riempiti all'indietro con i primi valori del paziente successivo se l'intero canale era vuoto.
 
-La lunghezza media del percorso (\textbf{path length}) dalla radice alla foglia attraverso la foresta di alberi fornisce una misura inversa dello score di anomalia. Nello script di produzione, l'algoritmo viene istanziato con una quota di contaminazione teorica fissata al 5\% (\texttt{contamination=0.05}) e con un seme deterministico fissato a 42 per garantire la riproducibilità dei risultati.
+Abbiamo corretto il bug sia in \texttt{detect\_isolation\_forest}, sia in \texttt{LSTMAutoencoderDetector.\_make\_window\_views\_per\_case}, sia in \texttt{evaluate\_models.py}, riapplicando esplicitamente il raggruppamento per \texttt{case\_id} anche sul \textbf{backward-fill}:
+$$\texttt{df.groupby("case\_id", sort=False)[feat\_cols].ffill().groupby(df["case\_id"], sort=False).bfill().fillna(0.0)}$$
+In questo modo sia la propagazione in avanti sia quella all'indietro restano confinate dentro il singolo caso clinico, e il fallback a \texttt{0.0} interviene solo nel caso limite in cui un canale sia assente per tutta la durata di quell'intervento. Per essere sicuri di non reintrodurre l'errore, abbiamo aggiunto il test unitario dedicato \texttt{test\_imputation\_no\_bfill\_leakage\_across\_cases} in \texttt{tests/test\_detection.py}.
 
-\subsection{LSTM Autoencoder neurale (PyTorch)}
-Per catturare le interdipendenze sequenziali e la memoria a lungo termine dei segnali fisiologici, è stato progettato e implementato un modello di deep learning basato su reti ricorrenti: l'\textbf{LSTM Autoencoder}, realizzato mediante la libreria PyTorch.
+\subsection{Isolation Forest e significato della soglia \texttt{contamination=0.05}}
+Il primo modello non supervisionato, implementato nella funzione \texttt{detect\_isolation\_forest(df, contamination=0.05)}, utilizza l'algoritmo \textbf{Isolation Forest} di scikit-learn (\texttt{random\_state=42}).
+
+L'idea dell'algoritmo è semplice e molto adatta a dataset grandi: invece di stimare la densità dei punti normali (operazione computazionalmente costosa su 5,4 milioni di righe), costruisce una foresta di alberi binari (\textit{iTree}) che partizionano lo spazio a 8 dimensioni scegliendo casualmente una variabile e un punto di taglio. I punti normali, trovandosi raggruppati in zone dense dello spazio, richiedono molti tagli successivi per essere isolati; i punti anomali, che si trovano in zone periferiche o presentano combinazioni insolite tra le 8 feature (ad esempio $\text{HR}$ molto instabile associata a pressione bassa), vengono isolati vicino alla radice dell'albero in pochissimi passaggi. La lunghezza media del percorso dalla radice alla foglia determina lo score di anomalia del punto.
+
+È importante chiarire con onestà cosa significa aver impostato \texttt{contamination=0.05} (e, in modo analogo, il $95^\circ$ percentile nell'Autoencoder). Con questo parametro \textbf{il modello non ``scopre'' da solo che il 5\% dei punti è anomalo}: per costruzione, l'algoritmo ordina tutti i punti dal più normale al più estremo e poi applica una soglia che etichetta come anomali esattamente il 5\% dei campioni con il punteggio peggiore. In pratica usiamo entrambi i modelli non supervisionati come \textbf{meccanismi di ranking di severità} a cui chiediamo di restituire la coda del 5\% più atipica. Quando viene eseguito sull'intera coorte di 500 pazienti, il taglio del 5\% è globale e quindi i pazienti più instabili accumulano più segnalazioni rispetto a quelli stabili; quando invece viene eseguito su un singolo paziente, selezionerà comunque circa il 5\% dei punti di quel caso.
+
+\subsection{LSTM Autoencoder in PyTorch e finestre scorrevoli zero-copy}
+Mentre Isolation Forest valuta ogni secondo in modo puntuale (aiutato solo dalle 3 feature mobili a 5 secondi su $\text{HR}$), il secondo modello è pensato per catturare la dinamica temporale su un orizzonte più ampio: un \textbf{LSTM Autoencoder} sviluppato in PyTorch, che analizza finestre scorrevoli di \textbf{30 secondi consecutivi} su tutti gli 8 canali.
 
 \begin{figure}[ht]
     \centering
     \input{lstm_autoencoder_tikz.tex}
-    \caption{Architettura vettoriale della rete neurale LSTM Autoencoder con proiettore lineare in TikZ.}
+    \caption{Architettura della rete neurale LSTM Autoencoder con proiettore lineare e calcolo dell'errore massimo per canale.}
     \label{fig:lstm_arch}
 \end{figure}
 
-Come schematizzato nella Figura~\ref{fig:lstm_arch}, l'architettura elabora le serie storiche mediante una struttura simmetrica di tipo \textbf{encoder-decoder}:
-il modello riceve in ingresso un tensore tridimensionale di forma $(B, W_s, C)$, dove $B$ rappresenta la dimensione del batch, $W_s = 30$ campioni (corrispondenti a 30 secondi di telemetria continua) è l'ampiezza della finestra scorrevole e $C = 8$ è il numero di canali biometrici standardizzati con punteggio z;
-l'encoder è costituito da uno strato ricorrente LSTM a 32 unità nascoste (\texttt{hidden\_size=32}), che riceve la sequenza temporale $X \in \mathbb{R}^{30 \times 8}$ e la comprime progressivamente nel vettore di stato nascosto finale $h_{\text{enc}} \in \mathbb{R}^{32}$. Tale vettore costituisce il \textbf{context vector} compresso, che riassume l'intera dinamica evolutiva del blocco temporale;
-per alimentare il decoder, il vettore $h_{\text{enc}}$ viene replicato per 30 passi temporali consecutivi (\textbf{repeat vector}), fornendo a ciascun istante del processo di ricostruzione la medesima rappresentazione globale del contesto;
-il decoder è composto da un secondo strato ricorrente LSTM speculare a 32 unità, che elabora la sequenza riprodotta generando gli stati di decodifica $h^{\text{dec}}_t \in \mathbb{R}^{32}$ per ciascuno dei 30 istanti;
-un layer di proiezione lineare finale (\texttt{nn.Linear}), posizionato all'uscita del decoder, proietta ciascuno stato nascosto nello spazio continuo originale delle feature: $\hat{X}_t = W_p h^{\text{dec}}_t + b_p$, con pesi $W_p \in \mathbb{R}^{8 \times 32}$ e bias $b_p \in \mathbb{R}^8$. L'introduzione di questo strato lineare si è rivelata determinante: la funzione di attivazione tangente iperbolica nativa delle celle LSTM limita infatti le uscite all'intervallo ristretto $[-1, 1]$, impedendo la corretta ricostruzione di variabili standardizzate con punteggio z che superano tali estremi. Il proiettore lineare elimina questo vincolo consentendo la ricostruzione sull'intero asse reale.
+Come illustrato nella Figura~\ref{fig:lstm_arch} e nel Listato~\ref{lst:lstm_pytorch}, la classe \texttt{\_LSTMAutoencoder} (costruita dalla factory \texttt{\_make\_lstm\_autoencoder\_class()} in \texttt{src/detection/detector.py}) ha una struttura \textbf{encoder-decoder}:
+\begin{itemize}
+    \item \textbf{Input:} riceve un tensore di forma $(B, 30, 8)$, dove $B$ è la dimensione del batch, \texttt{window\_size=30} sono i 30 secondi consecutivi e $8$ sono le feature standardizzate con \texttt{StandardScaler} (media zero e varianza unitaria);
+    \item \textbf{Encoder LSTM:} uno strato \texttt{nn.LSTM(n\_features=8, hidden\_size=32, batch\_first=True)} legge i 30 passi temporali e comprime la sequenza nello stato nascosto finale \texttt{hidden} di dimensione $32$ (\textit{bottleneck});
+    \item \textbf{Repeat vector e Decoder LSTM:} il vettore latente di dimensione $32$ viene ripetuto per tutti i $30$ passi temporali (\texttt{hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)}) e passato al decoder \texttt{nn.LSTM(32, 32, batch\_first=True)};
+    \item \textbf{Proiettore lineare (\texttt{nn.Linear(32, 8)}):} all'uscita del decoder abbiamo aggiunto uno strato lineare \texttt{self.out = nn.Linear(hidden\_size, n\_features)}. Questa scelta è stata fondamentale: l'uscita nativa di una cella LSTM passa attraverso una tangente iperbolica ($\tanh$), che restituisce solo valori compresi tra $-1$ e $+1$. Poiché le nostre feature sono standardizzate in Z-score e possono tranquillamente assumere valori come $+2,5$ o $-3,0$, senza il layer \texttt{nn.Linear} finale la rete sarebbe stata fisicamente incapace di ricostruire i valori oltre $\pm 1$.
+\end{itemize}
 
-L'architettura della rete in PyTorch, definita mediante la funzione interna \\ \texttt{\_make\_lstm\_autoencoder\_class} nel modulo \texttt{detector.py}, è riportata nel Listato~\ref{lst:lstm_pytorch}.
+\begin{lstlisting}[caption={Definizione reale della classe PyTorch \texttt{\_LSTMAutoencoder} in \texttt{src/detection/detector.py}.}, label={lst:lstm_pytorch}]
+def _make_lstm_autoencoder_class():
+    """Costruisce la classe LSTMAutoencoder come nn.Module solo se PyTorch e' disponibile."""
+    if not _TORCH_AVAILABLE:
+        return None
 
-\begin{lstlisting}[caption={Definizione del modello PyTorch LSTM Autoencoder con proiettore lineare per l'anomaly detection.}, label={lst:lstm_pytorch}]
-// Modulo PyTorch implementato in src/detection/detector.py
-class LSTMAutoencoder(nn.Module):
-    def __init__(self, n_features=8, hidden_size=32, n_layers=1):
-        super().__init__()
-        # Encoder: comprime la sequenza (B, 30, 8) nello stato nascosto (B, 32)
-        self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
-        # Decoder: ricostruisce la sequenza temporale partendo dal vettore latente
-        self.decoder = nn.LSTM(hidden_size, hidden_size, n_layers, batch_first=True)
-        # Proiettore lineare: mappa lo stato nascosto R^32 nello spazio originale R^8
-        self.out = nn.Linear(hidden_size, n_features)
+    class _LSTMAutoencoder(nn.Module):
+        def __init__(self, n_features, hidden_size=32, n_layers=1):
+            super().__init__()
+            # Encoder LSTM: comprime la sequenza in un vettore latente
+            self.encoder = nn.LSTM(n_features, hidden_size, n_layers, batch_first=True)
+            # Decoder LSTM: decodifica il vettore latente nello spazio nascosto
+            self.decoder = nn.LSTM(hidden_size, hidden_size, n_layers, batch_first=True)
+            # Layer di proiezione lineare: mappa lo stato nascosto nello spazio continuo R^n
+            self.out = nn.Linear(hidden_size, n_features)
 
-    def forward(self, x):
-        # x ha forma (batch_size, sequence_length=30, n_features=8)
-        _, (hidden, _) = self.encoder(x)
-        # Replicazione del context vector per ciascuno dei 30 timestep
-        context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
-        output, _ = self.decoder(context)
-        return self.out(output)  # dimensione ricostruita: (batch, 30, 8)
+        def forward(self, x):
+            # x ha forma (batch, T, n_features)
+            _, (hidden, _) = self.encoder(x)
+            # Ripete il vettore latente per ogni timestep della sequenza
+            context = hidden.permute(1, 0, 2).repeat(1, x.size(1), 1)
+            output, _ = self.decoder(context)
+            return self.out(output)  # dimensione: (batch, T, n_features)
+
+    return _LSTMAutoencoder
 \end{lstlisting}
 
-La preparazione dei dati per la rete neurale adotta una rigida politica di segmentazione per paziente mediante la classe \texttt{LSTMAutoencoderDetector}:
-i dati vengono raggruppati per \texttt{case\_id} e standardizzati con scala z-score;
-la suddivisione delle serie in finestre da 30 secondi viene eseguita mediante la funzione vettoriale senza copia \texttt{np.lib.stride\_tricks.sliding\_window\_view}. Questa operazione genera le viste sulle finestre temporali manipolando unicamente gli offset dei puntatori di memoria (\textbf{strides}), senza allocare o duplicare copie fisiche dell'array in memoria RAM. In questo modo è possibile processare agevolmente oltre 300.000 finestre con un consumo di memoria estremamente contenuto;
-il modello viene addestrato con ottimizzatore Adam (tasso di apprendimento $10^{-3}$) e funzione di perdita di errore quadratico medio (MSE) per dieci epoche su un campione rappresentativo uniforme di finestre.
+\subsubsection{Gestione della memoria sui 500 casi: viste zero-copy e sottocampionamento di training}
+Quando siamo passati dai primi test su 50 casi all'intera coorte di \textbf{500 casi} (\textbf{5.402.386 righe}), ci siamo scontrati con un problema concreto di memoria RAM nella classe \texttt{LSTMAutoencoderDetector}. Creare una finestra scorrevole di lunghezza $30$ e passo $1$ su $5,4$ milioni di punti significa generare circa $5,39$ milioni di finestre di forma $(30, 8)$. Se avessimo concatenato tutte queste finestre in un unico array NumPy tridimensionale tramite \texttt{np.concatenate}, avremmo dovuto allocare di colpo oltre \textbf{5,17 GB} di RAM in \texttt{float32} (o oltre \textbf{10,3 GB} in \texttt{float64}), mandando in crash il container Docker per \textit{Out-Of-Memory}.
 
-Durante la fase di inferenza, la rete valuta la discrepanza tra la finestra di ingresso $X$ e la corrispondente finestra ricostruita $\hat{X}$. Nel calcolo dell'errore di ricostruzione complessivo della finestra, si è deliberatamente scelto di non utilizzare la media aritmetica dell'errore quadratico medio su tutti gli otto canali. In ambito emodinamico, la mediazione globale introdurrebbe infatti un grave rischio di diluizione: se sette parametri su otto rimangono stabili, una caduta acuta e drammatica di un singolo canale vitale (quale una grave desaturazione $\text{SpO}_2$ al di sotto dell'80\% per ostruzione respiratoria improvvisa) verrebbe attenuata dall'effetto mediato degli altri segnali, non riuscendo a superare la soglia di allarme. Per scongiurare tale evenienza, l'errore della finestra viene definito come il massimo errore quadratico medio osservato tra i canali biometrici:
-$$\mathcal{E}(X) = \max_{c \in \{1, \dots, C\}} \left( \frac{1}{W_s} \sum_{t=1}^{W_s} (X_{t,c} - \hat{X}_{t,c})^2 \right)$$
-L'errore così ottenuto viene assegnato con precisione all'ultimo istante temporale della finestra scorrevole.
+Per far girare il modello su CPU con un consumo di memoria ridotto, in \texttt{LSTMAutoencoderDetector} abbiamo adottato tre soluzioni pratiche:
+\begin{enumerate}
+    \item \textbf{Viste zero-copy per paziente (\texttt{\_make\_window\_views\_per\_case}):} dopo aver normalizzato le 8 feature con \texttt{StandardScaler} e averle convertite subito in \texttt{np.float32}, per ciascun paziente costruiamo le finestre con \texttt{np.lib.stride\_tricks.sliding\_window\_view(vals, window\_shape=(30, 8))}. Questa funzione di NumPy non copia i dati in memoria, ma crea una vista virtuale modificando solo gli \textit{strides} (i passi di lettura dei puntatori) sull'array 2D già esistente, evitando sia la duplicazione di 5 GB sia la creazione di finestre a cavallo tra due pazienti diversi;
+    \item \textbf{Sottocampionamento uniforme per il training (\texttt{max\_train = 15000}):} addestrare una rete LSTM su CPU per 10 epoche su 5,39 milioni di finestre richiederebbe ore. Nel metodo \texttt{fit\_predict}, se il totale delle finestre supera \texttt{max\_train = 15000}, estraiamo dalle viste zero-copy un campione uniforme di $15.000$ finestre distribuite lungo tutta la coorte (\texttt{np.linspace(0, total\_windows - 1, max\_train, dtype=int)}), che occupano appena \textbf{14,4 MB} di RAM, e riduciamo il numero di epoche a \texttt{n\_epochs = min(self.epochs, 5)} (cioè 5 epoche, con batch size dinamico \texttt{batch\_sz = min(512, max(32, len(train\_tensor)))} e ottimizzatore Adam con \texttt{lr=1e-3}). Se invece le finestre sono $\le 15.000$ (ad esempio sul singolo paziente), il training usa tutte le finestre per \texttt{self.epochs = 10} epoche;
+    \item \textbf{Inferenza a blocchi (\texttt{eval\_batch\_size = 4096}):} una volta addestrata la rete, la valutazione dell'errore di ricostruzione viene eseguita su \textbf{tutte} le finestre di tutti i pazienti, ma scorrendo le viste zero-copy un blocco da \texttt{eval\_batch\_size = 4096} finestre alla volta dentro \texttt{torch.no\_grad()}, senza mai materializzare l'intero tensore 3D in memoria.
+\end{enumerate}
 
-La soglia decisionale di anomalia viene fissata in modo non parametrico al $95^\circ$ percentile della distribuzione empirica degli errori $\mathcal{E}(X)$ su tutte le finestre. I campioni il cui errore di ricostruzione supera tale soglia vengono classificati come anomalie fisiologiche multivariate complesse.
+\subsubsection{Scelta dell'errore massimo tra i canali ($\max_c \text{MSE}_c$)}
+Un'altra scelta tecnica importante riguarda il modo in cui calcoliamo l'errore di ricostruzione di una finestra. Nella prima versione calcolavamo la media dell'errore quadratico su tutti e 8 i canali contemporaneamente. Ci siamo però accorti di un difetto evidente: poiché le 3 colonne della pressione NIBP vengono mantenute costanti dal \textit{forward-fill} per lunghi tratti, l'Autoencoder impara a ricostruirle quasi perfettamente con errore prossimo a zero. Di conseguenza, se un singolo segnale (ad esempio la $\text{SpO}_2$) subisce un crollo improvviso mentre gli altri 7 canali restano regolari, facendo la media aritmetica su 8 variabili quel picco di errore viene diviso per 8 e ``annacquato'', rischiando di non superare la soglia.
 
-\begin{techbox}[brandCyan]{Principio di sensibilità emodinamica nel deep learning}
-L'impiego del massimo errore quadratico medio canale per canale ($\max_c \text{MSE}_c$) garantisce che il modello neurale mantenga una sensibilità elevata anche di fronte a collassi isolati di un singolo parametro vitale (es. ipossia acuta o crollo pressorio), impedendo che la stabilità contemporanea degli altri canali fisiologici disinneschi l'allarme multivariato.
+Per evitare questa diluizione, nel codice calcoliamo prima l'errore quadratico medio temporale sui 30 secondi per ciascuna feature (\texttt{mean\_time\_err = torch.mean(sq\_err, dim=1)}) e poi prendiamo il \textbf{massimo errore tra gli 8 canali} (\texttt{batch\_mse, \_ = torch.max(mean\_time\_err, dim=1)}):
+$$\mathcal{E}(X) = \max_{c \in \{1, \dots, 8\}} \left( \frac{1}{30} \sum_{t=1}^{30} (X_{t,c} - \hat{X}_{t,c})^2 \right)$$
+L'errore $\mathcal{E}(X)$ di ciascuna finestra di 30 secondi viene assegnato al suo ultimo istante temporale (\texttt{case\_idx[self.window\_size - 1:]}) e vengono marcati come anomali i punti che superano il $95^\circ$ percentile (\texttt{self.percentile = 95.0}) degli errori calcolati sulle finestre. I primi 29 secondi di ciascun paziente, non avendo ancora una finestra completa di 30 campioni alle spalle, mantengono errore zero e non vengono marcati dall'Autoencoder.
+
+\begin{techbox}[brandCyan]{Sintesi delle scelte sull'LSTM Autoencoder}
+L'uso del massimo errore tra i canali ($\max_c \text{MSE}_c$) evita che i canali pressori costanti in \textit{forward-fill} nascondano la caduta acuta di un singolo parametro vitale. Allo stesso tempo, le viste \texttt{sliding\_window\_view} per paziente e la valutazione a blocchi da $4.096$ finestre evitano di allocare oltre $5\text{ GB}$ di tensori 3D in RAM.
 \end{techbox}
 
-\section{Valutazione empirica, metriche e concordanza}
-La valutazione delle prestazioni dei modelli di \textbf{machine learning} in ambito clinico su serie storiche ad alta frequenza incontra un ostacolo metodologico significativo: l'assenza di etichette reali validate istante per istante da un anestesista umano.
+\section{Valutazione empirica sui 500 casi e interpretazione delle metriche}
+Per valutare quantitativamente i due modelli non supervisionati sulla coorte di 500 pazienti abbiamo realizzato lo script \texttt{src/analysis/evaluate\_models.py}, che salva i risultati in \texttt{data/ml\_evaluation.json} (esposti poi dall'endpoint \texttt{GET /evaluation}).
 
-Per condurre una valutazione quantitativa rigorosa, nello script \texttt{evaluate\_models.py} è stato adottato un protocollo di concordanza clinica: l'unione logica degli eventi critici intercettati dalle regole cliniche dominio-specifiche (\textbf{Shock Index} superiore a 0.9 oppure ipotensione severa) è stata assunta come riferimento di \textbf{pseudo-ground truth}. Su un totale di 311.173 punti temporali esaminati relativi ai 50 casi clinici, sono stati censiti 15.240 istanti di emergenza clinica reale, corrispondenti a una prevalenza positiva di base (\textbf{base rate}) pari al 4.90\%.
+Poiché, come detto, VitalDB non fornisce etichette di anomalia annotate da un medico, nello script abbiamo costruito una \textbf{pseudo-ground truth clinica} definendo come ``positivi di riferimento'' gli istanti temporali in cui scatta almeno una delle due regole cliniche deterministiche (Shock Index $> 0,9$ oppure ipotensione severa $\text{MBP} < 65 \land \text{SpO}_2 < 90\%$, entrambe con il filtro di freschezza $\texttt{nibp\_age\_s} \le 120\text{ s}$). Inoltre, rispetto a una versione iniziale dello script che addestrava due volte \texttt{IsolationForest} (una chiamata a \texttt{detect\_isolation\_forest} per i flag binari e un secondo \texttt{fit} per gli score continui), abbiamo ottimizzato la procedura eseguendo un \textbf{singolo addestramento} dell'istanza \texttt{iso\_model}, da cui ricaviamo sia le predizioni binarie (\texttt{fit\_predict}) sia i punteggi continui (\texttt{-iso\_model.score\_samples}) usati per calcolare la curva Precision-Recall (\texttt{average\_precision\_score}).
 
-Questa marcata asimmetria tra le classi impone una riflessione critica su una trappola statistica classica, nota come \textbf{Accuracy Paradox}: un classificatore banale che predica sistematicamente la classe maggioritaria (rispondendo invariabilmente "normale" per ogni secondo dell'intervento) ottiene un'accuratezza globale pari al 95.10\%, pur risultando totalmente inutile ai fini clinici avendo fallito nell'individuare anche una sola emergenza. Ne consegue che l'accuratezza globale non rappresenta una metrica informativa per la valutazione del sistema. La sperimentazione deve focalizzarsi rigorosamente sulle metriche orientate alla sola classe anomala, quali la precision, la recall, il punteggio f1 e l'area sottesa alla curva Precision-Recall (PR-AUC). I risultati ottenuti sono compendiati nella Tabella~\ref{tab:ml_evaluation}.
+Su un totale di \textbf{5.402.386 campioni} appartenenti ai \textbf{500 casi} con stato \texttt{committed}, le regole cliniche individuano \textbf{262.978 secondi positivi}, pari a una prevalenza (\texttt{base\_rate\_pct}) del \textbf{4,87\%}.
+
+Con una classe positiva al $4,87\%$ e il restante $95,13\%$ di campioni stabili, la classica \textit{Accuracy} sarebbe completamente fuorviante (\textit{Accuracy Paradox}): un classificatore banale che rispondesse sempre ``normale'' otterrebbe un'accuratezza del \textbf{95,13\%} pur non intercettando alcuna emergenza. Per questo motivo abbiamo valutato i modelli solo con metriche adatte a classi fortemente sbilanciate: \textbf{Precision}, \textbf{Recall}, \textbf{F1-score} sulla classe anomala e soprattutto \textbf{PR-AUC} (\textit{Average Precision}), la cui baseline casuale coincide con la prevalenza della classe positiva ($0,0487$). I risultati sono riportati nella Tabella~\ref{tab:ml_evaluation}.
 
 \begin{table}[ht]
 \centering
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-\textbf{Modello / Algoritmo} & \textbf{Precision (anomalia)} & \textbf{Recall (anomalia)} & \textbf{F1-score (anomalia)} & \textbf{PR-AUC (score continuo)} \\
+\textbf{Modello / Algoritmo} & \textbf{Precision (anom.)} & \textbf{Recall (anom.)} & \textbf{F1-score (anom.)} & \textbf{PR-AUC (Average Precision)} & \textbf{Confronto con Baseline casuale} \\
 \midrule
-Classificatore banale (Baseline) & 0.000 & 0.000 & 0.000 & 0.049 \\
-Isolation Forest & \textbf{0.140} & \textbf{0.143} & \textbf{0.141} & \textbf{0.075} \\
-LSTM Autoencoder & 0.083 & 0.085 & 0.084 & 0.063 \\
+Classificatore banale (Baseline) & 0,000 & 0,000 & 0,000 & 0,049 (Base rate 4,87\%) & $1,0\times$ (Caso) \\
+\textbf{Isolation Forest} & \textbf{0,124} & \textbf{0,127} & \textbf{0,126} & \textbf{0,105} & \textbf{$\approx 2,2\times$ sopra il caso} \\
+\textbf{LSTM Autoencoder} & 0,096 & 0,098 & 0,097 & 0,067 & \textbf{$\approx 1,4\times$ sopra il caso} \\
 \bottomrule
 \end{tabular}}
-\caption{Valutazione comparativa dei modelli ML rispetto allo standard clinico su 311.173 record.}
+\caption{Risultati della valutazione dei modelli non supervisionati rispetto alla pseudo-ground truth clinica sui 500 casi Gold (5.402.386 campioni, da \texttt{data/ml\_evaluation.json}).}
 \label{tab:ml_evaluation}
 \end{table}
 
-Come si evince dalla Tabella~\ref{tab:ml_evaluation}, entrambi gli algoritmi di \textbf{machine learning} superano nettamente la baseline casuale (pari alla prevalenza positiva del 4.90\%), conseguendo valori di PR-AUC pari a 0.075 per l'\textbf{Isolation Forest} e 0.063 per l'\textbf{Autoencoder}. I valori assoluti apparentemente contenuti di Precision ed F1-score riflettono fedelmente la natura dell'apprendimento non supervisionato e meritano un'attenta disamina fisiopatologica.
+Guardando la Tabella~\ref{tab:ml_evaluation} si nota subito che i valori assoluti sono bassi: \textbf{Isolation Forest} ottiene una PR-AUC di \textbf{0,105} (circa $2,2$ volte la baseline casuale di $0,0487$, con F1-score $0,126$), mentre l'\textbf{LSTM Autoencoder} ottiene una PR-AUC di \textbf{0,067} (circa $1,4$ volte il caso, con F1-score $0,097$).
 
-I modelli di \textbf{machine learning} non sono stati addestrati tramite regressione supervisionata per ricalcare meccanicamente la formula algebrica dello Shock Index o la soglia statica dell'ipotensione severa, bensì per rilevare deviazioni multivariabili atipiche all'interno dell'intero spazio a otto dimensioni. Ne discende che i campioni segnalati dagli algoritmi non supervisionati che non trovano corrispondenza nella \textbf{pseudo-ground truth} non devono essere semplicisticamente etichettati come "falsi positivi" o errori modellistici. Al contrario, un'analisi retrospettiva delle serie dimostra che molti di questi allarmi intercettano manifestazioni cliniche sub-conclamate di grande rilevanza:
-micro-instabilità del ritmo cardiaco caratterizzate da improvvisi aumenti della deviazione standard mobile (\texttt{HR\_rolling\_std}), correlabili a extrasistoli ventricolari o fibrillazioni atriali parossistiche;
-rapide decelerazioni del battito cardiaco ($\Delta x_t < -15\text{ bpm}$) indotte da riflessi vagali conseguenti a trazioni peritoneali o manipolazioni chirurgiche dei visceri;
-transitori cali pressori in cui la pressione arteriosa media scende repentinamente verso valori di confine (ad esempio da 95 a 68 mmHg), senza ancora varcare la soglia critica di 65 mmHg ma testimoniando comunque un'alterazione acuta del tono vascolare periferico.
+È giusto commentare con estrema chiarezza cosa ci dicono questi numeri e perché non indicano né un bug del codice né l'inutilità dei modelli:
+\begin{enumerate}
+    \item \textbf{Cosa stiamo misurando davvero (concordanza, non verità clinica assoluta):} le etichette di riferimento non sono diagnosi esterne, ma il risultato di due disuguaglianze matematiche calcolate su $\text{HR}$, $\text{SBP}$, $\text{MBP}$ e $\text{SpO}_2$. Di conseguenza, queste metriche misurano solo \textbf{quanto spesso il 5\% di punti giudicati più atipici dai modelli ML coincide con gli istanti in cui scattano le due regole cliniche};
+    \item \textbf{Perché la sovrapposizione è bassa:} le regole cliniche guardano solo due variabili per volta in un singolo secondo e si spengono completamente non appena la misura del bracciale pressorio supera i 120 secondi di età ($\texttt{nibp\_age\_s} > 120\text{ s}$). I due modelli non supervisionati, invece, lavorano su 8 variabili che includono la deviazione standard mobile ($\texttt{HR\_rolling\_std}$), gli sbalzi istantanei del battito ($\texttt{HR\_delta}$), la pressione diastolica ($\text{DBP}$) e — per l'Autoencoder — l'andamento su 30 secondi, continuando a segnalare anomalie anche nei minuti in cui il bracciale NIBP è in pausa. È quindi normale che molti punti segnalati dai modelli (ad esempio una brusca aritmia o una caduta pressoria rapida che si ferma a $\text{MBP} = 67\text{ mmHg}$, appena sopra la soglia di $65$) vengano contati come ``falsi positivi'' rispetto alle regole statiche;
+    \item \textbf{Perché Isolation Forest supera l'LSTM Autoencoder su questo specifico benchmark:} poiché la pseudo-ground truth è definita istante per istante su soglie puntuali, Isolation Forest (che lavora anch'esso sul singolo secondo) è strutturalmente più allineato al modo in cui sono costruite le regole rispetto all'Autoencoder, che invece valuta l'errore medio di ricostruzione su una finestra di 30 secondi e risente anche del fatto di essere addestrato per 5 epoche su un campione di $15.000$ finestre.
+\end{enumerate}
 
-In questa prospettiva, l'approccio multilivello dimostra tutto il proprio valore pratico: le regole cliniche deterministiche operano come paracadute di sicurezza trasparente per le emergenze manifeste, mentre gli algoritmi di \textbf{machine learning} estendono l'orizzonte temporale di allerta cogliendo le sottili avvisaglie prodromiche dell'instabilità emodinamica prima che essa si trasformi in uno shock conclamato.
+In sintesi, se i due modelli avessero ottenuto un F1-score vicino a $1,0$ rispetto alle regole cliniche, sarebbero stati un duplicato inutile e computazionalmente pesante di due semplici \texttt{if} matematici; il fatto che ordinino gli eventi meglio del caso ($2,2\times$ e $1,4\times$) ma segnalino anche situazioni diverse conferma che catturano pattern multivariati complementari a quelli delle soglie statiche.
 
 \begin{figure}[ht]
     \centering
     \includegraphics[width=0.82\textwidth]{autoencoder_mse_distribution.png}
-    \caption{Distribuzione dell'errore di ricostruzione (MSE) dell'autoencoder con soglia al $95^\circ$ percentile.}
+    \caption{Distribuzione dell'errore di ricostruzione (MSE) dell'LSTM Autoencoder con taglio al $95^\circ$ percentile.}
     \label{fig:autoencoder_mse}
 \end{figure}
 
-L'efficacia della modellazione neurale trova conferma nell'analisi della distribuzione dell'errore di ricostruzione dell'\textbf{Autoencoder}, illustrata nella Figura~\ref{fig:autoencoder_mse}. La quasi totalità dei punti temporali fisiologicamente stabili si concentra in una campana ristretta con valori di errore quadratico medio prossimi allo zero; al contrario, le configurazioni atipiche generano una marcata coda lunga a destra della distribuzione, superando nettamente la soglia empirica del $95^\circ$ percentile evidenziata dalla linea tratteggiata.
+La Figura~\ref{fig:autoencoder_mse} mostra la distribuzione empirica degli errori di ricostruzione dell'Autoencoder: la maggior parte delle finestre si concentra vicino allo zero, mentre la coda destra oltre la linea tratteggiata del $95^\circ$ percentile raccoglie le sequenze di 30 secondi che la rete fatica a ricostruire. La Figura~\ref{fig:overlap_matrix} illustra infine la matrice di concordanza tra i quattro metodi di rilevamento.
 
 \begin{figure}[ht]
     \centering
     \includegraphics[width=0.76\textwidth]{anomaly_overlap_matrix.png}
-    \caption{Matrice di concordanza/correlazione tra le regole cliniche e i modelli ML.}
+    \caption{Matrice di concordanza e correlazione tra le due regole cliniche e i due modelli di machine learning.}
     \label{fig:overlap_matrix}
 \end{figure}
 
-La reciproca interazione tra le quattro metodologie di detection è visualizzata nella matrice di concordanza e correlazione di Figura~\ref{fig:overlap_matrix}. Il grafico evidenzia la concordanza positiva esistente tra le regole emodinamiche e i modelli non supervisionati, confermando come l'approccio ibrido multilivello consenta di intersecare la specificità dell'euristica medica con l'ampiezza di copertura del \textbf{machine learning}.
+\section{Persistenza su MongoDB con pattern Insert-Before-Delete e limiti del modulo}
+Al termine dell'analisi, la funzione \texttt{save\_anomalies\_to\_mongo(db, df\_anomalies)} salva nella collezione MongoDB \texttt{anomalies\_detected} esclusivamente gli istanti temporali in cui almeno uno dei quattro metodi ha restituito \texttt{True}. Ogni documento salvato contiene il \texttt{case\_id}, il \texttt{timestamp}, l'array \texttt{methods} con i nomi dei metodi attivati (es. \texttt{["shock\_index", "isolation\_forest"]}) e il timestamp di esecuzione \texttt{detected\_at}.
 
-\section{Persistenza e tracciamento delle anomalie su MongoDB}
-A completamento del flusso di rilevamento, gli istanti temporali valutati come anomali da almeno una delle quattro metodologie vengono persistiti all'interno della collezione MongoDB denominata \texttt{anomalies\_detected}.
+Nelle prime versioni del progetto, prima di salvare le nuove anomalie cancellavamo subito tutte quelle vecchie con \texttt{delete\_many}. Su un'esecuzione da 500 casi questa scelta era rischiosa: se lo script veniva interrotto a metà del calcolo o dell'inserimento, la collezione \texttt{anomalies\_detected} restava vuota. Per evitare questo problema abbiamo adottato il pattern \textbf{Insert-Before-Delete}:
+\begin{enumerate}
+    \item generiamo un unico timestamp UTC di batch \texttt{now = datetime.now(timezone.utc)} per tutti i nuovi documenti;
+    \item inseriamo prima tutti i nuovi record a blocchi di $20.000$ documenti con \texttt{insert\_many};
+    \item \textbf{solo dopo che tutti gli inserimenti sono andati a buon fine}, cancelliamo per i casi analizzati i documenti delle esecuzioni precedenti che hanno un timestamp diverso da quello appena scritto:
+    $$\texttt{db["anomalies\_detected"].delete\_many(\{"case\_id": \{"\$in": analyzed\_cases\}, "detected\_at": \{"\$ne": now\}\})}$$
+    (se invece per i casi analizzati non è stata trovata alcuna anomalia, viene eseguita la pulizia con \texttt{\{"case\_id": \{"\$in": analyzed\_cases\}\}}).
+\end{enumerate}
 
-Ciascun documento memorizzato nella collezione raccoglie le seguenti informazioni:
-l'identificativo del caso clinico (\texttt{case\_id});
-il timestamp esatto in cui si è verificata l'anomalia;
-l'array \texttt{methods}, che elenca i nomi degli algoritmi che hanno segnalato l'istante (ad esempio \texttt{["shock\_index", "isolation\_forest"]});
-la marcatura temporale di esecuzione \texttt{detected\_at}, che garantisce la tracciabilità dell'elaborazione analitica.
-
-Al fine di garantire l'idempotenza della pipeline e prevenire la presenza di anomalie obsolete nel database, la procedura nello script \texttt{detector.py} cancella preliminarmente tutti i riscontri pregressi associati al caso clinico esaminato prima di registrare i nuovi risultati. Tale accorgimento assicura che, qualora una successiva esecuzione su un paziente stabilizzato non rilevi alcuna anomalia, le segnalazioni storiche vengano rimosse correttamente senza lasciare falsi allarmi nella base di dati.
+\begin{techbox}[orange]{Limiti del modulo di Anomaly Detection e della valutazione ML}
+Anche per la parte di rilevamento delle anomalie è importante elencare con trasparenza i limiti progettuali e operativi del nostro sistema:
+\begin{enumerate}
+    \item \textbf{Frazione di anomalie ML fissata a priori (5\%):} avendo impostato \texttt{contamination=0.05} in Isolation Forest e \texttt{percentile=95.0} nell'LSTM Autoencoder, entrambi i modelli etichettano sempre per costruzione circa il 5\% dei campioni valutati. Il numero complessivo di anomalie ML non è quindi una ``scoperta'' automatica della prevalenza patologica, ma il risultato di una soglia di ranking scelta da noi;
+    \item \textbf{Pseudo-ground truth circolare e priva di annotazioni mediche esterne:} le metriche in \texttt{ml\_evaluation.json} confrontano i modelli non supervisionati con regole cliniche calcolate sulle stesse tracce vitali. Si tratta quindi di una misura di concordanza interna e non di una validazione clinica su diagnosi indipendenti;
+    \item \textbf{Assenza di persistenza dei pesi dei modelli (\texttt{.pkl} / \texttt{.pt}):} il progetto non salva su disco i modelli addestrati sull'intera coorte di 500 casi. Sia \texttt{IsolationForest} sia \texttt{LSTMAutoencoderDetector} eseguono \texttt{fit\_predict} da zero ad ogni lancio della pipeline;
+    \item \textbf{Differenza tra esecuzione batch (500 casi) e ricalcolo da dashboard (1 caso):} quando l'utente preme ``Run Anomaly Detection'' sulla dashboard per un singolo paziente, l'endpoint \texttt{POST /cases/\{case\_id\}/detect} richiama \texttt{run\_detection\_pipeline(db, [case\_id])}. Poiché i modelli non sono pre-addestrati e salvati, essi vengono riaddestrati da zero solo sui dati di quel singolo paziente (marcando quindi sempre il 5\% dei punti di quel caso, anche se il paziente fosse perfettamente stabile) e sovrascrivono in \texttt{anomalies\_detected} le anomalie che per quel caso erano state calcolate sul batch globale da 500 pazienti;
+    \item \textbf{Assenza di \texttt{detection\_run\_id} nei documenti di \texttt{anomalies\_detected}:} mentre il file \texttt{ml\_evaluation.json} registra il \texttt{run\_id}, i singoli documenti salvati in \texttt{anomalies\_detected} contengono il timestamp \texttt{detected\_at} ma non un identificativo \texttt{detection\_run\_id} né la configurazione degli iperparametri usati.
+\end{enumerate}
+\end{techbox}

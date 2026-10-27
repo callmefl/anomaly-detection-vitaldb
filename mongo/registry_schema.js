@@ -71,7 +71,7 @@ const initialMetadata = [
         track_name: "NIBP_DBP",
         schema_version: "1.0",
         unit_of_measure: "mmHg",
-        expected_range: { min: 10, max: 200 }
+        expected_range: { min: 10, max: 180 }
     },
     {
         sensor_name: "Solar8000",

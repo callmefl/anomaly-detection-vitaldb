@@ -48,7 +48,7 @@
 \node[silverBox, text width=4.4cm, right=1.9cm of p1] (p2) {
     {\sffamily\bfseries\scriptsize\textcolor{brandPrimary}{FASE 2: SILVER}}\\[3pt]
     \textbf{\small Bonifica \& Partizionamento}\\[6pt]
-    \tikz[baseline=-2pt]\node[pill]{Filtro Range \& Drop Vuoti};\\[4pt]
+    \tikz[baseline=-2pt]\node[pill]{Flag Outlier \& Drop Vuoti};\\[4pt]
     \tikz[baseline=-2pt]\node[pill]{Lineare ($\le 5$s) e LOCF ($\le 300$s)};\\[4pt]
     \tikz[baseline=-2pt]\node[pill]{Partizioni Hive per Reparto};
 };
@@ -59,16 +59,16 @@
     \textbf{\small MongoDB Time Series}\\[6pt]
     \tikz[baseline=-2pt]\node[pill]{Collezione \texttt{vital\_signals}};\\[4pt]
     \tikz[baseline=-2pt]\node[pill]{Compressione Delta-of-Delta};\\[4pt]
-    \tikz[baseline=-2pt]\node[pill]{Catalogo \texttt{registry}};
+    \tikz[baseline=-2pt]\node[pill]{Catalogo \texttt{registry} (\texttt{committed})};
 };
 
 % ================= RIGA 2: DETECTION & SERVING (DESTRA -> SINISTRA) =================
 % FASE 4: ANOMALY DETECTION (posizionata verticalmente sotto FASE 3: GOLD)
 \node[detectBox, text width=7.0cm, below=2.2cm of p3] (p4) {
     {\sffamily\bfseries\scriptsize\textcolor{brandPrimary}{FASE 4: ANOMALY DETECTION MULTILIVELLO}}\\[3pt]
-    \textbf{\small Inferenza Ibrida (\texttt{POST /detect})}\\[6pt]
+    \textbf{\small Inferenza Ibrida (\texttt{detector.py} \& \texttt{POST /detect})}\\[6pt]
     \tikz[baseline=-2pt]\node[pill, fill=brandPrimary!8, draw=brandPrimary!35]{%
-        \textbf{Regole Cliniche}: Shock Index $>0.9$ $\cdot$ Ipotensione%
+        \textbf{Regole Cliniche}: Shock Index $>0.9$ $\cdot$ Ipotensione ($\le 120$s)%
     };\\[4pt]
     \tikz[baseline=-2pt]\node[pill, fill=brandPrimary!8, draw=brandPrimary!35]{%
         \textbf{Machine Learning}: Isolation Forest $\cdot$ LSTM Autoencoder%
@@ -91,7 +91,7 @@
 \draw[flowArrow] (p2.east) -- node[above=4pt, font=\scriptsize\bfseries, text=brandPrimary, align=center] {Caricamento\\\texttt{load\_mongo.py}} (p3.west);
 
 % Transizione verticale lineare diretta (Gold -> Detection)
-\draw[flowArrow] (p3.south) -- node[right=6pt, font=\scriptsize\bfseries, text=brandTeal!85!black, align=left] {Estrazione serie\\per paziente} (p4.north);
+\draw[flowArrow] (p3.south) -- node[right=6pt, font=\scriptsize\bfseries, text=brandTeal!85!black, align=left] {Estrazione serie\\casi \texttt{committed}} (p4.north);
 
 % Flusso orizzontale inferiore di consumo (Detection -> Serving)
 \draw[flowArrow] (p4.west) -- node[above=4pt, font=\scriptsize\bfseries, text=brandPrimary, align=center] {Allarmi rilevati \&\\aggregazioni} (p5.east);

@@ -90,3 +90,117 @@ def test_lstm_autoencoder_detector():
     assert len(preds) == len(df)
     # Il 5% dei punti deve risultare anomalo per costruzione del percentile
     assert preds.sum() > 0
+
+
+def test_save_anomalies_to_mongo_idempotence():
+    """Verifica che save_anomalies_to_mongo elimini sempre le anomalie obsolete con detected_at != now."""
+    import datetime
+    from unittest.mock import MagicMock
+    from src.detection.detector import save_anomalies_to_mongo
+
+    db = MagicMock()
+    df_clean = pd.DataFrame({
+        "case_id": [1, 1],
+        "timestamp": [datetime.datetime.now(), datetime.datetime.now()],
+        "shock_index_anomaly": [False, False],
+        "severe_hypotension_anomaly": [False, False]
+    })
+
+    # Caso con 0 anomalie: deve comunque chiamare delete_many per evitare anomalie stale
+    count = save_anomalies_to_mongo(db, df_clean)
+    assert count == 0
+    call_args = db['anomalies_detected'].delete_many.call_args[0][0]
+    assert call_args["case_id"] == {"$in": [1]}
+    assert "$ne" in call_args["detected_at"]
+
+
+def test_save_anomalies_to_mongo_insert_before_delete():
+    """Verifica che save_anomalies_to_mongo chiami insert_many prima di delete_many."""
+    import datetime
+    from unittest.mock import MagicMock
+    from src.detection.detector import save_anomalies_to_mongo
+
+    calls = []
+    db = MagicMock()
+    db['anomalies_detected'].insert_many.side_effect = lambda docs: calls.append("insert")
+    db['anomalies_detected'].delete_many.side_effect = lambda query: calls.append("delete")
+
+    df_anom = pd.DataFrame({
+        "case_id": [1, 1],
+        "timestamp": [datetime.datetime.now(), datetime.datetime.now()],
+        "shock_index_anomaly": [True, False],
+    })
+
+    count = save_anomalies_to_mongo(db, df_anom)
+    assert count == 1
+    assert calls == ["insert", "delete"]
+
+
+def test_load_from_gold_masks_outliers():
+    """Verifica che load_from_gold proietti quality_flags e mascheri a NaN i valori con outlier flag attivo."""
+    import datetime
+    from unittest.mock import MagicMock
+    from src.detection.detector import load_from_gold, HR_KEY
+
+    db = MagicMock()
+    db['vital_signals'].find.return_value.sort.return_value = [
+        {
+            "timestamp": datetime.datetime(2020, 1, 1, 0, 0, 0),
+            "metadata": {"case_id": 1},
+            "metrics": {HR_KEY: 300.0},
+            "quality_flags": {"HR_outlier": True, "nibp_age_s": 10.0}
+        },
+        {
+            "timestamp": datetime.datetime(2020, 1, 1, 0, 0, 1),
+            "metadata": {"case_id": 1},
+            "metrics": {HR_KEY: 75.0},
+            "quality_flags": {"HR_outlier": False, "nibp_age_s": 11.0}
+        }
+    ]
+
+    df = load_from_gold(db, case_ids=[1])
+    assert len(df) == 2
+    assert "nibp_age_s" in df.columns
+    assert df["nibp_age_s"].iloc[0] == 10.0
+    # Il record 0 era marcato come outlier fisiologico -> deve risultare NaN per non falsare la detection clinica
+    assert np.isnan(df[HR_KEY].iloc[0])
+    # Il record 1 era valido -> deve essere preservato
+    assert df[HR_KEY].iloc[1] == 75.0
+
+
+def test_clinical_rules_respect_nibp_freshness():
+    """Verifica che Shock Index e Ipotensione Severa non attivino falsi allarmi su pressioni LOCF obsolete."""
+    df = pd.DataFrame({
+        "Solar8000_HR": [110.0, 110.0],
+        "Solar8000_NIBP_SBP": [100.0, 100.0],  # SI = 1.1 > 0.9
+        "Solar8000_NIBP_MBP": [55.0, 55.0],    # < 65 mmHg
+        "Solar8000_PLETH_SPO2": [85.0, 85.0],  # < 90%
+        "nibp_age_s": [10.0, 240.0],           # t=0 misura fresca (10s), t=1 misura obsoleta (240s > 120s)
+    })
+
+    res = apply_clinical_rules(df)
+    assert res["shock_index_anomaly"].iloc[0] == True
+    assert res["shock_index_anomaly"].iloc[1] == False
+    assert res["severe_hypotension_anomaly"].iloc[0] == True
+    assert res["severe_hypotension_anomaly"].iloc[1] == False
+
+
+def test_imputation_no_bfill_leakage_across_cases():
+    """Verifica che un caso interamente NaN su una feature non erediti via bfill i valori del caso successivo."""
+    df = pd.DataFrame({
+        "case_id": [1, 1, 2, 2],
+        "Solar8000_HR": [np.nan, np.nan, 90.0, 95.0],
+        "Solar8000_PLETH_SPO2": [98.0, 98.0, 99.0, 99.0],
+    })
+    feat_cols = ["Solar8000_HR", "Solar8000_PLETH_SPO2"]
+    imputed = (
+        df.groupby("case_id", sort=False)[feat_cols]
+        .ffill()
+        .groupby(df["case_id"], sort=False)
+        .bfill()
+        .fillna(0.0)
+    )
+    # Il caso 1 aveva solo NaN su HR -> deve diventare 0.0, NON 90.0 dal caso 2
+    assert imputed.loc[0, "Solar8000_HR"] == 0.0
+    assert imputed.loc[1, "Solar8000_HR"] == 0.0
+    assert imputed.loc[2, "Solar8000_HR"] == 90.0

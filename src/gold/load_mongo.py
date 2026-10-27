@@ -8,6 +8,7 @@ Il layer Gold rappresenta il vertice dell'architettura Medallion e l'interfaccia
 
 import sys
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
@@ -80,6 +81,32 @@ def ensure_timeseries_collections(db):
         print("✓ Collezione Time Series 'vital_signals' creata con successo su MongoDB.")
 
 
+def seed_track_metadata(db):
+    """Sincronizza la collezione 'track_metadata' da config.TRACK_SPECS come unica fonte di verità."""
+    try:
+        if 'track_metadata' not in db.list_collection_names():
+            db.create_collection("track_metadata")
+
+        for full_track, spec in getattr(config, "TRACK_SPECS", {}).items():
+            doc = {
+                "sensor_name": spec.get("sensor_name", SENSOR_NAME),
+                "track_name": spec.get("track_name", full_track.split('/')[-1]),
+                "full_track": full_track,
+                "schema_version": "1.0",
+                "unit_of_measure": spec.get("unit", ""),
+                "expected_range": {"min": spec.get("min"), "max": spec.get("max")},
+                "description": spec.get("description", "")
+            }
+            db['track_metadata'].update_one(
+                {"track_name": doc["track_name"]},
+                {"$set": doc},
+                upsert=True
+            )
+        print("✓ Catalogo 'track_metadata' sincronizzato con config.TRACK_SPECS.")
+    except Exception as e:
+        print(f"⚠️ Impossibile sincronizzare track_metadata: {e}")
+
+
 def build_metadata(case_id, clinical_info):
     """Costruisce il sotto-documento `metadata` (metaField) per un dato paziente.
 
@@ -107,6 +134,9 @@ def build_metadata(case_id, clinical_info):
 def build_records(df, case_id, clinical_info):
     """Trasforma le righe della tabella Silver in un array di documenti BSON pronti per il caricamento su MongoDB Gold.
 
+    Include le metriche vitali, i flag di outlier, eventuali flag di imputazione (*_imputed)
+    e lo stato di staleness emodinamica 'nibp_age_s'.
+
     Args:
         df (pd.DataFrame): Dati bonificati dal layer Silver.
         case_id (int): ID del caso.
@@ -118,75 +148,196 @@ def build_records(df, case_id, clinical_info):
     records = []
     metadata = build_metadata(case_id, clinical_info)
     base_time = datetime.datetime(2020, 1, 1)
-    # Nomi delle colonne contenenti i flag di outlier dal Silver
     OUTLIER_COLS = ['HR_outlier', 'SPO2_outlier', 'SBP_outlier', 'DBP_outlier', 'MBP_outlier']
+
     for _, row in df.iterrows():
         current_time = base_time + datetime.timedelta(seconds=float(row.get('Time', 0)))
         doc = {
             "timestamp": current_time,
             "metadata": metadata,
             "metrics": {},
-            "quality_flags": {}  # <-- NUOVO CAMPO GOVERNANCE
+            "quality_flags": {}
         }
         # Metriche vitali
         for col in config.VITAL_TRACKS:
             if col in row and pd.notna(row[col]):
                 safe_col = col.replace('/', '_')
                 doc["metrics"][safe_col] = float(row[col])
-        # Flag di qualità generati nel layer Silver
+
+        # Flag di qualità da Silver (outlier fisiologici)
         for col in OUTLIER_COLS:
             if col in row and pd.notna(row[col]):
                 doc["quality_flags"][col] = bool(row[col])
+
+        # Flag di imputazione per segnali interpolati o forward-filled
+        for col in row.index:
+            if col.endswith('_imputed') and pd.notna(row[col]):
+                doc["quality_flags"][col] = bool(row[col])
+
+        # Metadato di freschezza della pressione (staleness in secondi)
+        if 'nibp_age_s' in row and pd.notna(row['nibp_age_s']):
+            doc["quality_flags"]["nibp_age_s"] = float(row['nibp_age_s'])
+
         if doc["metrics"]:
             records.append(doc)
     return records
 
 
-def build_registry_doc(case_id, record_count):
+def validate_records(records):
+    """Esegue la validazione applicativa preventiva sui record destinati a MongoDB Gold prima dell'inserimento."""
+    if not records:
+        return True
+
+    for i, doc in enumerate(records):
+        # 1. Timestamp obbligatorio e di tipo datetime
+        ts = doc.get("timestamp")
+        if not ts or not isinstance(ts, datetime.datetime):
+            raise ValueError(f"Record #{i}: timestamp mancante o non di tipo datetime ({type(ts)}).")
+
+        # 2. Metadata obbligatorio con case_id intero e sensor_name
+        meta = doc.get("metadata")
+        if not meta or not isinstance(meta, dict):
+            raise ValueError(f"Record #{i}: metaField 'metadata' mancante o non dizionario.")
+        if "case_id" not in meta or not isinstance(meta["case_id"], int):
+            raise ValueError(f"Record #{i}: 'metadata.case_id' mancante o non intero nativo.")
+        if "sensor_name" not in meta or not isinstance(meta["sensor_name"], str):
+            raise ValueError(f"Record #{i}: 'metadata.sensor_name' mancante o non stringa.")
+
+        # 3. Metriche: deve contenere almeno un valore numerico valido
+        metrics = doc.get("metrics")
+        if not metrics or not isinstance(metrics, dict):
+            raise ValueError(f"Record #{i}: 'metrics' vuoto o non dizionario.")
+        for k, v in metrics.items():
+            if not isinstance(v, (float, int)) or pd.isna(v) or np.isinf(v):
+                raise ValueError(f"Record #{i}: valore non valido per metrica '{k}': {v}")
+
+    return True
+
+
+def build_registry_doc(case_id, record_count, status="committed", run_id=None, pipeline_version=None):
     """Crea il documento di tracciamento di Data Governance da inserire nel catalogo `registry`."""
+    p_version = pipeline_version or getattr(config, "PIPELINE_VERSION", "1.0.0")
+    now = datetime.datetime.now(datetime.timezone.utc)
     return {
         "case_id": int(case_id),
-        "record_count": record_count,
+        "status": status,
+        "record_count": int(record_count),
         "schema_version": "1.0",
+        "pipeline_version": p_version,
+        "run_id": run_id or now.strftime("%Y%m%d_%H%M%S"),
         "provenance": {
             "step": "silver_to_gold",
-            "timestamp": datetime.datetime.now(datetime.timezone.utc)
+            "timestamp": now,
+            "pipeline_version": p_version,
+            "cleaning_params": {
+                "max_gap_seconds": 5.0,
+                "nibp_staleness_limit_s": 300.0,
+                "sampling_interval_s": config.SAMPLING_INTERVAL
+            }
         }
     }
 
 
-def load_case_to_mongo(client, db, df, case_id, clinical_info):
-    """Inserisce le serie temporali e registra il caso nel catalog `registry`.
+def load_case_to_mongo(client, db, df, case_id, clinical_info, run_id=None):
+    """Inserisce le serie temporali e registra il caso nel catalog `registry` con idempotenza a due fasi.
 
-    NOTA (limite documentato di MongoDB): le Time Series Collection NON supportano
-    insert all'interno di una transazione multi-documento (errore 263,
-    OperationNotSupportedInTransaction). Non è quindi possibile ottenere qui una
-    vera atomicità ACID come nelle collection normali.
-
-    Strategia adottata — compensazione manuale invece di transazione reale:
-    1. Inserisce prima i punti in `vital_signals` (fuori transazione).
-    2. Solo se l'inserimento ha successo, registra il caso in `registry`.
-    3. Se il passo 1 fallisce, `registry` non viene toccato: niente casi
-       "fantasma" registrati senza dati corrispondenti.
+    Strategia di compensazione manuale per MongoDB Time Series Collections:
+    1. Registra nel registry status='loading' (evita letture concorrenti di dati parziali).
+    2. Cancella i punti precedenti per questo case_id in 'vital_signals' (tramite metadata.case_id).
+    3. Valida applicativamente i record tramite validate_records().
+    4. Inserisce i record in 'vital_signals'.
+    5. Imposta nel registry status='committed' con record_count e provenance arricchita.
     """
     records = build_records(df, case_id, clinical_info)
     if not records:
         return 0
-    registry_doc = build_registry_doc(case_id, len(records))
 
+    # Validazione applicativa preliminare
+    validate_records(records)
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    p_version = getattr(config, "PIPELINE_VERSION", "1.1.0")
+    rid = run_id or config.get_or_create_run_id()
+
+    # 1. Imposta lo stato su 'loading' nel registry
+    db['registry'].update_one(
+        {"case_id": int(case_id)},
+        {"$set": {
+            "case_id": int(case_id),
+            "status": "loading",
+            "schema_version": "1.0",
+            "pipeline_version": p_version,
+            "run_id": rid,
+            "record_count": 0,
+            "provenance": {
+                "step": "silver_to_gold",
+                "timestamp": now,
+                "pipeline_version": p_version
+            }
+        }},
+        upsert=True
+    )
+
+    # 2. Cancella i residui precedenti per questo caso in vital_signals
+    db['vital_signals'].delete_many({"metadata.case_id": int(case_id)})
+
+    # 3. Inserimento dei record nella Time Series Collection
     try:
         db['vital_signals'].insert_many(records)
     except PyMongoError as e:
         print(f"❌ Errore durante l'inserimento in vital_signals per il caso #{case_id}: {e}")
+        # Pulizia residui parziali e marcatura esplicita dello stato failed per il recupero successivo
+        try:
+            db['vital_signals'].delete_many({"metadata.case_id": int(case_id)})
+            db['registry'].update_one(
+                {"case_id": int(case_id)},
+                {"$set": {"status": "failed", "last_error": str(e)}}
+            )
+        except Exception:
+            pass
         raise
 
+    # 4. Commit applicativo
+    registry_doc = build_registry_doc(
+        case_id=case_id,
+        record_count=len(records),
+        status="committed",
+        run_id=rid,
+        pipeline_version=p_version
+    )
     try:
-        db['registry'].insert_one(registry_doc)
+        db['registry'].update_one(
+            {"case_id": int(case_id)},
+            {"$set": registry_doc},
+            upsert=True
+        )
     except PyMongoError as e:
-        print(f"⚠️ Punti inseriti in vital_signals per il caso #{case_id}, ma registrazione in 'registry' fallita: {e}")
+        print(f"⚠️ Punti inseriti in vital_signals per il caso #{case_id}, ma commit in 'registry' fallito: {e}")
         raise
 
     return len(records)
+
+
+def recover_incomplete_loads(db, active_case_ids=None):
+    """Bonifica eventuali casi rimasti bloccati in stato 'loading'/'failed' o fuori dal perimetro Silver attivo."""
+    incomplete_docs = list(db['registry'].find({"status": {"$ne": "committed"}}, {"case_id": 1, "status": 1}))
+    for doc in incomplete_docs:
+        cid = int(doc["case_id"])
+        db['vital_signals'].delete_many({"metadata.case_id": cid})
+    if incomplete_docs:
+        print(f"ℹ Bonificati {len(incomplete_docs)} casi incompleti (loading/failed) prima del caricamento.")
+
+    # Riallinea il Gold se il perimetro attivo del Silver è stato ridotto (es. da 1000 a 50 casi)
+    if active_case_ids:
+        stale_docs = list(db['registry'].find({"case_id": {"$nin": list(active_case_ids)}}, {"case_id": 1}))
+        if stale_docs:
+            stale_ids = [int(d["case_id"]) for d in stale_docs]
+            for sid in stale_ids:
+                db['vital_signals'].delete_many({"metadata.case_id": sid})
+            db['registry'].delete_many({"case_id": {"$in": stale_ids}})
+            db['anomalies_detected'].delete_many({"case_id": {"$in": stale_ids}})
+            print(f"ℹ Rimossi dal Gold {len(stale_ids)} casi non appartenenti al perimetro Silver corrente.")
+
 
 def process_silver_to_gold(silver_dir, bronze_dir=None):
     """Itera su tutti i file Parquet del layer Silver e li inserisce in MongoDB Gold."""
@@ -194,20 +345,36 @@ def process_silver_to_gold(silver_dir, bronze_dir=None):
     client = get_mongo_client()
     db = client[config.DB_NAME]
     ensure_timeseries_collections(db)
+    seed_track_metadata(db)
 
+    run_id = config.get_or_create_run_id()
+    p_version = getattr(config, "PIPELINE_VERSION", "1.1.0")
     clinical_info = load_clinical_info(bronze_dir)
-    parquet_files = list(silver_dir.rglob("case_*.parquet"))
+    parquet_files = sorted(
+        silver_dir.rglob("case_*.parquet"),
+        key=lambda p: int(p.stem.split('_')[1]) if p.stem.split('_')[1].isdigit() else 0
+    )
+    active_case_ids = {int(p.stem.split('_')[1]) for p in parquet_files}
+    recover_incomplete_loads(db, active_case_ids=active_case_ids)
 
     for p_file in tqdm(parquet_files, desc="Caricamento in MongoDB (Gold)"):
         try:
             case_id = int(p_file.stem.split('_')[1])
             df = pd.read_parquet(p_file)
 
-            # Salta i casi già caricati nel registro per evitare duplicazioni
-            if db['registry'].find_one({"case_id": case_id}):
+            # Salta solo i casi già committed con la medesima versione di pipeline e numero di righe
+            existing = db['registry'].find_one({"case_id": case_id})
+            if (
+                existing
+                and existing.get("status") == "committed"
+                and existing.get("pipeline_version") == p_version
+                and existing.get("record_count") == len(df)
+            ):
+                if existing.get("run_id") != run_id:
+                    db['registry'].update_one({"case_id": case_id}, {"$set": {"run_id": run_id}})
                 continue
 
-            load_case_to_mongo(client, db, df, case_id, clinical_info)
+            load_case_to_mongo(client, db, df, case_id, clinical_info, run_id=run_id)
 
         except Exception as e:
             print(f"❌ Errore nel caricamento del caso da {p_file.name}: {e}")
@@ -217,3 +384,5 @@ if __name__ == '__main__':
     print("=== INIZIO CARICAMENTO IN MONGODB GOLD ===")
     process_silver_to_gold(config.SILVER_DIR)
     print("=== PIPELINE GOLD COMPLETATA CON SUCCESSO ===")
+
+

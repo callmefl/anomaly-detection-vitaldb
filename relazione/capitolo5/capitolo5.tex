@@ -1,197 +1,221 @@
 \chapter{Ingegnerizzazione del sistema, interfaccia grafica e conclusioni}
 
 \section{Backend REST API con FastAPI}
-L'integrazione e la fruizione dei dati archiviati nel livello \textbf{Gold} di MongoDB e l'esecuzione degli algoritmi di rilevamento delle anomalie sono orchestrate da un backend sviluppato in linguaggio Python mediante il framework \textbf{FastAPI}.
+Per mettere in comunicazione il layer \textbf{Gold} di MongoDB, il motore di \textbf{anomaly detection} e l'interfaccia web, abbiamo sviluppato un backend REST in Python basato sul framework \textbf{FastAPI}, contenuto nel file \texttt{api/main.py} ed eseguito nel container Docker \texttt{vitaldb\_api} sulla porta \texttt{8000}.
 
-La scelta di FastAPI è motivata dalle elevate prestazioni del suo motore asincrono basato su \textbf{Starlette} e \textbf{Pydantic}, che consentono la validazione rigorosa dei parametri di richiesta, la serializzazione nativa dei documenti BSON in formato JSON e la generazione automatica della documentazione interattiva OpenAPI (disponibile all'indirizzo \texttt{/docs}). Il servizio REST opera all'interno del container applicativo \texttt{vitaldb\_api} sulla porta di rete 8000 ed è implementato nel file \texttt{api/main.py}.
+Abbiamo scelto FastAPI per tre motivi pratici:
+\begin{enumerate}
+    \item permette di definire le rotte HTTP in poche righe di codice con validazione automatica dei tipi dei parametri (come \texttt{case\_id: int} e \texttt{window\_seconds: Optional[int]});
+    \item genera automaticamente la documentazione interattiva OpenAPI/Swagger all'indirizzo \texttt{http://localhost:8000/docs}, molto comoda per testare le API anche senza passare dal browser della dashboard;
+    \item tramite \texttt{StaticFiles} consente di servire direttamente nello stesso processo \texttt{uvicorn} sia le rotte JSON sia le cartelle statiche \texttt{/dashboard} e \texttt{/presentazione}, evitando di dover configurare un terzo container con un web server separato come Nginx.
+\end{enumerate}
 
-Dal punto di vista dell'efficienza delle risorse, il backend gestisce la connettività verso MongoDB mediante un'unica istanza globale del client \texttt{pymongo.MongoClient}. Questo accorgimento implementa un pool di connessioni riutilizzabili (\textbf{connection pooling}) che mantiene aperti i socket TCP tra le varie richieste HTTP, azzerando il costo di negoziazione dell'handshake di rete per ciascuna chiamata all'API. Inoltre, prima della trasmissione dei dati sulla rete, il backend esegue una bonifica dei valori numerici: i valori non validi o mancanti (\texttt{np.nan}) vengono convertiti nel valore Python \texttt{None}, serializzato nel corrispondente valore \texttt{null} standard dello standard JSON. Questa sanitizzazione previene la generazione di token non standard \texttt{NaN}, che provocherebbero errori di decodifica bloccanti nei parser JavaScript dei browser moderni (\texttt{JSON.parse}).
+A livello di gestione delle risorse, il backend mantiene una variabile globale \texttt{\_client: Optional[MongoClient] = None} inizializzata al primo accesso dalla funzione \texttt{get\_db()}. In questo modo tutte le richieste HTTP condividono lo stesso pool di connessioni TCP di PyMongo verso \texttt{vitaldb\_mongo}, senza dover aprire e chiudere un nuovo socket a ogni chiamata. Inoltre, prima di restituire i dati al client, il backend sostituisce sistematicamente i valori \texttt{np.nan} di Pandas con \texttt{None} (che in JSON diventa \texttt{null}), perché il formato JSON standard non ammette il token \texttt{NaN} e i browser bloccherebbero la decodifica della risposta.
 
-L'interfaccia espone un insieme organico di rotte operative:
-l'endpoint \texttt{GET /health}, che svolge la funzione di monitoraggio dello stato di salute del container ed effettua un'interrogazione di ping al database. Esso restituisce un oggetto strutturato contenente lo stato della connettività e le statistiche aggregate di sistema: il numero di casi censiti nel \texttt{registry}, il totale dei punti temporali archiviati in \texttt{vital\_signals} e il conteggio cumulativo delle anomalie salvate in \texttt{anomalies\_detected};
-l'endpoint \texttt{GET /cases}, che estrae l'elenco dei casi clinici registrati nel catalogo. Per prevenire il classico degrado prestazionale dovuto al problema delle $N+1$ query (in cui per ogni caso verrebbe effettuata una lettura distinta per recuperare reparto, età e sesso del paziente), il metodo adotta un'unica pipeline di aggregazione MongoDB con operatori \texttt{\$group} e \texttt{\$first}. Questa ottimizzazione riduce l'intero recupero anagrafico a due sole operazioni complessive sul database;
-l'endpoint \texttt{GET /cases/\{case\_id\}/series}, che restituisce la serie temporale biometrica del paziente richiesto. L'endpoint supporta il parametro opzionale \texttt{window\_seconds} (con valori selezionabili quali 30, 60 o 300 secondi): quando specificato, l'API attiva la pipeline di aggregazione temporale descritta nel capitolo precedente con operatore \texttt{\$dateTrunc}, riducendo drasticamente il payload di rete trasferito al browser per tracciati che si estendono per molte ore;
-l'endpoint \texttt{POST /cases/\{case\_id\}/detect}, la cui implementazione è descritta nel Listato~\ref{lst:api_detect}, innesca l'esecuzione on-demand dell'intera pipeline di \textbf{anomaly detection} sul paziente selezionato. L'elaborazione calcola contestualmente le regole cliniche dello \textbf{Shock Index} e dell'ipotensione severa, unitamente alle inferenze dei modelli \textbf{Isolation Forest} e \textbf{Autoencoder}. I riscontri anomali vengono persistiti nella collezione \texttt{anomalies\_detected} e restituiti al client suddivisi per metodologia;
-gli endpoint dedicati alla trasparenza e alla governance, segnatamente \texttt{GET /quality}, \texttt{GET /benchmark} e \texttt{GET /evaluation}, che espongono direttamente in formato JSON i report di bonifica del livello \textbf{Silver}, i risultati del benchmark di storage e latenza, e le metriche quantitative di validazione dei modelli di \textbf{machine learning}.
+Le rotte esposte da \texttt{api/main.py} sono organizzate come segue:
+\begin{itemize}
+    \item \texttt{GET /health}: esegue un \texttt{ping} su MongoDB e restituisce lo stato del servizio insieme ai conteggi totali dei documenti presenti in \texttt{registry}, \texttt{vital\_signals} e \texttt{anomalies\_detected};
+    \item \texttt{GET /cases}: recupera la lista dei casi certificati chiamando \texttt{list\_loaded\_cases(db)} (che filtra solo \texttt{\{"status": "committed"\}}) e vi unisce reparto (\texttt{department}), età (\texttt{age}) e sesso (\texttt{sex}) tramite una singola pipeline di aggregazione \texttt{\$group} con operatore \texttt{\$first} su \texttt{vital\_signals}. Come visto nel Capitolo~3, questo evita il problema delle $N+1$ query riducendo il caricamento dei 500 casi a 2 sole interrogazioni al database;
+    \item \texttt{GET /cases/\{case\_id\}/series}: restituisce la serie temporale del paziente richiesto. Se il client non passa il parametro opzionale \texttt{window\_seconds}, l'endpoint chiama \texttt{get\_case\_series(db, case\_id)} e restituisce il tracciato completo a 1 Hz; se invece viene specificata una finestra (ad esempio \texttt{30}, \texttt{60} o \texttt{300} secondi), chiama \texttt{downsample\_case(db, case\_id, window\_seconds)} che delega a MongoDB il calcolo delle medie temporali con \texttt{\$dateTrunc}, riducendo drasticamente il peso del JSON inviato al browser;
+    \item \texttt{POST /cases/\{case\_id\}/detect}: avvia l'esecuzione della pipeline ibrida di rilevamento anomalie sul caso richiesto chiamando \texttt{run\_detection\_pipeline(db, [case\_id])}, salva i risultati in \texttt{anomalies\_detected} con il pattern \textit{Insert-Before-Delete} e restituisce al frontend il conteggio per metodo (\texttt{summary\_by\_method}) e l'elenco dettagliato dei secondi anomali. L'implementazione reale dell'endpoint è riportata nel Listato~\ref{lst:api_detect};
+    \item \texttt{GET /quality}, \texttt{GET /benchmark} e \texttt{GET /evaluation}: leggono da disco e restituiscono in JSON i tre report generati dalla pipeline (\texttt{data/quality\_report.json}, \texttt{data/benchmark\_report.json} e \texttt{data/ml\_evaluation.json}), permettendo alla dashboard di mostrare i numeri reali dell'ultimo run eseguito.
+\end{itemize}
 
-\begin{lstlisting}[caption={Definizione della rotta REST per l'esecuzione della pipeline di anomaly detection in FastAPI.}, label={lst:api_detect}]
-// Endpoint implementato nel backend FastAPI (api/main.py)
+\begin{lstlisting}[caption={Implementazione reale dell'endpoint \texttt{POST /cases/\{case\_id\}/detect} in \texttt{api/main.py}.}, label={lst:api_detect}]
 @app.post("/cases/{case_id}/detect")
 def detect_case(case_id: int):
-    """Esegue la pipeline di anomaly detection multilivello sul caso specificato."""
+    """Esegue l'algoritmo multilivello di Anomaly Detection sul caso specificato."""
     db = get_db()
-    df = get_case_series(db, case_id)
+    df = run_detection_pipeline(db, [case_id])
+
     if df.empty:
-        raise HTTPException(status_code=404, detail=f"Nessun dato per il caso #{case_id}")
+        raise HTTPException(status_code=404, detail=f"Nessun dato temporale disponibile per case_id={case_id}")
 
-    # Esegue regole cliniche (Shock Index, Ipotensione Severa) ed algoritmi ML
-    anomalies_df = run_detection_pipeline(df, case_id)
+    # Individua le colonne marcate come anomalia
+    flag_cols = [c for c in df.columns if c.endswith("_anomaly")]
+    anomalous_rows = df[df[flag_cols].any(axis=1)]
 
-    # Persistenza atomica dei riscontri nella collezione MongoDB 'anomalies_detected'
-    db['anomalies_detected'].delete_many({"case_id": case_id})
-    if not anomalies_df.empty:
-        records = anomalies_df.to_dict(orient="records")
-        db['anomalies_detected'].insert_many(records)
+    # Calcola il conteggio dettagliato per ciascuna metodologia di detection
+    summary_by_method = {}
+    for col in flag_cols:
+        method_name = col.replace("_anomaly", "")
+        summary_by_method[method_name] = int(df[col].sum())
+
+    anomalies = []
+    for _, row in anomalous_rows.iterrows():
+        methods = [c.replace("_anomaly", "") for c in flag_cols if bool(row[c])]
+        
+        # Converte i valori Float di Pandas sanitizzando eventuali NaN
+        hr_val = float(row["Solar8000_HR"]) if "Solar8000_HR" in row and pd.notna(row["Solar8000_HR"]) else None
+        spo2_val = float(row["Solar8000_PLETH_SPO2"]) if "Solar8000_PLETH_SPO2" in row and pd.notna(row["Solar8000_PLETH_SPO2"]) else None
+        sbp_val = float(row["Solar8000_NIBP_SBP"]) if "Solar8000_NIBP_SBP" in row and pd.notna(row["Solar8000_NIBP_SBP"]) else None
+        dbp_val = float(row["Solar8000_NIBP_DBP"]) if "Solar8000_NIBP_DBP" in row and pd.notna(row["Solar8000_NIBP_DBP"]) else None
+        mbp_val = float(row["Solar8000_NIBP_MBP"]) if "Solar8000_NIBP_MBP" in row and pd.notna(row["Solar8000_NIBP_MBP"]) else None
+        si_val = float(row["shock_index"]) if "shock_index" in row and pd.notna(row["shock_index"]) else None
+
+        anomalies.append({
+            "timestamp": str(row["timestamp"]),
+            "methods": methods,
+            "hr": hr_val, "spo2": spo2_val,
+            "sbp": sbp_val, "dbp": dbp_val, "mbp": mbp_val,
+            "shock_index": round(si_val, 3) if si_val is not None else None
+        })
 
     return {
-        "status": "ok",
         "case_id": case_id,
-        "total_anomalies": len(anomalies_df),
-        "methods_summary": {
-            "shock_index": int(anomalies_df['shock_index_anomaly'].sum()),
-            "severe_hypotension": int(anomalies_df['severe_hypotension_anomaly'].sum()),
-            "isolation_forest": int(anomalies_df['isolation_forest_anomaly'].sum()),
-            "autoencoder": int(anomalies_df['autoencoder_anomaly'].sum())
-        }
+        "anomaly_count": len(anomalies),
+        "summary_by_method": summary_by_method,
+        "anomalies": anomalies,
     }
 \end{lstlisting}
 
-Accanto agli endpoint analitici, FastAPI ospita due montaggi di file statici: la rotta \texttt{/dashboard}, che distribuisce l'intera interfaccia web interattiva, e la rotta \texttt{/presentazione}, che rende fruibili le slide illustrative del progetto per la discussione accademica.
+\begin{techbox}[orange]{Limiti del backend REST API}
+Nell'implementazione di \texttt{api/main.py} abbiamo individuato alcuni limiti che è opportuno segnalare:
+\begin{enumerate}
+    \item \textbf{Ricalcolo single-case su \texttt{POST /cases/\{case\_id\}/detect} e assenza di un endpoint \texttt{GET} di sola lettura:} non abbiamo previsto una rotta \texttt{GET /cases/\{case\_id\}/anomalies} che si limiti a leggere da \texttt{anomalies\_detected} i risultati già calcolati dal batch sui 500 casi. Quando l'utente avvia il rilevamento dalla dashboard, l'endpoint \texttt{POST} riesegue \texttt{run\_detection\_pipeline(db, [case\_id])}, riaddestrando Isolation Forest e LSTM Autoencoder sul solo paziente selezionato e sovrascrivendo nel database le anomalie batch di quel caso;
+    \item \textbf{Assenza di modelli \texttt{response\_model} Pydantic:} le rotte restituiscono direttamente dizionari Python sanitizzati; di conseguenza la pagina \texttt{/docs} mostra gli endpoint e i parametri di input, ma non espone lo schema tipizzato dei campi di risposta;
+    \item \textbf{Dettagli minori di configurazione:} l'istanza \texttt{FastAPI} dichiara \texttt{version="1.0.0"} (mentre \texttt{config.PIPELINE\_VERSION} è \texttt{"1.1.0"}), l'endpoint \texttt{GET /health} conta i documenti di \texttt{registry} con \texttt{count\_documents(\{\})} senza filtrare \texttt{\{"status": "committed"\}}, la rotta radice \texttt{/} restituisce \texttt{404} (poiché la dashboard è montata su \texttt{/dashboard}) e il middleware CORS è lasciato aperto con \texttt{allow\_origins=["*"]} per semplificare lo sviluppo locale.
+\end{enumerate}
+\end{techbox}
 
 \section{Dashboard web e interfaccia utente interattiva}
-A corredo dell'infrastruttura dati è stata sviluppata un'interfaccia grafica web concepita per consentire al personale sanitario e all'analista di esplorare i tracciati biometrici, analizzare le anomalie e ispezionare i parametri di governance. L'applicazione rifugge la complessità e la pesantezza di framework monolitici, impiegando standard aperti del web: un'architettura in HTML5 semantico, fogli di stile CSS3 con variabili a token per la gestione dinamica del tema chiaro e scuro (\textbf{light/dark mode}), e logica di coordinamento in JavaScript puro.
+Per visualizzare i tracciati dei pazienti, le anomalie rilevate e le metriche dei tre layer abbiamo realizzato una dashboard web accessibile all'indirizzo \texttt{http://localhost:8000/dashboard}.
 
-Per garantire modularità e manutenibilità senza richiedere strumenti di compilazione esterni quali Webpack o Vite, il codice adotta un sistema di caricamento asincrono a componenti parziali implementato nello script \texttt{dashboard/js/loader.js}. Il file principale \texttt{index.html} definisce dei contenitori dichiarativi denominati slot mediante l'attributo personalizzato \texttt{data-include} (ad esempio \texttt{<div data-include="partials/sidebar.html"></div>}). All'avvio dell'applicazione, la funzione \texttt{loadPartials} individua tutti gli slot mediante \texttt{querySelectorAll}, invia richieste HTTP parallele tramite \texttt{Promise.all} e l'API \texttt{fetch}, e provvede a sostituire ciascun tag con il frammento HTML recuperato. Al fine di impedire che il browser mantenga in cache versioni obsolete dei file durante gli aggiornamenti, il caricatore accoda a ciascuna richiesta un parametro di versione esplicito (\texttt{?v=3.8}), realizzando una tecnica efficace di invalidazione della cache (\textbf{cache busting}).
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.92\textwidth]{dashboard_screenshot.png}
+    \caption{Interfaccia grafica della dashboard web per l'esplorazione dei tracciati vitali e della governance del lakehouse.}
+    \label{fig:dashboard}
+\end{figure}
 
-La piattaforma si articola su due ambienti di lavoro principali, accessibili tramite il commutatore in testata: la vista di telemetria clinica e la vista di governance del \textbf{lakehouse} e benchmark.
+Come si vede nella Figura~\ref{fig:dashboard}, dal punto di vista tecnologico abbiamo scelto di costruire il frontend in \textbf{HTML5, CSS3 e JavaScript puro (Vanilla JS)}, usando la libreria \textbf{Chart.js} per i grafici, senza introdurre framework come React, Vue o Angular e senza bundler come Webpack o Vite. La motivazione di questa scelta è molto concreta: per una dashboard con due sole viste principali, un framework SPA avrebbe richiesto una catena di compilazione Node.js (\texttt{npm build}) dentro Docker, appesantendo il progetto per ottenere funzioni che potevamo gestire in modo molto più diretto con JavaScript standard.
+
+Per non scrivere comunque tutto l'HTML in un unico file gigante difficile da mantenere, abbiamo creato un piccolo caricatore modulare in \texttt{dashboard/js/loader.js}. Il file principale \texttt{dashboard/index.html} contiene dei tag segnaposto con l'attributo \texttt{data-include} (ad esempio \texttt{<div data-include="partials/sidebar.html"></div>}). All'avvio della pagina, la funzione \texttt{loadPartials()} cerca tutti i nodi \texttt{[data-include]}, scarica in parallelo i frammenti HTML tramite \texttt{Promise.all} e \texttt{fetch} aggiungendo il parametro \texttt{?v=3.8} per evitare problemi di cache del browser (\textit{cache busting}), e infine inizializza gli script della dashboard.
+
+L'interfaccia è divisa in due viste selezionabili dalla barra superiore: la vista clinica (\textit{Clinical Telemetry}) e la vista architetturale (\textit{Data Lakehouse \& Governance}).
 
 \subsection{Vista di telemetria clinica e anomaly detection}
-La schermata principale di telemetria clinica, illustrata nella Figura~\ref{fig:dashboard_overview}, è dedicata al monitoraggio in tempo reale del paziente e all'indagine multilivello delle instabilità emodinamiche.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.98\textwidth]{dashboard_overview.png}
-    \caption{Panoramica dell'interfaccia grafica web della dashboard: catalogo casi clinici, banner del paziente (HUD), griglia KPI biometrici e matrice di rilevamento multi-algoritmo.}
-    \label{fig:dashboard_overview}
-\end{figure}
-
-L'ambiente si articola nei seguenti moduli funzionali cooperanti:
+La prima vista (\texttt{dashboard/js/app.js}) permette di ispezionare ogni singolo intervento chirurgico e comprende:
 \begin{itemize}
-    \item \textbf{Barra laterale dei casi clinici (Sidebar):} indicizza l'insieme dei 50 pazienti chirurgici archiviati nel livello \textbf{Gold}. Integra una casella di ricerca istantanea (\texttt{onSearchInput}) per filtrare per identificativo numerico o reparto, pulsanti a pillola per il filtraggio rapido (\textit{Tutti i Reparti}, \textit{Unknown}) e tessere informative per ciascun caso che espongono l'ID paziente, il reparto e il numero totale di campioni temporali registrati (ad esempio, 7.597 campioni per il Caso Clinico \#2 visualizzato).
-    \item \textbf{Patient HUD (Heads-Up Display):} collocato in testata all'area di lavoro, espone i metadati anagrafici del soggetto selezionato (\textit{Paziente Intraoperatorio \#2}) e i comandi operativi centrali:
-    \begin{itemize}
-        \item il selettore della risoluzione temporale (\textbf{downsampling}), che permette di alternare la visualizzazione nativa ad 1 secondo ad aggregazioni a 30 secondi, 60 secondi (\textit{modalità ottimale} per la fluidità di interazione su serie estese) o 300 secondi, richiedendo i dati aggregati direttamente all'endpoint FastAPI;
-        \item il pulsante di aggiornamento rapido (\textit{Ricarica});
-        \item il pulsante di attivazione \textbf{Rileva Anomalie}, che inoltra una richiesta asincrona \texttt{POST /detect/\{case\_id\}} al server FastAPI per eseguire in tempo reale l'inferenza congiunta delle regole cliniche e dei modelli di machine learning, persistendo atomicamente i risultati su MongoDB e aggiornando reattivamente l'HUD, i tracciati e il registro clinico.
-    \end{itemize}
-    \item \textbf{Griglia degli indicatori vitali (Vitals Bento-Grid):} composta da cinque schede metriche interattive che sintetizzano lo stato fisiologico istantaneo e complessivo della registrazione:
-    \begin{enumerate}
-        \item \textit{Frequenza Cardiaca:} valore corrente medio pari a 81 bpm, corredato dall'intervallo di escursione registrato (minimo 59 bpm, massimo 116 bpm);
-        \item \textit{Saturazione $SpO_2$:} valore istantaneo pari al 99.8\%, con indicazione del punto di minimo (\textit{nadir} all'85\%) rispetto alla soglia fisiologica target ($>95\%$);
-        \item \textit{Pressione Arteriosa (SBP/DBP):} valori pressori istantanei di sistolica e diastolica (104/67 mmHg), integrati dal calcolo della pressione arteriosa media (MAP media pari a 78 mmHg);
-        \item \textit{Shock Index ($HR / SBP$):} valore istantaneo pari a 0.78, contrassegnato con etichetta \textit{Borderline} (intervallo $0.7 - 0.9$) a supporto della diagnosi precoce di ipovolemia;
-        \item \textit{Anomalie Totali Uniche:} contatore cumulativo che quantifica il totale degli istanti temporali critici individuati per il caso clinico selezionato (1.939 eventi distinti nel Caso \#2).
-    \end{enumerate}
-    \item \textbf{Matrice di Rilevamento per Algoritmo (Consensus Matrix):} pannello interattivo a quattro quadranti che scorpora analiticamente il concorso dei quattro algoritmi implementati nel sistema:
-    \begin{enumerate}
-        \item \textit{Shock Index Clinico} ($HR / SBP > 0.9$): 1.429 istanti di allarme;
-        \item \textit{Ipotensione Severa} ($MBP < 65\text{ mmHg} \land SpO_2 < 90\%$): 0 istanti critici;
-        \item \textit{Isolation Forest} (rilevamento multivariato non supervisionato): 380 campioni classificati come outlier;
-        \item \textit{Autoencoder Neurale LSTM} (scostamento da ricostruzione $MSE > \tau$): 379 campioni anomali.
-    \end{enumerate}
-    Ciascuna scheda della matrice supporta la funzione di filtro interattivo (\texttt{toggleAlgoHighlight}): facendo clic su una tessera, i grafici sottostanti isolano ed evidenziano cromaticamente soltanto le anomalie riscontrate da quello specifico metodo. Inoltre, un'icona informativa apre una finestra di dialogo modale che descrive la logica algoritmica, la formula matematica e la motivazione clinica della soglia adottata.
+    \item \textbf{Sidebar dei pazienti:} elenca i 500 casi \texttt{committed} restituiti da \texttt{GET /cases}, con una barra di ricerca per \texttt{case\_id} o reparto e badge con reparto, età e sesso;
+    \item \textbf{Patient HUD:} mostra in alto i dati del caso selezionato, il menu a tendina per cambiare la risoluzione temporale (\texttt{Raw 1s}, \texttt{30s}, \texttt{1m}, \texttt{5m}, che passano il parametro \texttt{window\_seconds} a \texttt{GET /cases/\{id\}/series}) e il pulsante \textbf{Run Anomaly Detection} che invoca \texttt{POST /cases/\{id\}/detect};
+    \item \textbf{Vitals Grid:} 5 schede riassuntive con i valori medi del caso selezionato per frequenza cardiaca (\texttt{HR}), saturazione (\texttt{SpO2}), pressione arteriosa (\texttt{SBP/DBP} e \texttt{MBP}), \texttt{Shock Index} e numero totale di anomalie trovate;
+    \item \textbf{Consensus Matrix (\texttt{partials/consensus-matrix.html}):} 4 schede interattive corrispondenti ai quattro metodi (\textit{Shock Index}, \textit{Severe Hypotension}, \textit{Isolation Forest}, \textit{LSTM Autoencoder}). Cliccando su una scheda è possibile filtrare i grafici e la tabella sottostante per vedere solo gli allarmi generati da quel metodo, oppure aprire una finestra modale che spiega la regola o l'algoritmo usato;
+    \item \textbf{Doppio grafico sincronizzato Chart.js e tabella delle anomalie:} il grafico superiore mostra \texttt{HR} e \texttt{SpO2}, mentre quello inferiore mostra \texttt{SBP}, \texttt{DBP} e \texttt{MBP}. Quando viene eseguito il rilevamento, gli istanti anomali vengono sovrapposti alle curve e riepilogati nella tabella cronologica a fondo pagina. Nella versione finale di \texttt{dashboard/js/app.js} abbiamo anche affinato il posizionamento dei marker sui grafici in base al metodo attivato (associando, ad esempio, gli allarmi di ipotensione severa anche alla traccia \texttt{SpO2} e posizionando sul valore reale del canale corrispondente i punti segnalati).
 \end{itemize}
 
-\begin{figure}[htbp]
-    \centering
-    \begin{subfigure}[b]{0.98\textwidth}
-        \includegraphics[width=\textwidth]{dashboard_telemetry_hr_spo2.png}
-        \caption{Traccia I: Frequenza cardiaca (linea rossa con interpolazione cubica) e saturazione $SpO_2$ (linea ciano), con marcatura dei punti anomali (sfere arancioni), fascia fisiologica di riferimento e tooltip di ispezione.}
-        \label{fig:dashboard_telemetry_hr_spo2}
-    \end{subfigure}
-    \par\vspace{0.45cm}
-    \begin{subfigure}[b]{0.98\textwidth}
-        \includegraphics[width=\textwidth]{dashboard_telemetry_nibp.png}
-        \caption{Traccia II: Pressione arteriosa non invasiva con curve di sistolica (SBP, giallo), diastolica (DBP, verde) e media arteriosa (MBP, viola tratteggiata), con linea di allerta per ipotensione critica ($MBP < 65$ mmHg).}
-        \label{fig:dashboard_telemetry_nibp}
-    \end{subfigure}
-    \caption{Tracciati telemetrici temporali sincronizzati ad alta frequenza con sovrapposizione degli eventi anomali rilevati.}
-    \label{fig:dashboard_telemetry_charts}
-\end{figure}
-
-\subsection{Tracciati telemetrici sincronizzati ed evidenziazione delle anomalie}
-L'esplorazione dinamica dei segnali biometrici è affidata a due grafici temporali continui realizzati mediante la libreria grafica \textbf{Chart.js}, presentati nella Figura~\ref{fig:dashboard_telemetry_charts}. Le due viste condividono il medesimo asse temporale UTC e implementano un plugin personalizzato per il mirino verticale sincronizzato (\texttt{synchronizedCrosshairPlugin}): spostando il puntatore del mouse su un qualsiasi istante temporale di una traccia, una linea tratteggiata verticale interseca simultaneamente entrambi i grafici, consentendo al medico di correlare istantaneamente una variazione del ritmo cardiaco con una caduta di pressione o di saturazione d'ossigeno.
-
+\subsection{Vista di Data Lakehouse, Governance e Benchmark}
+La seconda vista (\texttt{dashboard/js/lakehouse.js} e \texttt{partials/lakehouse-view.html}) presenta i risultati tecnici della pipeline leggendo dinamicamente i dati da \texttt{/benchmark}, \texttt{/evaluation} e \texttt{/quality}:
 \begin{itemize}
-    \item \textbf{Traccia I (Frequenza Cardiaca e Saturazione):} impiega un doppio asse delle ordinate (a sinistra la frequenza in scala $40-160$ bpm, a destra la saturazione in scala $80-100\%$). La curva cardiaca (in rosso con interpolazione cubica) e la saturazione (in ciano) sono accompagnate da una fascia orizzontale di riferimento clinico che delimita la normocardia ($60-100$ bpm) e segnala il limite inferiore di ipossia moderata ($<95\%$). Come illustrato nella Figura~\ref{fig:dashboard_telemetry_hr_spo2}, al passaggio del cursore un tooltip fluttuante espone il valore esatto registrato (ad esempio, ore 00:14:00 con $HR = 61.93$ bpm e $SpO_2 = 100\%$). Quando viene eseguita la procedura di rilevamento, gli istanti temporali anomali vengono disegnati direttamente sopra le curve del segnale sotto forma di evidenti marcatori circolari arancioni.
-    \item \textbf{Traccia II (Pressione Arteriosa NIBP):} visualizza simultaneamente la pressione sistolica (curva continua giallo/arancione), diastolica (curva verde) e media arteriosa (curva viola tratteggiata). Il grafico evidenzia la linea critica di ipotensione a $MBP = 65$ mmHg, soglia clinica sotto la quale sussiste un concreto pericolo di ipoperfusione degli organi vitali. I punti anomali contrassegnati evidenziano tempestivamente sia cadute ipotensive repentine sia bruschi picchi ipertensivi intraoperatori.
+    \item \textbf{Confronto di Storage e Query Latency:} mostra l'occupazione dei tre layer (\textbf{33,95 MB} in Bronze, \textbf{44,52 MB} in Silver con badge \texttt{+31.1\% con flag DQ}, e \textbf{15,60 MB} in Gold con \textbf{-54,1\%} rispetto a Bronze e \textbf{-65,0\%} rispetto a Silver, più la nota di \textbf{+2,56 MB} per gli indici B-Tree) e il tempo medio di query (\textbf{12,02 ms} su MongoDB contro \textbf{26,95 ms} da Parquet, pari a \textbf{2,2$\times$}). Durante l'ultima revisione abbiamo corretto il calcolo della larghezza delle barre grafiche usando \texttt{Math.max(bronzeMB, silverMB, goldMB)} come riferimento (perché essendo Silver più grande di Bronze, rapportare Silver a Bronze produceva una barra oltre il 100\%) e abbiamo aggiornato i testi descrittivi del diagramma che in precedenza contenevano numeri statici di una vecchia prova su 50 casi;
+    \item \textbf{Tabella di valutazione ML:} mostra i valori di Precision, Recall, F1-score e \textbf{PR-AUC (Average Precision)} di Isolation Forest e LSTM Autoencoder sui \textbf{5.402.386 punti} della coorte Gold;
+    \item \textbf{Tabella del Data Quality Report:} mostra il riepilogo globale dei campioni (\texttt{5.565.384} righe Bronze, \texttt{5.402.386} righe Silver/Gold, \texttt{162.998} righe vuote rimosse pari al \texttt{2,93\%}) e il dettaglio per paziente di valori mancanti e outlier.
+
 \end{itemize}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.98\textwidth]{dashboard_anomalies_table.png}
-    \caption{Registro clinico degli eventi anomali: tracciamento temporale analitico con etichetta di severità multilivello, parametri biometrici istantanei, algoritmi concordanti ed esportazione dei dati in CSV.}
-    \label{fig:dashboard_anomalies_table}
-\end{figure}
+\begin{techbox}[orange]{Limiti della dashboard web}
+Anche sul fronte dell'interfaccia grafica segnaliamo con trasparenza tre limiti attuali:
+\begin{enumerate}
+    \item \textbf{Mancata esposizione visiva dei metadati di lineage:} sebbene gli endpoint \texttt{/quality}, \texttt{/benchmark} ed \texttt{/evaluation} restituiscano nei rispettivi JSON i campi \texttt{run\_id}, \texttt{pipeline\_version} e \texttt{generated\_at}, la dashboard non li mostra in nessun badge o intestazione della pagina;
+    \item \textbf{Visualizzazione parziale della tabella Data Quality:} per non appesantire il DOM del browser, in \texttt{dashboard/js/lakehouse.js} la tabella dei casi mostra solo i primi 15 pazienti (\texttt{data.cases\_detail.slice(0, 15)}) su 500 e non espone le metriche dettagliate per singolo sensore (\texttt{sensor\_metrics}) che pure sono salvate nel \texttt{quality\_report.json} e nel \texttt{registry};
+    \item \textbf{Valori di fallback statici nel codice client:} nel template HTML e nel file \texttt{lakehouse.js} sono rimasti alcuni valori numerici di fallback che verrebbero mostrati qualora il backend rispondesse con errore \texttt{404} o \texttt{500} (ad esempio se i report JSON non fossero ancora stati generati).
+\end{enumerate}
+\end{techbox}
 
-\subsection{Registro clinico degli eventi anomali ed esportazione dei dati}
-Al di sotto dei tracciati grafici è collocato il \textbf{Registro Clinico degli Eventi Anomali} (Figura~\ref{fig:dashboard_anomalies_table}), un modulo tabellare progettato per l'ispezione analitica e la validazione post-operatoria delle segnalazioni. 
-
-Il registro visualizza tutti i 1.939 eventi individuati per il caso clinico selezionato e integra:
-\begin{itemize}
-    \item menu a tendina per il filtraggio rapido in base alla severità dell'allarme o alla tipologia di evento;
-    \item il pulsante \textbf{Esporta CSV}, che genera istantaneamente il download dell'intero registro anomalo per facilitare l'archiviazione nella cartella clinica elettronica (EHR) o per condurre analisi statistiche retrospettive offline;
-    \item una struttura tabellare analitica a otto colonne:
-    \begin{enumerate}
-        \item \textbf{\#}: indice progressivo della segnalazione;
-        \item \textbf{TIMESTAMP (UTC)}: marcatura temporale esatta al secondo dell'evento rilevato (ad esempio, \texttt{2020-01-01 00:00:04});
-        \item \textbf{LIVELLO SEVERITÀ}: classificazione a badge cromatico graduato che sintetizza il consenso algoritmico: \textit{Advisory} (quando un solo metodo rileva l'anomalia), \textit{Warning} (quando concorrono due metodi) o \textit{Critical} (quando tre o quattro algoritmi concordano sulla criticità dell'istante);
-        \item \textbf{HR (BPM)}: frequenza cardiaca istantanea registrata;
-        \item \textbf{$SPO_2$ (\%)}: saturazione periferica d'ossigeno rilevata all'istante dell'allarme (evidenziando cali precoci, ad esempio il 90\% alla riga 1);
-        \item \textbf{NIBP (SBP/DBP)}: pressione sistolica e diastolica concomitante (ad esempio, 128/75 mmHg alla riga 11);
-        \item \textbf{SHOCK INDEX}: valore numerico istantaneo del rapporto $HR / SBP$;
-        \item \textbf{ALGORITMI RILEVATORI}: tag compatti che indicano puntualmente quale modello ha sollevato l'allarme (\texttt{IsoForest}, \texttt{Autoencoder}, \texttt{Shock Index}).
-    \end{enumerate}
-\end{itemize}
-
-\subsection{Vista di data lakehouse, governance e benchmark}
-La seconda schermata dell'interfaccia, accessibile mediante la scheda \textit{Benchmarks} in testata, visualizza in modo trasparente le metriche di architettura dati e qualità del dato sincronizzate in tempo reale tramite le API REST:
-\begin{itemize}
-    \item due schede comparative sull'ottimizzazione dello storage e della latenza, che illustrano tramite barre grafiche la contrazione progressiva dello spazio su disco dal livello \textbf{Bronze} al livello \textbf{Gold} (evidenziando la riduzione dell'89.1\%) e il fattore di accelerazione di 3.7 volte ottenuto con il \textbf{pushdown} degli indici MongoDB;
-    \item la tabella di valutazione dei modelli di \textbf{machine learning}, sincronizzata dall'endpoint \texttt{GET /evaluation}, che presenta il confronto tra \textbf{Isolation Forest} e \textbf{LSTM Autoencoder} esponendo le metriche di Precision, Recall, F1-score e PR-AUC calcolate su 311.173 punti;
-    \item la tabella del \textbf{Data Quality and Governance Report}, alimentata dall'endpoint \texttt{GET /quality}, che elenca analiticamente per ciascun caso clinico i campioni grezzi del \textbf{Bronze}, i campioni bonificati nel \textbf{Silver}, le righe eliminate e il conteggio degli outlier fisiologici rilevati per ciascun parametro vitale.
-\end{itemize}
-
-\section{Containerizzazione ed orchestrazione con Docker}
-Al fine di garantire l'assoluta riproducibilità dell'ambiente software, l'indipendenza dal sistema operativo ospitante e la rapidità di dispiegamento in contesti ospedalieri, l'intero sistema è stato ingegnerizzato e containerizzato mediante Docker e Docker Compose.
-
-L'intera architettura multi-livello del sistema, illustrata nella Figura~\ref{fig:app_architecture}, connette in modo organico l'interfaccia client, il gateway applicativo e il cluster di archiviazione MongoDB.
+\section{Containerizzazione Docker, orchestrazione, test (\texttt{pytest}) e reset}
+Per rendere il progetto eseguibile allo stesso modo su qualsiasi macchina (Windows, macOS o Linux) senza dover installare manualmente MongoDB 8.0 o configurare ambienti Python locali, abbiamo incapsulato l'intero sistema in due container gestiti da \texttt{docker-compose.yml}, come rappresentato nella Figura~\ref{fig:app_architecture}.
 
 \begin{figure}[ht]
     \centering
     \resizebox{0.95\textwidth}{!}{\input{app_architecture_tikz.tex}}
-    \caption{Architettura multi-livello completa dell'applicazione e containerizzazione Docker.}
+    \caption{Architettura multi-livello dell'applicazione e containerizzazione Docker Compose.}
     \label{fig:app_architecture}
 \end{figure}
 
-L'infrastruttura definita nel file \texttt{docker-compose.yml} orchestra due container interconnessi su una rete virtuale dedicata denominata \texttt{vitaldb\_net}:
-il container del database \texttt{vitaldb\_mongo}, basato sull'immagine ufficiale di MongoDB 8.0. Il servizio viene avviato configurando automaticamente un Replica Set a singolo nodo (\texttt{--replSet rs0}), prerequisito architetturale per abilitare le funzionalità transazionali native di MongoDB. L'integrità dello storage è garantita da un volume persistente su disco, mentre le collezioni, gli schemi JSON e i metadati iniziali vengono predisposti automaticamente all'avvio mediante gli script montati nella directory di inizializzazione \texttt{/docker-entrypoint-initdb.d/};
-il container applicativo \texttt{vitaldb\_api}, costruito a partire da un'immagine leggera basata su Python 3.12-slim. Il container incorpora l'interprete dell'API FastAPI, il server ASGI \texttt{uvicorn} e l'insieme delle librerie matematiche necessarie all'esecuzione dei modelli, tra cui \texttt{pymongo}, \texttt{scikit-learn}, \texttt{pandas}, \texttt{numpy} e la versione per CPU di \texttt{torch}.
+I due servizi collegati sulla rete virtuale \texttt{vitaldb\_net} sono:
+\begin{enumerate}
+    \item \texttt{vitaldb\_mongo} (immagine \texttt{mongo:8.0}): avvia il database con l'opzione \texttt{--replSet rs0}, monta il volume persistente \texttt{mongo\_data} e gli script di inizializzazione in \texttt{/docker-entrypoint-initdb.d/}. Poiché MongoDB richiede alcuni secondi per inizializzare il Replica Set all'avvio, abbiamo configurato un \texttt{healthcheck} basato su \texttt{mongosh} che controlla \texttt{rs.status()} (o lancia \texttt{rs.initiate()} al primo avvio);
+    \item \texttt{vitaldb\_api} (costruito dal \texttt{Dockerfile} su base \texttt{python:3.12-slim}): installa le dipendenze di \texttt{requirements.txt} (inclusa la build CPU di PyTorch), monta le cartelle del progetto e avvia \texttt{uvicorn api.main:app --host 0.0.0.0 --port 8000}. Grazie alla clausola \texttt{depends\_on: \{mongo: \{condition: service\_healthy\}\}}, il container dell'API attende che il Replica Set di MongoDB sia effettivamente pronto prima di partire.
+\end{enumerate}
 
-Un elemento architetturale di rilievo risiede nell'orchestrazione delle dipendenze basata su \textbf{healthcheck} attivi. Poiché l'API richiede che il database non sia soltanto attivo a livello di processo ma abbia completato con successo l'inizializzazione del Replica Set e il caricamento degli schemi, il servizio \texttt{mongo} esegue un controllo ciclico mediante il client nativo \texttt{mongosh}. Lo script verifica che il nodo appartenga allo stato operativo primario o, in caso contrario, ne forza l'inizializzazione (\texttt{rs.initiate}). Nel file di composizione, il container \texttt{api} dichiara la dipendenza:
-$$\texttt{depends\_on: \{ mongo: \{ condition: service\_healthy \} \}}$$
-Questo meccanismo impedisce che il backend entri in esecuzione prima che il database sia pienamente operativo, azzerando qualsiasi fallimento di connessione all'avvio dello stack. L'intero sistema può quindi essere generato e avviato con un singolo comando:
-$$\texttt{docker compose up --build -d}$$
+\subsection{Esecuzione della pipeline e limite dell'orchestrazione manuale}
+Una volta avviati i container con \texttt{docker compose up --build -d}, l'esecuzione completa della pipeline sui 500 casi avviene lanciando in sequenza 6 script dentro il container \texttt{vitaldb\_api}:
+\begin{enumerate}
+    \item \texttt{python src/bronze/download.py --max-cases 500} (genera il nuovo \texttt{run\_id} e scarica il layer Bronze);
+    \item \texttt{python src/silver/clean.py} (pulisce i dati, genera il layer Silver e \texttt{data/quality\_report.json});
+    \item \texttt{python src/gold/load\_mongo.py} (carica \texttt{vital\_signals} e \texttt{registry} con protocollo a due fasi);
+    \item \texttt{python src/detection/detector.py} (esegue regole cliniche + ML e aggiorna \texttt{anomalies\_detected});
+    \item \texttt{python src/analysis/benchmark\_etl.py} (aggiorna \texttt{data/benchmark\_report.json});
+    \item \texttt{python src/analysis/evaluate\_models.py} (aggiorna \texttt{data/ml\_evaluation.json}).
+\end{enumerate}
 
-\begin{techbox}[brandNavy]{Isolamento infrastrutturale e resilienza del deployment}
-L'orchestrazione Docker garantisce il disaccoppiamento totale tra il calcolo analitico e la persistenza dei dati: il volume permanente preserva le serie storiche e il catalogo di governance a fronte di riavvii del container, mentre la rete isolata \texttt{vitaldb\_net} e il meccanismo di healthcheck chaining proteggono l'integrità delle transazioni durante l'avvio a freddo dello stack.
-\end{techbox}
+Un \textbf{limite operativo} che abbiamo riscontrato durante il progetto è proprio l'\textbf{assenza di uno script orchestratore unico fail-fast} che incapsuli questi 6 passaggi in un'unica esecuzione transazionale. Lanciando i comandi manualmente uno alla volta, se si interrompe l'esecuzione dopo il passo 2 o si rilancia un singolo script con parametri diversi (come era successo inizialmente quando avevamo 1000 casi scaricati in Bronze/Silver ma solo 50 caricati in Gold), gli artefatti su disco e il database rischiano di rimanere disallineati finché non si completa l'intera catena.
 
-\section{Conclusioni, limiti e sviluppi futuri}
-Il lavoro svolto ha dimostrato con successo la fattibilità e l'efficacia di una piattaforma integrata che combina l'ingegneria dei dati temporali con l'analisi automatizzata delle anomalie per il monitoraggio chirurgico intraoperatorio.
+\subsection{Suite di 38 test automatizzati (\texttt{pytest}) e script di reset}
+Per verificare che le modifiche introdotte durante lo sviluppo non rompessero la pulizia dei dati, la governance o le API, abbiamo scritto una suite di \textbf{38 test unitari} eseguibili con \texttt{pytest} e suddivisi nei \textbf{6 moduli reali} presenti nella cartella \texttt{tests/}:
+\begin{itemize}
+    \item \texttt{tests/test\_config.py} (\textbf{2 test}): verifica che tutte le tracce in \texttt{TRACK\_SPECS} abbiano limiti fisiologici validi ($\min < \max$) e che le costanti cliniche siano coerenti (in particolare che la soglia di freschezza clinica \texttt{NIBP\_MAX\_CLINICAL\_AGE\_S = 120s} non superi mai il limite di \textit{forward-fill} \texttt{NIBP\_STALENESS\_LIMIT\_S = 300s});
+    \item \texttt{tests/test\_bronze.py} (\textbf{3 test}): verifica la scrittura atomica su file temporaneo (\texttt{.tmp} $\to$ \texttt{.parquet}), il salvataggio delle tracce del singolo paziente e la generazione di \texttt{download\_manifest.json} con \texttt{run\_id};
+    \item \texttt{tests/test\_etl.py} (\textbf{4 test}): collauda le funzioni di \texttt{src/silver/clean.py}, verificando che \texttt{interpolate\_short\_gaps} colmi solo i buchi interni $\le 5\text{ s}$ lasciando \texttt{NaN} le code finali prive di campioni successivi, che \texttt{flag\_outliers} individui gli artefatti prima dell'imputazione, che i 5 flag \texttt{*\_imputed} siano tracciati separatamente per canale e che per ogni traccia valga sempre l'identità $\texttt{observed} + \texttt{imputed} + \texttt{missing} = \texttt{rows\_cleaned}$;
+    \item \texttt{tests/test\_gold.py} (\textbf{16 test}): verifica la conversione \texttt{dataframe\_to\_timeseries\_docs} (omissione dei campi \texttt{NaN} e preservazione di \texttt{nibp\_age\_s} e dei 5 flag \texttt{*\_imputed}), il quality gate \texttt{validate\_records}, la struttura del documento \texttt{registry} con \texttt{sensor\_metrics} e \texttt{run\_id}, il filtro \texttt{\{"status": "committed"\}} in \texttt{list\_loaded\_cases} e la funzione di auto-guarigione \texttt{recover\_incomplete\_loads};
+    \item \texttt{tests/test\_detection.py} (\textbf{9 test}): verifica il calcolo di Shock Index e ipotensione severa, il silenziamento degli allarmi quando \texttt{nibp\_age\_s > 120s}, l'isolamento delle finestre scorrevoli tra pazienti diversi nell'\texttt{LSTMAutoencoderDetector}, la presenza del proiettore \texttt{nn.Linear} e l'assenza di \textit{data leakage} nel \texttt{.bfill()} raggruppato (\texttt{test\_imputation\_no\_bfill\_leakage\_across\_cases});
+    \item \texttt{tests/test\_api.py} (\textbf{4 test}): testa tramite \texttt{TestClient} le rotte \texttt{/health}, \texttt{/cases}, \texttt{/cases/\{id\}/series} e \texttt{POST /cases/\{id\}/detect}. In particolare, in \texttt{test\_api\_detect\_endpoint} abbiamo usato \texttt{monkeypatch.setattr(detector\_mod, "save\_anomalies\_to\_mongo", lambda db, df: len(df))} per evitare che l'esecuzione dei test sovrascrivesse nel database le anomalie reali calcolate sui 500 casi.
+\end{itemize}
 
-L'adozione della \textbf{Medallion Architecture} ha consentito di strutturare il flusso di raffinamento del dato clinico in stadi chiari e governati, isolando la persistenza dei dati grezzi (\textbf{Bronze}), la bonifica e il partizionamento (\textbf{Silver}) e l'archiviazione ottimizzata su MongoDB Time Series (\textbf{Gold}). I benchmark quantitativi hanno evidenziato vantaggi misurabili: una contrazione dello spazio su disco dell'89.1\% e un'accelerazione di 3.7 volte nei tempi di risposta delle query temporali.
+Infine, per poter ripartire da zero in modo pulito quando necessario, abbiamo predisposto lo script \texttt{scripts/reset\_pipeline.py} (eseguibile con il flag di conferma \texttt{--yes} / \texttt{-y}). Lo script svuota le tre collezioni MongoDB (\texttt{vital\_signals}, \texttt{registry}, \texttt{anomalies\_detected}), cancella i file Parquet dentro \texttt{data/bronze/} e \texttt{data/silver/} e rimuove i 4 file JSON di report insieme a \texttt{data/.current\_run\_id}.
 
-Al contempo, l'approccio ibrido all'\textbf{anomaly detection} ha confermato l'importanza di affiancare le regole cliniche deterministiche (lo \textbf{Shock Index} e l'ipotensione severa) ad algoritmi di \textbf{machine learning} non supervisionato (\textbf{Isolation Forest} e \textbf{LSTM Autoencoder}), garantendo una copertura multilivello delle alterazioni emodinamiche.
+\section{Conclusioni, riepilogo dei limiti per layer e sviluppi futuri}
+Il progetto realizzato ci ha permesso di affrontare dall'inizio alla fine tutte le fasi di costruzione di una pipeline dati e di un sistema di \textbf{anomaly detection} su serie storiche cliniche reali, lavorando su una coorte di \textbf{500 interventi chirurgici} del dataset VitalDB (\textbf{5.565.384 righe grezze} in Bronze e \textbf{5.402.386 secondi bonificati} in Silver e Gold).
 
-In un'ottica di onestà scientifica, è fondamentale riassumere i limiti attuali dell'architettura:
-la soluzione di \textbf{data governance} costituisce un'emulazione artigianale dei principi del \textbf{data lakehouse}. L'impossibilità di eseguire inserimenti nelle \textbf{Time Series Collection} di MongoDB all'interno di transazioni multi-documento impedisce il conseguimento di un'atomicità fisica nativa tra i dati temporali e il catalogo \texttt{registry}, obbligando a ricorrere a strategie applicative di compensazione;
-l'azzeramento dei valori nulli nel livello \textbf{Gold} deriva dalla rimozione delle righe vuote e dall'omissione dei campi privi di valore nei documenti BSON; la perdita di continuità temporale correlata alla cancellazione di campioni nel \textbf{Silver} impone cautela analitica;
-l'asse temporale è attualmente ancorato a una data convenzionale fissa (\texttt{2020-01-01}), che in un contesto produttivo reale dovrà essere sostituita dalla marcatura temporale esatta dell'anestesia.
+Dall'esperienza pratica di sviluppo possiamo trarre tre conclusioni principali:
+\begin{enumerate}
+    \item \textbf{Separare i ruoli dei tre layer (Medallion Architecture) semplifica sia il debug sia le prestazioni:} mantenere il layer \textbf{Bronze} immutabile in Parquet (\textbf{33,95 MB}) ci ha evitato di riscaricare i dati da rete a ogni modifica del codice; usare il layer \textbf{Silver} (\textbf{44,52 MB}, $+31,1\%$) per arricchire i dati con 12 colonne di qualità (\texttt{nibp\_age\_s}, 5 flag \texttt{*\_outlier} e 5 flag \texttt{*\_imputed}) senza cancellare gli outlier ci ha permesso di conservare la tracciabilità completa; infine, delegare al layer \textbf{Gold} su MongoDB 8.0 Time Series il solo dato utile per le query ha ridotto lo spazio fisico dei dati a \textbf{15,60 MB} ($-65,0\%$ rispetto a Silver, più \textbf{2,56 MB} di indici B-Tree) e ha dimezzato il tempo medio di lettura sul singolo paziente (\textbf{12,02 ms} contro \textbf{26,95 ms});
+    \item \textbf{La qualità del dato condiziona direttamente gli algoritmi a valle:} scelte apparentemente piccole — come rilevare gli outlier prima del \textit{forward-fill}, limitare la propagazione NIBP a 300 secondi in Silver ma stringerla a $\texttt{nibp\_age\_s} \le 120\text{ s}$ per le regole cliniche, o raggruppare correttamente per \texttt{case\_id} anche il \texttt{.bfill()} — fanno la differenza tra un sistema che genera falsi allarmi continui e uno metodologicamente corretto;
+    \item \textbf{Regole cliniche e modelli non supervisionati svolgono compiti diversi ma complementari:} le regole deterministiche danno allarmi immediati e spiegabili su soglie note ($\text{SI} > 0,9$ e $\text{MBP} < 65 \land \text{SpO}_2 < 90\%$), mentre Isolation Forest (PR-AUC $0,105$, $\approx 2,2\times$ il caso) e l'LSTM Autoencoder (PR-AUC $0,067$, $\approx 1,4\times$ il caso) fungono da motori di ranking multivariato sulle 8 feature dinamiche, segnalando anche instabilità del ritmo o cadute rapide sub-soglia.
+\end{enumerate}
 
-Da un punto di vista normativo e clinico, un sistema di supporto alle decisioni cliniche (\textbf{Clinical Decision Support System}, CDSS) destinato alla sala operatoria deve sottostare a stringenti requisiti di sicurezza. In ambito europeo, il Regolamento sui Dispositivi Medici (MDR 2017/745) classifica i software diagnostici in classe IIa o superiore, imponendo la validazione clinica della frequenza dei falsi allarmi per prevenire la cosiddetta fatica da allarme (\textbf{alarm fatigue}) nel personale sanitario. Inoltre, la gestione dei dati biometrici ad alta fedeltà richiede la rigorosa conformità al GDPR attraverso tecniche di pseudonimizzazione forte e cifratura dello storage a riposo.
+\subsection{Quadro riepilogativo dei limiti riscontrati lungo l'architettura}
+Per offrire una visione d'insieme chiara e onesta del progetto, riassumiamo qui tutti i limiti strutturali e implementativi che abbiamo analizzato nei singoli capitoli, suddivisi per componente:
+\begin{itemize}
+    \item \textbf{Layer Bronze (\texttt{src/bronze/download.py}):}
+    \begin{enumerate}
+        \item il controllo di idempotenza sui file già presenti (\texttt{skipped\_existing}) verifica solo il passo tra i primi due campioni (\texttt{Time.iloc[1] - Time.iloc[0]}) e la presenza delle 5 colonne, senza ri-verificare l'integrità dell'intero file;
+        \item la tabella \texttt{lab\_data.parquet} viene scaricata con \textit{graceful fallback} ma non viene mai utilizzata nei layer successivi;
+        \item il file \texttt{download\_manifest.json} registra il conteggio aggregato dei casi ma non l'elenco o gli hash MD5/SHA256 dei singoli file Parquet.
+    \end{enumerate}
+    \item \textbf{Layer Silver (\texttt{src/silver/clean.py}):}
+    \begin{enumerate}
+        \item i valori marcati come \texttt{*\_outlier} non vengono rimossi prima dell'imputazione in Silver: un outlier sul bracciale NIBP può quindi essere propagato in avanti dal \textit{forward-fill} fino a 300 secondi nel file Parquet Silver (problema che abbiamo dovuto neutralizzare a valle mascherando gli outlier a \texttt{NaN} in \texttt{load\_from\_gold});
+        \item l'interpolazione lineare ($\le 5\text{ s}$) viene eseguita prima di calcolare la maschera \texttt{was\_na}, perciò i buchi brevi interpolati vengono contati nel report come \texttt{observed} anziché come \texttt{imputed};
+        \item non esiste una soglia di scarto per caso (\textit{case-level quality gate}): anche un paziente con lunghi tratti mancanti viene comunque salvato in Silver e passato a Gold.
+    \end{enumerate}
+    \item \textbf{Layer Gold, Data Lakehouse ``simulato'' e Benchmark (\texttt{src/gold/load\_mongo.py}):}
+    \begin{enumerate}
+        \item poiché le Time Series Collections di MongoDB 8.0 non supportano \texttt{\$jsonSchema} né transazioni multi-documento verso il \texttt{registry}, le garanzie di schema e di atomicità (\textit{Two-Phase Load}) sono imposte dagli script Python e non dal motore del database;
+        \item la lineage del \texttt{run\_id} si ferma al \texttt{registry} e ai file JSON, ma non è scritta dentro i singoli documenti di \texttt{vital\_signals};
+        \item il timestamp usa una data base fittizia (\texttt{2020-01-01 + Time}) perché VitalDB fornisce solo i secondi relativi dall'inizio dell'intervento;
+        \item nel benchmark (\texttt{benchmark\_etl.py}) il risparmio di storage (\texttt{-54,1\%} vs Bronze, \texttt{-65,0\%} vs Silver) è calcolato su \texttt{gold\_storage\_mb = 15,60 MB} al netto dei \texttt{2,56 MB} di indici B-Tree, e il confronto di latenza legge da Parquet tutte le 18 colonne contro le 14 proiettate da MongoDB.
+    \end{enumerate}
+    \item \textbf{Anomaly Detection e valutazione ML (\texttt{src/detection/detector.py}, \texttt{evaluate\_models.py}):}
+    \begin{enumerate}
+        \item fissare \texttt{contamination=0.05} e il $95^\circ$ percentile impone per costruzione che i due modelli ML selezionino sempre circa il 5\% dei punti valutati (agendo come meccanismo di ranking e non come stima della prevalenza reale);
+        \item la valutazione si basa su una \textit{pseudo-ground truth} derivata dalle stesse tracce tramite le regole cliniche, misurando quindi la concordanza interna e non la performance su diagnosi mediche indipendenti;
+        \item i modelli non vengono salvati su disco (\texttt{.pkl}/\texttt{.pt}) e vengono riaddestrati a ogni esecuzione;
+        \item i documenti di \texttt{anomalies\_detected} non contengono un \texttt{detection\_run\_id} che identifichi la versione dei modelli e gli iperparametri usati.
+    \end{enumerate}
+    \item \textbf{Backend API, Dashboard e Orchestrazione (\texttt{api/main.py}, \texttt{dashboard/}):}
+    \begin{enumerate}
+        \item l'endpoint \texttt{POST /cases/\{id\}/detect} riaddestra i modelli sul singolo paziente selezionato e sovrascrive in \texttt{anomalies\_detected} le anomalie calcolate dal batch sui 500 casi, in assenza di un endpoint \texttt{GET /cases/\{id\}/anomalies} di sola lettura;
+        \item la dashboard non visualizza a schermo \texttt{run\_id} e \texttt{pipeline\_version}, mostra solo i primi 15 casi nella tabella Data Quality e mantiene alcuni valori di fallback cablati nel codice client;
+        \item l'esecuzione dei 6 script della pipeline è manuale e priva di un orchestratore unico \textit{fail-fast}.
+    \end{enumerate}
+\end{itemize}
 
-Tra le direttrici di sviluppo futuro più promettenti figurano:
-l'evoluzione verso un'architettura di \textbf{streaming data engineering} mediante l'integrazione di broker di messaggistica distribuiti (quali Apache Kafka o Redpanda), per consentire l'ingestione e la segnalazione delle anomalie in tempo reale con latenze inferiori al secondo direttamente durante l'intervento chirurgico;
-l'estensione del perimetro analitico a ulteriori parametri biologici, quali la temperatura corporea centrale, la concentrazione di anidride carbonica a fine espirazione (capnografia $EtCO_2$) e le frazioni di gas anestetici alogenati;
-l'introduzione di moduli di spiegabilità per l'intelligenza artificiale (\textbf{Explainable AI}), sfruttando ad esempio i valori di Shapley (SHAP) per fornire all'anestesista una motivazione quantitativa trasparente su quali parametri abbiano maggiormente contribuito a generare l'allarme multivariato.
+\subsection{Sviluppi futuri}
+A partire dai limiti appena descritti, le estensioni più naturali per portare il progetto a un livello successivo sono quattro:
+\begin{itemize}
+    \item \textbf{Salvataggio dei modelli addestrati e separazione tra lettura e ricalcolo nell'API:} serializzare su disco lo \texttt{StandardScaler}, l'istanza di \texttt{IsolationForest} e i pesi PyTorch (\texttt{.pt}) dell'Autoencoder addestrati sui 500 casi, introducendo una rotta \texttt{GET /cases/\{id\}/anomalies} per la consultazione immediata dalla dashboard senza riaddestrare i modelli sul singolo paziente;
+    \item \textbf{Doppia lineage granulare (\texttt{pipeline\_run\_id} e \texttt{detection\_run\_id}):} inserire direttamente nei documenti di \texttt{vital\_signals} e \texttt{anomalies\_detected} sia l'identificativo del caricamento dati sia quello dell'esecuzione dei modelli, esponendoli anche nell'intestazione della dashboard;
+    \item \textbf{Quality gate bloccante a livello di caso e pulizia degli outlier prima del forward-fill:} azzerare in \texttt{NaN} gli outlier già all'interno di \texttt{clean.py} prima dell'interpolazione e del LOCF, ed escludere automaticamente dal passaggio a Gold i casi con copertura temporale del segnale cardiaco inferiore a una soglia minima (ad esempio $< 50\%$);
+    \item \textbf{Orchestratore unico della pipeline e integrazione di nuove tracce VitalDB:} raccogliere i 6 passi in un unico comando orchestrato (o in un DAG Airflow/Prefect) ed estendere l'analisi anche alla pressione arteriosa invasiva (\texttt{ART}), alla capnografia ($\text{EtCO}_2$) e all'indice bispettrale (\texttt{BIS}).
+\end{itemize}

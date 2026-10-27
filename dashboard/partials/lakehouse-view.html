@@ -17,28 +17,31 @@
         <div class="metric-bar-row">
           <div class="metric-bar-label-line">
             <span class="metric-bar-name">Layer BRONZE (Grezzo)</span>
-            <span class="metric-bar-val" id="benchBronzeMB">3.88 MB</span>
+            <span class="metric-bar-val" id="benchBronzeMB">33.95 MB</span>
           </div>
           <div class="metric-progress-track">
-            <div class="metric-progress-fill" id="fillBronzeStorage" style="background: var(--telemetry-amber); width: 100%;"></div>
+            <div class="metric-progress-fill" id="fillBronzeStorage" style="background: var(--telemetry-amber); width: 76.3%;"></div>
           </div>
         </div>
         <div class="metric-bar-row">
           <div class="metric-bar-label-line">
-            <span class="metric-bar-name">Layer SILVER (Bonificato)</span>
-            <span class="metric-bar-val" id="benchSilverMB">2.24 MB (-42.3%)</span>
+            <span class="metric-bar-name">Layer SILVER (Bonificato &amp; Arricchito)</span>
+            <span class="metric-bar-val" id="benchSilverMB">44.52 MB (+31.1% con flag DQ)</span>
           </div>
           <div class="metric-progress-track">
-            <div class="metric-progress-fill" id="fillSilverStorage" style="background: var(--text-tertiary); width: 57.7%;"></div>
+            <div class="metric-progress-fill" id="fillSilverStorage" style="background: var(--text-tertiary); width: 100%;"></div>
           </div>
         </div>
         <div class="metric-bar-row">
           <div class="metric-bar-label-line">
-            <span class="metric-bar-name" style="color:var(--telemetry-emerald); font-weight:700;">Layer GOLD (MongoDB Time Series)</span>
-            <span class="metric-bar-val" style="color:var(--telemetry-emerald);" id="benchGoldMB">0.42 MB (<span id="benchGoldReduction">-89.1%</span>)</span>
+            <span class="metric-bar-name" style="color:var(--telemetry-emerald); font-weight:700;">Layer GOLD (MongoDB Time Series — Storage Puro)</span>
+            <span class="metric-bar-val" style="color:var(--telemetry-emerald);" id="benchGoldMB">15.60 MB (<span id="benchGoldReduction">-54.1%</span>)</span>
           </div>
           <div class="metric-progress-track">
-            <div class="metric-progress-fill" id="fillGoldStorage" style="background: var(--telemetry-emerald); width: 10.9%;"></div>
+            <div class="metric-progress-fill" id="fillGoldStorage" style="background: var(--telemetry-emerald); width: 35.0%;"></div>
+          </div>
+          <div id="benchGoldIndexInfo" style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.25rem;">
+            Esclusi indici B-Tree (calcolati separatamente da <code>collStats</code>)
           </div>
         </div>
       </div>
@@ -57,7 +60,7 @@
         <div class="metric-bar-row">
           <div class="metric-bar-label-line">
             <span class="metric-bar-name">Scansione Parquet Partizionato</span>
-            <span class="metric-bar-val" id="benchParquetLatency">13.48 ms</span>
+            <span class="metric-bar-val" id="benchParquetLatency">26.95 ms</span>
           </div>
           <div class="metric-progress-track">
             <div class="metric-progress-fill" id="fillParquetLatency" style="background: var(--text-tertiary); width: 100%;"></div>
@@ -66,10 +69,10 @@
         <div class="metric-bar-row">
           <div class="metric-bar-label-line">
             <span class="metric-bar-name" style="color:var(--telemetry-cyan); font-weight:700;">MongoDB Pushdown con Indici</span>
-            <span class="metric-bar-val" style="color:var(--telemetry-cyan);" id="benchMongoLatency">3.63 ms (<span id="benchSpeedupFactor">3.7x</span> più veloce)</span>
+            <span class="metric-bar-val" style="color:var(--telemetry-cyan);" id="benchMongoLatency">12.02 ms (<span id="benchSpeedupFactor">2.2x</span> più veloce)</span>
           </div>
           <div class="metric-progress-track">
-            <div class="metric-progress-fill" id="fillMongoLatency" style="background: var(--telemetry-cyan); width: 27%;"></div>
+            <div class="metric-progress-fill" id="fillMongoLatency" style="background: var(--telemetry-cyan); width: 44.6%;"></div>
           </div>
         </div>
       </div>
@@ -82,9 +85,9 @@
       <div class="table-title-block">
         <h3>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
-          <span>Valutazione Quantitativa Modelli ML (311.173 Record Temporali)</span>
+          <span id="mlEvalTitle">Valutazione Quantitativa Modelli ML (Concordanza vs Regole Euristiche)</span>
         </h3>
-        <p>Confronto con le Regole Cliniche (15.240 instabilità reali, Baseline positiva 4.90%)</p>
+        <p id="mlEvalSubtitle">Confronto con Pseudo-Ground Truth Clinico (Shock Index &amp; Ipotensione Severa)</p>
       </div>
     </div>
     <div class="table-container-scroll">
@@ -92,7 +95,7 @@
         <thead>
           <tr>
             <th>Modello di Rilevamento</th>
-            <th>Accuratezza Globale</th>
+            <th>PR-AUC (Average Precision)</th>
             <th>Precision (Classe Anomalia)</th>
             <th>Recall (Sensibilità Clinica)</th>
             <th>F1-Score Armonico</th>
@@ -101,17 +104,17 @@
         <tbody>
           <tr>
             <td class="cell-primary"><strong>Isolation Forest (Scikit-Learn)</strong></td>
-            <td class="num-mono" id="mlIsoAcc" style="color:var(--telemetry-cyan); font-weight:700;">92.1 %</td>
-            <td class="num-mono" id="mlIsoPrec">0.140</td>
-            <td class="num-mono" id="mlIsoRec">0.143</td>
-            <td class="num-mono cell-primary" id="mlIsoF1">0.141</td>
+            <td class="num-mono" id="mlIsoAcc" style="color:var(--telemetry-cyan); font-weight:700;">PR-AUC 0.105</td>
+            <td class="num-mono" id="mlIsoPrec">0.124</td>
+            <td class="num-mono" id="mlIsoRec">0.127</td>
+            <td class="num-mono cell-primary" id="mlIsoF1">0.126</td>
           </tr>
           <tr>
             <td class="cell-primary"><strong>LSTM Autoencoder (PyTorch)</strong></td>
-            <td class="num-mono" id="mlAeAcc" style="font-weight:700;">91.4 %</td>
-            <td class="num-mono" id="mlAePrec">0.083</td>
-            <td class="num-mono" id="mlAeRec">0.085</td>
-            <td class="num-mono cell-primary" id="mlAeF1">0.084</td>
+            <td class="num-mono" id="mlAeAcc" style="font-weight:700;">PR-AUC 0.067</td>
+            <td class="num-mono" id="mlAePrec">0.096</td>
+            <td class="num-mono" id="mlAeRec">0.098</td>
+            <td class="num-mono cell-primary" id="mlAeF1">0.097</td>
           </tr>
         </tbody>
       </table>

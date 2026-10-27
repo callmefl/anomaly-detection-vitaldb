@@ -74,6 +74,8 @@ def reset_all(confirm: bool = False):
         config.DATA_DIR / "quality_report.json",
         config.DATA_DIR / "ml_evaluation.json",
         config.DATA_DIR / "benchmark_report.json",
+        config.DATA_DIR / "download_manifest.json",
+        config.DATA_DIR / ".current_run_id",
     ]
     for report_file in reports_to_remove:
         if report_file.exists():

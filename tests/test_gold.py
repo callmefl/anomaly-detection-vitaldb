@@ -19,6 +19,8 @@ from src.gold.load_mongo import (
     build_metadata,
     build_records,
     build_registry_doc,
+    validate_records,
+    load_case_to_mongo,
 )
 
 
@@ -165,3 +167,58 @@ def test_build_registry_doc_case_id_type():
     """case_id nel registry deve essere int Python puro per compatibilità schema MongoDB."""
     doc = build_registry_doc(np.int64(7), 100)
     assert type(doc["case_id"]) is int
+    assert doc["status"] == "committed"
+    assert "pipeline_version" in doc
+
+
+# ── Test validate_records e Idempotenza Caricamento ──────────────────────────
+
+def test_validate_records_valid(sample_silver_df, sample_clinical_info):
+    """validate_records deve restituire True per record conformi."""
+    records = build_records(sample_silver_df, 1, sample_clinical_info)
+    assert validate_records(records) is True
+
+
+def test_validate_records_rejects_missing_timestamp(sample_silver_df, sample_clinical_info):
+    """validate_records deve sollevare ValueError se manca il timestamp."""
+    records = build_records(sample_silver_df, 1, sample_clinical_info)
+    records[0]["timestamp"] = None
+    with pytest.raises(ValueError, match="timestamp mancante o non di tipo datetime"):
+        validate_records(records)
+
+
+def test_validate_records_rejects_corrupted_metrics(sample_silver_df, sample_clinical_info):
+    """validate_records deve rifiutare valori non finiti o stringhe spurie."""
+    records = build_records(sample_silver_df, 1, sample_clinical_info)
+    records[0]["metrics"]["Solar8000_HR"] = float("nan")
+    with pytest.raises(ValueError, match="valore non valido per metrica"):
+        validate_records(records)
+
+
+def test_load_case_to_mongo_two_phase_idempotency(sample_silver_df, sample_clinical_info):
+    """Verifica che load_case_to_mongo esegua la compensazione: loading -> delete_many -> insert -> committed."""
+    from unittest.mock import MagicMock
+
+    client = MagicMock()
+    db = MagicMock()
+
+    records_count = load_case_to_mongo(client, db, sample_silver_df, 1, sample_clinical_info, run_id="test_run")
+    assert records_count == len(sample_silver_df)
+
+    # 1. Verifica pulizia residui preventiva prima dell'insert (idempotenza)
+    db['vital_signals'].delete_many.assert_called_once_with({"metadata.case_id": 1})
+
+    # 2. Verifica inserimento record
+    db['vital_signals'].insert_many.assert_called_once()
+
+    # 3. Verifica transizione stati: loading prima, poi committed
+    assert db['registry'].update_one.call_count == 2
+    first_call_args = db['registry'].update_one.call_args_list[0]
+    second_call_args = db['registry'].update_one.call_args_list[1]
+
+    assert first_call_args[0][0] == {"case_id": 1}
+    assert first_call_args[0][1]["$set"]["status"] == "loading"
+
+    assert second_call_args[0][0] == {"case_id": 1}
+    assert second_call_args[0][1]["$set"]["status"] == "committed"
+
