@@ -2,10 +2,15 @@
 
 <div align="center">
 
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=python,fastapi,mongodb,pytorch,sklearn,docker,js,html,css,latex&theme=dark" alt="Tecnologie Principali" />
+</p>
+
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB_8.0-Time_Series-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.5+-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/Tests-38_Passed-success?style=for-the-badge&logo=pytest&logoColor=white)](#-suite-di-test-e-qualità-pytest)
 [![License](https://img.shields.io/badge/Academic-Project-blue?style=for-the-badge)](relazione/main.pdf)
@@ -13,6 +18,7 @@
 **Piattaforma end-to-end di Data Engineering, Time Series Storage su MongoDB 8.0 e Anomaly Detection Multilivello (Regole Cliniche + Scikit-Learn + Deep PyTorch) su 500 interventi chirurgici del database ad alta risoluzione VitalDB.**
 
 [🚀 Avvio Rapido](#-avvio-rapido-con-docker) •
+[🛠️ Stack Tecnologico](#️-stack-tecnologico--banner-delle-tecnologie) •
 [🏛️ Architettura Medallion](#️-architettura-del-sistema-medallion-lakehouse) •
 [🧠 Anomaly Detection](#-motore-di-anomaly-detection-multilivello) •
 [📊 Risultati Empirici](#-benchmark-empirico-e-metriche-di-storage-coorte-di-500-casi) •
@@ -21,6 +27,57 @@
 [🧪 Test Suite](#-suite-di-test-e-qualità-pytest)
 
 </div>
+
+---
+
+## 🛠️ Stack Tecnologico & Banner delle Tecnologie
+
+L'infrastruttura integra le seguenti tecnologie allo stato dell'arte suddivise per area di competenza:
+
+### 🐍 Core, Backend & REST API
+| Tecnologia | Banner / Badge | Ruolo Architetturale |
+| :--- | :--- | :--- |
+| **Python 3.12** | ![Python](https://img.shields.io/badge/Python_3.12-3776AB?style=for-the-badge&logo=python&logoColor=white) | Runtime di esecuzione primario per ETL, ML e API |
+| **FastAPI** | ![FastAPI](https://img.shields.io/badge/FastAPI_0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white) | Framework asincrono ad alte prestazioni per le REST API |
+| **Uvicorn** | ![Uvicorn](https://img.shields.io/badge/Uvicorn-499848?style=for-the-badge&logo=gunicorn&logoColor=white) | Server ASGI per il deploy dei servizi API |
+| **Pydantic** | ![Pydantic](https://img.shields.io/badge/Pydantic_v2-E92063?style=for-the-badge&logo=pydantic&logoColor=white) | Validazione tipizzata degli schemi e dei payload JSON |
+
+### 🗄️ Database, NoSQL Storage & Time Series
+| Tecnologia | Banner / Badge | Ruolo Architetturale |
+| :--- | :--- | :--- |
+| **MongoDB 8.0** | ![MongoDB](https://img.shields.io/badge/MongoDB_8.0-47A248?style=for-the-badge&logo=mongodb&logoColor=white) | Database NoSQL con motore WiredTiger e supporto Replica Set |
+| **Time Series Collections** | ![Time Series](https://img.shields.io/badge/Time_Series_Collections-001E2B?style=for-the-badge&logo=mongodb&logoColor=white) | Storage ottimizzato a BSON Bucket con `timeField` e `metaField` |
+| **JSON Schema Validator** | ![JSON Schema](https://img.shields.io/badge/JSON_Schema-Strict_Validation-0F172A?style=for-the-badge&logo=json&logoColor=white) | Regole di governance e integrità sul catalogo `registry` |
+| **Aggregation Framework** | ![Aggregation](https://img.shields.io/badge/MongoDB_Pipelines-%24dateTrunc-47A248?style=for-the-badge&logo=mongodb&logoColor=white) | Pushdown query per downsampling temporale ad alte prestazioni |
+
+### 📊 Data Lakehouse & Ingegneria dei Dati
+| Tecnologia | Banner / Badge | Ruolo Architetturale |
+| :--- | :--- | :--- |
+| **Pandas** | ![Pandas](https://img.shields.io/badge/Pandas_2.x-150458?style=for-the-badge&logo=pandas&logoColor=white) | Manipolazione vettoriale e pulizia serie temporali |
+| **NumPy** | ![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white) | Viste zero-copy con `sliding_window_view` e algebra lineare |
+| **Apache Parquet** | ![Parquet](https://img.shields.io/badge/Apache_Parquet-215F88?style=for-the-badge&logo=apacheparquet&logoColor=white) | Storage colonnare ad alta efficienza per i layer Bronze e Silver |
+| **Apache Arrow** | ![Arrow](https://img.shields.io/badge/Apache_Arrow-E41E3A?style=for-the-badge&logo=apachearrow&logoColor=white) | Motore PyArrow per I/O e serializzazione dati compressi |
+
+### 🧠 Machine Learning & Deep Learning
+| Tecnologia | Banner / Badge | Ruolo Architetturale |
+| :--- | :--- | :--- |
+| **PyTorch** | ![PyTorch](https://img.shields.io/badge/PyTorch_2.x-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white) | Rete neurale profonda LSTM Autoencoder con proiettore lineare |
+| **Scikit-Learn** | ![Scikit-Learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white) | Algoritmo Isolation Forest, `StandardScaler` e metriche PR-AUC |
+| **SciPy** | ![SciPy](https://img.shields.io/badge/SciPy-8CAAE6?style=for-the-badge&logo=scipy&logoColor=white) | Elaborazione scientifica e calcolo delle correlazioni cliniche |
+
+### 🖥️ Frontend, UI & Data Visualization
+| Tecnologia | Banner / Badge | Ruolo Architetturale |
+| :--- | :--- | :--- |
+| **JavaScript (ES6+)** | ![JavaScript](https://img.shields.io/badge/JavaScript_ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black) | Logica modulare client-side in Vanilla JS (Clean Architecture) |
+| **Chart.js** | ![Chart.js](https://img.shields.io/badge/Chart.js_4.x-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white) | Rendering tracciati medicali multi-canale e marcatura anomalie |
+| **HTML5 & CSS3** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white) | Design System responsivo con temi Dark/Light e glassmorphism |
+
+### 🐳 DevOps, Testing & Tipografia Scientifica
+| Tecnologia | Banner / Badge | Ruolo Architetturale |
+| :--- | :--- | :--- |
+| **Docker & Compose** | ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white) | Orchestrazione multi-servizio (`vitaldb_mongo` + `vitaldb_api`) |
+| **Pytest** | ![Pytest](https://img.shields.io/badge/Pytest_8.x-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white) | Suite di test automatizzati (38 test unitari e di integrazione) |
+| **LaTeX & TikZ** | ![LaTeX](https://img.shields.io/badge/LaTeX-MiKTeX-008080?style=for-the-badge&logo=latex&logoColor=white) | Relazione accademica formattata con diagrammi vettoriali (42 pag.) |
 
 ---
 
