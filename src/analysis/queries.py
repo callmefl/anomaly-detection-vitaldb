@@ -57,7 +57,10 @@ def list_loaded_cases(db, status="committed"):
     Returns:
         pd.DataFrame: Tabella dei casi registrati con `case_id`, `record_count`, `schema_version`, `status`, `provenance`.
     """
-    filter_query = {"status": status}
+    if status == "committed":
+        filter_query = {"$or": [{"status": "committed"}, {"status": {"$exists": False}}]}
+    else:
+        filter_query = {"status": status}
     cursor = db['registry'].find(filter_query, {"_id": 0}).sort("case_id", 1)
     return pd.DataFrame(list(cursor))
 

@@ -24,7 +24,10 @@ def run_etl_benchmark():
     db = client[config.DB_NAME]
 
     try:
-        committed_docs = list(db['registry'].find({"status": "committed"}, {"_id": 0, "case_id": 1}))
+        committed_docs = list(db['registry'].find(
+            {"$or": [{"status": "committed"}, {"status": {"$exists": False}}]},
+            {"_id": 0, "case_id": 1}
+        ))
         committed_ids = {int(c["case_id"]) for c in committed_docs}
     except Exception:
         committed_ids = set()

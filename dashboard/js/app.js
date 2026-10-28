@@ -81,6 +81,12 @@ const app = {
       const cases = await api.getCases();
       store.setState({ cases });
 
+      // Aggiorna il contatore dinamico dei casi nella sidebar
+      const badge = document.getElementById('railCaseCountBadge');
+      if (badge && Array.isArray(cases) && cases.length > 0) {
+        badge.textContent = `${cases.length} Registrati`;
+      }
+
       // Popola i filtri dei reparti
       components.renderDeptPills(cases, store.getState().departmentFilter);
 

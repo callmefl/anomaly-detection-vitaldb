@@ -21,7 +21,7 @@ Le rotte esposte da \texttt{api/main.py} sono organizzate come segue:
     \item \texttt{GET /quality}, \texttt{GET /benchmark} e \texttt{GET /evaluation}: leggono da disco e restituiscono in JSON i tre report generati dalla pipeline (\texttt{data/quality\_report.json}, \texttt{data/benchmark\_report.json} e \texttt{data/ml\_evaluation.json}), permettendo alla dashboard di mostrare i numeri reali dell'ultimo run eseguito.
 \end{itemize}
 
-\begin{lstlisting}[caption={Implementazione reale dell'endpoint \texttt{POST /cases/\{case\_id\}/detect} in \texttt{api/main.py}.}, label={lst:api_detect}]
+\begin{lstlisting}
 @app.post("/cases/{case_id}/detect")
 def detect_case(case_id: int):
     """Esegue l'algoritmo multilivello di Anomaly Detection sul caso specificato."""
@@ -68,8 +68,11 @@ def detect_case(case_id: int):
         "anomalies": anomalies,
     }
 \end{lstlisting}
+\vspace{2pt}
+\captionof{lstlisting}{Implementazione reale dell'endpoint \texttt{POST /cases/\{case\_id\}/detect} in \texttt{api/main.py}.}\label{lst:api_detect}
+\vspace{6pt}
 
-\begin{techbox}[orange]{Limiti del backend REST API}
+\begin{techbox}{Limiti del backend REST API}
 Nell'implementazione di \texttt{api/main.py} abbiamo individuato alcuni limiti che è opportuno segnalare:
 \begin{enumerate}
     \item \textbf{Ricalcolo single-case su \texttt{POST /cases/\{case\_id\}/detect} e assenza di un endpoint \texttt{GET} di sola lettura:} non abbiamo previsto una rotta \texttt{GET /cases/\{case\_id\}/anomalies} che si limiti a leggere da \texttt{anomalies\_detected} i risultati già calcolati dal batch sui 500 casi. Quando l'utente avvia il rilevamento dalla dashboard, l'endpoint \texttt{POST} riesegue \texttt{run\_detection\_pipeline(db, [case\_id])}, riaddestrando Isolation Forest e LSTM Autoencoder sul solo paziente selezionato e sovrascrivendo nel database le anomalie batch di quel caso;
@@ -79,29 +82,73 @@ Nell'implementazione di \texttt{api/main.py} abbiamo individuato alcuni limiti c
 \end{techbox}
 
 \section{Dashboard web e interfaccia utente interattiva}
-Per visualizzare i tracciati dei pazienti, le anomalie rilevate e le metriche dei tre layer abbiamo realizzato una dashboard web accessibile all'indirizzo \texttt{http://localhost:8000/dashboard}.
+Per visualizzare i tracciati dei pazienti, le anomalie rilevate e le metriche dei tre layer abbiamo realizzato una dashboard web moderna accessibile all'indirizzo \texttt{http://localhost:8000/dashboard}.
+
+\paragraph{Scelta tecnologica e architettura modulare del frontend.}
+Dal punto di vista tecnologico abbiamo scelto di costruire il frontend in \textbf{HTML5, CSS3 e JavaScript puro (Vanilla JS)}, usando la libreria \textbf{Chart.js} per i grafici, senza introdurre framework come React, Vue o Angular e senza bundler come Webpack o Vite. La motivazione di questa scelta è molto concreta: per una dashboard con due sole viste principali, un framework SPA avrebbe richiesto una catena di compilazione Node.js (\texttt{npm build}) dentro Docker, appesantendo il progetto per ottenere funzioni che potevamo gestire in modo molto più diretto con JavaScript standard.
+
+Per non scrivere comunque tutto l'HTML in un unico file gigante difficile da mantenere, abbiamo creato un piccolo caricatore modulare in \texttt{dashboard/js/loader.js}. Il file principale \texttt{dashboard/index.html} contiene dei tag segnaposto con l'attributo \texttt{data-include} (ad esempio \texttt{<div data-include="partials/sidebar.html"></div>}). All'avvio della pagina, la funzione \texttt{loadPartials()} cerca tutti i nodi \texttt{[data-include]}, scarica in parallelo i frammenti HTML tramite \texttt{Promise.all} e \texttt{fetch} aggiungendo il parametro di versione \texttt{?v=3.9} per evitare problemi di cache del browser (\textit{cache busting}), e infine inizializza gli script della dashboard.
+
+L'interfaccia è divisa in due viste selezionabili dalla barra superiore: la vista clinica (\textit{Clinical Telemetry \& Detection}) e la vista architetturale (\textit{Data Lakehouse \& Benchmarks}).
+
+\subsection{Vista di telemetria clinica e anomaly detection interattiva}
+La vista clinica (\texttt{dashboard/js/app.js}) è stata progettata per consentire al personale medico di esplorare in tempo reale qualsiasi dei 500 casi della coorte, valutando il consenso tra regole cliniche deterministiche e modelli non supervisionati di Machine Learning. Nelle Figure~\ref{fig:dashboard_hud}, \ref{fig:dashboard_charts} e \ref{fig:dashboard_table} sono riportate le schermate reali dell'interfaccia aggiornata sul paziente intraoperatorio \#62.
 
 \begin{figure}[ht]
     \centering
-    \includegraphics[width=0.92\textwidth]{dashboard_screenshot.png}
-    \caption{Interfaccia grafica della dashboard web per l'esplorazione dei tracciati vitali e della governance del lakehouse.}
-    \label{fig:dashboard}
+    \includegraphics[width=0.96\textwidth]{dashboard_hud_matrix.png}
+    \caption{Patient HUD e Consensus Matrix per l'ispezione clinica (Caso \#62, coorte di 500 casi registrati).}
+    \label{fig:dashboard_hud}
 \end{figure}
 
-Come si vede nella Figura~\ref{fig:dashboard}, dal punto di vista tecnologico abbiamo scelto di costruire il frontend in \textbf{HTML5, CSS3 e JavaScript puro (Vanilla JS)}, usando la libreria \textbf{Chart.js} per i grafici, senza introdurre framework come React, Vue o Angular e senza bundler come Webpack o Vite. La motivazione di questa scelta è molto concreta: per una dashboard con due sole viste principali, un framework SPA avrebbe richiesto una catena di compilazione Node.js (\texttt{npm build}) dentro Docker, appesantendo il progetto per ottenere funzioni che potevamo gestire in modo molto più diretto con JavaScript standard.
+Come mostrato nella Figura~\ref{fig:dashboard_hud}, la parte superiore della schermata clinica comprende tre elementi chiave:
+\begin{enumerate}
+    \item \textbf{Sidebar dei pazienti sincronizzata:} elenca i 500 casi \texttt{committed} con contatore dinamico (\textit{500 Registrati}), ricerca testuale rapida per identificativo o reparto e filtri rapidi (\textit{Tutti i Reparti}, \textit{General surgery}, ecc.). Ciascuna voce evidenzia reparto e numero di secondi registrati nel layer Gold (es. $10.039\text{ p.ti}$ per il caso \#62);
+    \item \textbf{Patient HUD e Vitals Grid:} riassume i metadati anagrafici (età 47, femmina, reparto chirurgia generale), il selettore di aggregazione temporale (\texttt{Raw 1s}, \texttt{30s}, \texttt{60s}, \texttt{5m}), il pulsante per rilanciare la detection on-demand e 5 schede di telemetria con i valori medi riassuntivi: frequenza cardiaca ($71\text{ bpm}$), saturazione ossigeno ($99,2\%$), pressione non invasiva ($105/66\text{ mmHg}$, MAP media $81\text{ mmHg}$), Shock Index emodinamico ($0,68$, indice di stabilità) e il conteggio di \textbf{1.060 secondi anomali totali unici};
+    \item \textbf{Consensus Matrix interattiva a 4 metodi:} espone il conteggio delle anomalie scoperte da ciascun approccio sul paziente selezionato: Shock Index Clinico ($330$), Ipotensione Severa ($0$), Isolation Forest multivariato ($502$) e Autoencoder Neurale profondo ($501$). Ogni scheda è cliccabile per evidenziare sul tracciato solo gli eventi di quel metodo o per aprire il pannello di audit metodologico.
+\end{enumerate}
 
-Per non scrivere comunque tutto l'HTML in un unico file gigante difficile da mantenere, abbiamo creato un piccolo caricatore modulare in \texttt{dashboard/js/loader.js}. Il file principale \texttt{dashboard/index.html} contiene dei tag segnaposto con l'attributo \texttt{data-include} (ad esempio \texttt{<div data-include="partials/sidebar.html"></div>}). All'avvio della pagina, la funzione \texttt{loadPartials()} cerca tutti i nodi \texttt{[data-include]}, scarica in parallelo i frammenti HTML tramite \texttt{Promise.all} e \texttt{fetch} aggiungendo il parametro \texttt{?v=3.8} per evitare problemi di cache del browser (\textit{cache busting}), e infine inizializza gli script della dashboard.
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}[b]{0.96\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{dashboard_chart_hr_spo2.png}
+        \caption{Traccia I: Frequenza Cardiaca (HR) e Saturazione Ossigeno ($\text{SpO}_2$) con marker di anomalia.}
+        \label{fig:chart_hr_spo2}
+    \end{subfigure}
+    \vspace{0.3cm}
+    \begin{subfigure}[b]{0.96\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{dashboard_chart_nibp.png}
+        \caption{Traccia II: Pressione Arteriosa Sistolica, Diastolica e Media (SBP, DBP, MBP).}
+        \label{fig:chart_nibp}
+    \end{subfigure}
+    \caption{Tracciati temporali sincronizzati Chart.js a risoluzione di 1 secondo con sovrapposizione visiva degli eventi anomali rilevati.}
+    \label{fig:dashboard_charts}
+\end{figure}
 
-L'interfaccia è divisa in due viste selezionabili dalla barra superiore: la vista clinica (\textit{Clinical Telemetry}) e la vista architetturale (\textit{Data Lakehouse \& Governance}).
-
-\subsection{Vista di telemetria clinica e anomaly detection}
-La prima vista (\texttt{dashboard/js/app.js}) permette di ispezionare ogni singolo intervento chirurgico e comprende:
+\paragraph{Grafici temporali sincronizzati e sovrapposizione degli allarmi.}
+I grafici temporali mostrati nella Figura~\ref{fig:dashboard_charts} sono renderizzati tramite Chart.js e sincronizzati sull'asse del tempo in secondi di intervento:
 \begin{itemize}
-    \item \textbf{Sidebar dei pazienti:} elenca i 500 casi \texttt{committed} restituiti da \texttt{GET /cases}, con una barra di ricerca per \texttt{case\_id} o reparto e badge con reparto, età e sesso;
-    \item \textbf{Patient HUD:} mostra in alto i dati del caso selezionato, il menu a tendina per cambiare la risoluzione temporale (\texttt{Raw 1s}, \texttt{30s}, \texttt{1m}, \texttt{5m}, che passano il parametro \texttt{window\_seconds} a \texttt{GET /cases/\{id\}/series}) e il pulsante \textbf{Run Anomaly Detection} che invoca \texttt{POST /cases/\{id\}/detect};
-    \item \textbf{Vitals Grid:} 5 schede riassuntive con i valori medi del caso selezionato per frequenza cardiaca (\texttt{HR}), saturazione (\texttt{SpO2}), pressione arteriosa (\texttt{SBP/DBP} e \texttt{MBP}), \texttt{Shock Index} e numero totale di anomalie trovate;
-    \item \textbf{Consensus Matrix (\texttt{partials/consensus-matrix.html}):} 4 schede interattive corrispondenti ai quattro metodi (\textit{Shock Index}, \textit{Severe Hypotension}, \textit{Isolation Forest}, \textit{LSTM Autoencoder}). Cliccando su una scheda è possibile filtrare i grafici e la tabella sottostante per vedere solo gli allarmi generati da quel metodo, oppure aprire una finestra modale che spiega la regola o l'algoritmo usato;
-    \item \textbf{Doppio grafico sincronizzato Chart.js e tabella delle anomalie:} il grafico superiore mostra \texttt{HR} e \texttt{SpO2}, mentre quello inferiore mostra \texttt{SBP}, \texttt{DBP} e \texttt{MBP}. Quando viene eseguito il rilevamento, gli istanti anomali vengono sovrapposti alle curve e riepilogati nella tabella cronologica a fondo pagina. Nella versione finale di \texttt{dashboard/js/app.js} abbiamo anche affinato il posizionamento dei marker sui grafici in base al metodo attivato (associando, ad esempio, gli allarmi di ipotensione severa anche alla traccia \texttt{SpO2} e posizionando sul valore reale del canale corrispondente i punti segnalati).
+    \item la \textbf{Traccia I} (Figura~\ref{fig:chart_hr_spo2}) traccia simultaneamente frequenza cardiaca (linea rossa, scala $40\text{--}160\text{ bpm}$) e $\text{SpO}_2$ (linea azzurra, scala $80\text{--}100\%$). I punti anomali vengono evidenziati con marker circolari dorati posizionati esattamente all'istante dell'evento, consentendo di identificare sia picchi di frequenza sia cadute acute di saturazione;
+    \item la \textbf{Traccia II} (Figura~\ref{fig:chart_nibp}) visualizza la terna pressoria con interpolazione cubica e tratteggio sulla pressione arteriosa media (MBP, linea viola tratteggiata), confrontandola con la soglia di rischio clinico $\text{MBP} < 65\text{ mmHg}$ per la diagnosi tempestiva di ipoperfusione d'organo.
+\end{itemize}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.96\textwidth]{dashboard_anomaly_table.png}
+    \caption{Registro clinico degli eventi anomali con severità, valori fisiologici istantanei ed esportazione CSV.}
+    \label{fig:dashboard_table}
+\end{figure}
+
+\paragraph{Registro Clinico degli Eventi Anomali ed esportazione dati.}
+Nella parte inferiore della vista telemetrica (Figura~\ref{fig:dashboard_table}), la dashboard presenta il \textbf{Registro Clinico degli Eventi Anomali}. La tabella visualizza l'elenco cronologico di tutti i $1.060$ istanti temporali anomali identificati, riportando per ciascuno:
+\begin{itemize}
+    \item il timestamp assoluto UTC (\texttt{2020-01-01 00:00:53}, ecc.);
+    \item il livello di severità semaforico (\textit{Advisory} a 1 algoritmo, \textit{Warning} a 2 algoritmi concordi, \textit{Critical} a 3 o 4 algoritmi);
+    \item i valori istantanei dei parametri fisiologici al momento dell'allarme (HR, $\text{SpO}_2$, SBP/DBP, Shock Index);
+    \item l'elenco esplicito dei metodi che hanno votato per l'anomalia (es. \textit{Autoencoder}, \textit{Isolation Forest}, \textit{Shock Index});
+    \item il pulsante \textbf{Esporta CSV} per scaricare l'intero log degli eventi da utilizzare per verifiche cliniche retrospettive o archiviazione medico-legale.
 \end{itemize}
 
 \subsection{Vista di Data Lakehouse, Governance e Benchmark}
@@ -110,10 +157,9 @@ La seconda vista (\texttt{dashboard/js/lakehouse.js} e \texttt{partials/lakehous
     \item \textbf{Confronto di Storage e Query Latency:} mostra l'occupazione dei tre layer (\textbf{33,95 MB} in Bronze, \textbf{44,52 MB} in Silver con badge \texttt{+31.1\% con flag DQ}, e \textbf{15,60 MB} in Gold con \textbf{-54,1\%} rispetto a Bronze e \textbf{-65,0\%} rispetto a Silver, più la nota di \textbf{+2,56 MB} per gli indici B-Tree) e il tempo medio di query (\textbf{12,02 ms} su MongoDB contro \textbf{26,95 ms} da Parquet, pari a \textbf{2,2$\times$}). Durante l'ultima revisione abbiamo corretto il calcolo della larghezza delle barre grafiche usando \texttt{Math.max(bronzeMB, silverMB, goldMB)} come riferimento (perché essendo Silver più grande di Bronze, rapportare Silver a Bronze produceva una barra oltre il 100\%) e abbiamo aggiornato i testi descrittivi del diagramma che in precedenza contenevano numeri statici di una vecchia prova su 50 casi;
     \item \textbf{Tabella di valutazione ML:} mostra i valori di Precision, Recall, F1-score e \textbf{PR-AUC (Average Precision)} di Isolation Forest e LSTM Autoencoder sui \textbf{5.402.386 punti} della coorte Gold;
     \item \textbf{Tabella del Data Quality Report:} mostra il riepilogo globale dei campioni (\texttt{5.565.384} righe Bronze, \texttt{5.402.386} righe Silver/Gold, \texttt{162.998} righe vuote rimosse pari al \texttt{2,93\%}) e il dettaglio per paziente di valori mancanti e outlier.
-
 \end{itemize}
 
-\begin{techbox}[orange]{Limiti della dashboard web}
+\begin{techbox}{Limiti della dashboard web}
 Anche sul fronte dell'interfaccia grafica segnaliamo con trasparenza tre limiti attuali:
 \begin{enumerate}
     \item \textbf{Mancata esposizione visiva dei metadati di lineage:} sebbene gli endpoint \texttt{/quality}, \texttt{/benchmark} ed \texttt{/evaluation} restituiscano nei rispettivi JSON i campi \texttt{run\_id}, \texttt{pipeline\_version} e \texttt{generated\_at}, la dashboard non li mostra in nessun badge o intestazione della pagina;
@@ -138,8 +184,8 @@ I due servizi collegati sulla rete virtuale \texttt{vitaldb\_net} sono:
     \item \texttt{vitaldb\_api} (costruito dal \texttt{Dockerfile} su base \texttt{python:3.12-slim}): installa le dipendenze di \texttt{requirements.txt} (inclusa la build CPU di PyTorch), monta le cartelle del progetto e avvia \texttt{uvicorn api.main:app --host 0.0.0.0 --port 8000}. Grazie alla clausola \texttt{depends\_on: \{mongo: \{condition: service\_healthy\}\}}, il container dell'API attende che il Replica Set di MongoDB sia effettivamente pronto prima di partire.
 \end{enumerate}
 
-\subsection{Esecuzione della pipeline e limite dell'orchestrazione manuale}
-Una volta avviati i container con \texttt{docker compose up --build -d}, l'esecuzione completa della pipeline sui 500 casi avviene lanciando in sequenza 6 script dentro il container \texttt{vitaldb\_api}:
+\subsection{Orchestrazione della pipeline end-to-end (\texttt{scripts/run\_pipeline.py})}
+Nelle prime fasi del progetto, l'avvio della pipeline sui 500 casi richiedeva il lancio manuale in sequenza di 6 comandi separati dentro il container \texttt{vitaldb\_api}:
 \begin{enumerate}
     \item \texttt{python src/bronze/download.py --max-cases 500} (genera il nuovo \texttt{run\_id} e scarica il layer Bronze);
     \item \texttt{python src/silver/clean.py} (pulisce i dati, genera il layer Silver e \texttt{data/quality\_report.json});
@@ -149,7 +195,11 @@ Una volta avviati i container con \texttt{docker compose up --build -d}, l'esecu
     \item \texttt{python src/analysis/evaluate\_models.py} (aggiorna \texttt{data/ml\_evaluation.json}).
 \end{enumerate}
 
-Un \textbf{limite operativo} che abbiamo riscontrato durante il progetto è proprio l'\textbf{assenza di uno script orchestratore unico fail-fast} che incapsuli questi 6 passaggi in un'unica esecuzione transazionale. Lanciando i comandi manualmente uno alla volta, se si interrompe l'esecuzione dopo il passo 2 o si rilancia un singolo script con parametri diversi (come era successo inizialmente quando avevamo 1000 casi scaricati in Bronze/Silver ma solo 50 caricati in Gold), gli artefatti su disco e il database rischiano di rimanere disallineati finché non si completa l'intera catena.
+Un \textbf{limite operativo} che avevamo riscontrato lanciando i singoli comandi da terminale era il rischio di disallineamento dello stato qualora l'esecuzione fosse interrotta prematuramente o eseguita con perimetri eterogenei (ad esempio Bronze scaricato su 500 casi ma Gold rimasto fermo a 50). Per superare questa criticità e garantire riproducibilità deterministica, abbiamo sviluppato lo script orchestratore \texttt{scripts/run\_pipeline.py}, eseguibile direttamente via Docker:
+\begin{center}
+    \texttt{docker exec vitaldb\_api python -u scripts/run\_pipeline.py}
+\end{center}
+Lo script incapsula l'intera catena applicando una politica \textbf{fail-fast}: esegue i 6 step in sequenza ordinata, intercetta il codice di uscita di ciascun sottoprocesso e blocca immediatamente l'esecuzione se uno step fallisce (\texttt{exit code != 0}), stampando per ciascuna fase i tempi parziali e la durata complessiva dell'elaborazione.
 
 \subsection{Suite di 38 test automatizzati (\texttt{pytest}) e script di reset}
 Per verificare che le modifiche introdotte durante lo sviluppo non rompessero la pulizia dei dati, la governance o le API, abbiamo scritto una suite di \textbf{38 test unitari} eseguibili con \texttt{pytest} e suddivisi nei \textbf{6 moduli reali} presenti nella cartella \texttt{tests/}:
@@ -203,11 +253,11 @@ Per offrire una visione d'insieme chiara e onesta del progetto, riassumiamo qui 
         \item i modelli non vengono salvati su disco (\texttt{.pkl}/\texttt{.pt}) e vengono riaddestrati a ogni esecuzione;
         \item i documenti di \texttt{anomalies\_detected} non contengono un \texttt{detection\_run\_id} che identifichi la versione dei modelli e gli iperparametri usati.
     \end{enumerate}
-    \item \textbf{Backend API, Dashboard e Orchestrazione (\texttt{api/main.py}, \texttt{dashboard/}):}
+    \item \textbf{Backend API, Dashboard e Orchestrazione (\texttt{api/main.py}, \texttt{dashboard/}, \texttt{scripts/}):}
     \begin{enumerate}
         \item l'endpoint \texttt{POST /cases/\{id\}/detect} riaddestra i modelli sul singolo paziente selezionato e sovrascrive in \texttt{anomalies\_detected} le anomalie calcolate dal batch sui 500 casi, in assenza di un endpoint \texttt{GET /cases/\{id\}/anomalies} di sola lettura;
         \item la dashboard non visualizza a schermo \texttt{run\_id} e \texttt{pipeline\_version}, mostra solo i primi 15 casi nella tabella Data Quality e mantiene alcuni valori di fallback cablati nel codice client;
-        \item l'esecuzione dei 6 script della pipeline è manuale e priva di un orchestratore unico \textit{fail-fast}.
+        \item l'orchestrazione tramite \texttt{run\_pipeline.py} è sincrona e monoprocesso nel container, priva di un motore distribuito a grafi di dipendenze (DAG) con code asincrone e retry automatici.
     \end{enumerate}
 \end{itemize}
 
@@ -216,6 +266,6 @@ A partire dai limiti appena descritti, le estensioni più naturali per portare i
 \begin{itemize}
     \item \textbf{Salvataggio dei modelli addestrati e separazione tra lettura e ricalcolo nell'API:} serializzare su disco lo \texttt{StandardScaler}, l'istanza di \texttt{IsolationForest} e i pesi PyTorch (\texttt{.pt}) dell'Autoencoder addestrati sui 500 casi, introducendo una rotta \texttt{GET /cases/\{id\}/anomalies} per la consultazione immediata dalla dashboard senza riaddestrare i modelli sul singolo paziente;
     \item \textbf{Doppia lineage granulare (\texttt{pipeline\_run\_id} e \texttt{detection\_run\_id}):} inserire direttamente nei documenti di \texttt{vital\_signals} e \texttt{anomalies\_detected} sia l'identificativo del caricamento dati sia quello dell'esecuzione dei modelli, esponendoli anche nell'intestazione della dashboard;
-    \item \textbf{Quality gate bloccante a livello di caso e pulizia degli outlier prima del forward-fill:} azzerare in \texttt{NaN} gli outlier già all'interno di \texttt{clean.py} prima dell'interpolazione e del LOCF, ed escludere automaticamente dal passaggio a Gold i casi con copertura temporale del segnale cardiaco inferiore a una soglia minima (ad esempio $< 50\%$);
-    \item \textbf{Orchestratore unico della pipeline e integrazione di nuove tracce VitalDB:} raccogliere i 6 passi in un unico comando orchestrato (o in un DAG Airflow/Prefect) ed estendere l'analisi anche alla pressione arteriosa invasiva (\texttt{ART}), alla capnografia ($\text{EtCO}_2$) e all'indice bispettrale (\texttt{BIS}).
+    \item \textbf{Quality gate bloccante a livello di caso:} introdurre una soglia minima di integrità del dato prima del passaggio a Gold (ad esempio escludere automaticamente dal caricamento i casi con copertura temporale del segnale cardiaco inferiore al $50\%$);
+    \item \textbf{Orchestrazione distribuita a DAG e integrazione di nuove tracce VitalDB:} evolvere lo script \texttt{run\_pipeline.py} in un workflow formale con Apache Airflow o Prefect per gestire esecuzioni concorrenti, code di retry ed alert via webhook, ed estendere l'analisi anche alla pressione arteriosa invasiva (\texttt{ART}), alla capnografia ($\text{EtCO}_2$) e all'indice bispettrale (\texttt{BIS}).
 \end{itemize}

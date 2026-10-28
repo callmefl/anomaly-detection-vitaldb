@@ -32,7 +32,7 @@ Sul piano fisiologico, la pressione arteriosa media ($MBP \approx DBP + \frac{1}
 
 Accanto ai cinque segnali temporali, la pipeline scarica i metadati clinici dei pazienti (\texttt{clinical\_data.parquet}, contenente età, sesso e reparto chirurgico \texttt{department}) e i referti di laboratorio perioperatori (\texttt{lab\_data.parquet}). La coorte sperimentale su cui abbiamo eseguito l'intera pipeline comprende \textbf{500 interventi chirurgici}, pari a \textbf{5.565.384 secondi grezzi} nel livello Bronze e \textbf{5.402.386 secondi attivi} nel livello Gold (oltre $1.500$ ore di monitoraggio intraoperatorio).
 
-\begin{techbox}[brandNavy]{Quadro sintetico della coorte sperimentale}
+\begin{techbox}{Quadro sintetico della coorte sperimentale}
 \begin{itemize}
     \item \textbf{Perimetro analizzato:} $500$ casi clinici completi ($5.402.386$ campioni a $1\text{ Hz}$ nel layer Gold).
     \item \textbf{Segnali continui ($1\text{ Hz}$):} \texttt{Solar8000/HR} ($\text{bpm}$) e \texttt{Solar8000/PLETH\_SPO2} ($\text{\%}$).

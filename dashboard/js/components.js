@@ -11,6 +11,19 @@ const components = {
     const container = document.getElementById('caseScrollList');
     if (!container) return;
 
+    // Aggiorna dinamicamente il badge del conteggio casi nella sidebar
+    const badge = document.getElementById('railCaseCountBadge');
+    if (badge && window.store) {
+      const allCases = store.getState().cases;
+      if (allCases && allCases.length > 0) {
+        if (cases && cases.length !== allCases.length) {
+          badge.textContent = `${cases.length} / ${allCases.length} Registrati`;
+        } else {
+          badge.textContent = `${allCases.length} Registrati`;
+        }
+      }
+    }
+
     if (!cases || cases.length === 0) {
       container.innerHTML = `
         <div style="text-align: center; color: var(--text-tertiary); padding: 2rem 1rem; font-size: 0.8rem;">

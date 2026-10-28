@@ -60,7 +60,7 @@ Dai numeri della Tabella~\ref{tab:etl_benchmark} emergono tre aspetti importanti
     \item \textbf{Velocizzazione 2,2$\times$ sulla query per singolo paziente:} per confrontare i tempi di lettura a parità di compito (\textit{like-for-like}), lo script esegue prima un giro di \textit{warmup} e poi misura la mediana su $15$ esecuzioni della stessa operazione: calcolare la media di \texttt{Solar8000/HR} per il caso \texttt{case\_id = 1}. Leggere e aggregare il file Parquet partizionato richiede in mediana \textbf{26,95 ms}, mentre la pipeline MongoDB (\texttt{\$match} su \texttt{metadata.case\_id} seguito da \texttt{\$group}) impiega \textbf{12,02 ms} (\textbf{2,2$\times$ più veloce}), sfruttando l'indice sul \texttt{metaField} per leggere solo i bucket di quel paziente.
 \end{enumerate}
 
-\begin{techbox}[brandCyan]{Limiti metodologici del benchmark}
+\begin{techbox}{Limiti metodologici del benchmark}
 Il test di latenza misura un caso d'uso reale della nostra dashboard (interrogazione e aggregazione su un singolo paziente), ma va letto conoscendone i confini: la prova è eseguita su una singola macchina locale con dataset caldo in cache dopo il \textit{warmup} e valuta una query selettiva per \texttt{case\_id}. Su scansioni analitiche massive dell'intera coorte senza filtri (tutte le $5,4$ milioni di righe insieme), la lettura colonnare diretta dei file Parquet da parte di \texttt{pandas} resta competitiva rispetto al passaggio attraverso il protocollo di rete di MongoDB.
 \end{techbox}
 
@@ -108,7 +108,7 @@ La collezione \texttt{registry} svolge il ruolo di catalogo centrale dei casi ca
 
 A livello di database, lo script di inizializzazione \texttt{mongo/registry\_schema.js} applica alla collezione \texttt{registry} una regola di \textbf{JSON Schema Validation} con \texttt{validationLevel: "strict"} e \texttt{validationAction: "error"} (Listato~\ref{lst:registry_schema}), che rifiuta qualsiasi documento privo dei campi strutturali obbligatori \texttt{case\_id}, \texttt{schema\_version} e \texttt{provenance}.
 
-\begin{lstlisting}[caption={Validazione JSON Schema applicata alla collezione registry in mongo/registry\_schema.js.}, label={lst:registry_schema}]
+\begin{lstlisting}
 // Schema definito in mongo/registry_schema.js
 db.runCommand({
     collMod: "registry",
@@ -144,6 +144,9 @@ db.runCommand({
     validationAction: "error"
 });
 \end{lstlisting}
+\vspace{2pt}
+\captionof{lstlisting}{Validazione JSON Schema applicata alla collezione registry in mongo/registry\_schema.js.}\label{lst:registry_schema}
+\vspace{6pt}
 
 \subsection{Catalogo delle tracce e sincronizzazione automatica (track\_metadata)}
 Accanto a \texttt{registry}, abbiamo creato la collezione \texttt{track\_metadata}, che documenta per ciascuna delle cinque tracce del monitor \texttt{Solar8000} l'unità di misura (\texttt{bpm}, \texttt{\%}, \texttt{mmHg}), la descrizione e l'intervallo fisiologico atteso (\texttt{expected\_range}).
@@ -163,7 +166,7 @@ Per aggirare questi due ostacoli senza cambiare database, in \texttt{src/gold/lo
     \item \textbf{Fase 1 -- Stato \texttt{loading} e pulizia preventiva:} per ogni caso da caricare, \texttt{load\_case\_to\_mongo} scrive prima nel \texttt{registry} un documento con \texttt{status: "loading"} e \texttt{record\_count: 0}, e subito dopo esegue \texttt{db['vital\_signals'].delete\_many(\{"metadata.case\_id": int(case\_id)\})} per rimuovere eventuali residui di caricamenti precedenti;
     \item \textbf{Fase 2 -- Inserimento e promozione a \texttt{committed} (o \texttt{failed}):} la funzione esegue \texttt{db['vital\_signals'].insert\_many(records)} per l'intero caso. Se l'inserimento va a buon fine, aggiorna il documento in \texttt{registry} impostando \texttt{status: "committed"}, il \texttt{record\_count} finale e l'oggetto \texttt{provenance} completo. Se invece \texttt{insert\_many} solleva un'eccezione \texttt{PyMongoError}, il blocco \texttt{except} cancella subito i punti parziali appena scritti in \texttt{vital\_signals} e imposta \texttt{status: "failed"} (con il messaggio \texttt{last\_error}) nel \texttt{registry};
     \item \textbf{Bonifica automatica all'avvio (\texttt{recover\_incomplete\_loads}):} se il container viene fermato bruscamente (es. \texttt{SIGKILL} o caduta di corrente) mentre un caso è in stato \texttt{loading}, il blocco \texttt{except} non fa in tempo a girare. Per questo motivo, ad ogni avvio di \texttt{load\_mongo.py}, la funzione \texttt{recover\_incomplete\_loads(db, active\_case\_ids)} cerca nel \texttt{registry} tutti i casi con \texttt{status != "committed"} e cancella i loro punti da \texttt{vital\_signals}. Inoltre, la stessa funzione controlla se nel database sono rimasti casi che non fanno più parte del perimetro Silver corrente (\texttt{active\_case\_ids}) e li rimuove da \texttt{vital\_signals}, \texttt{registry} e \texttt{anomalies\_detected};
-    \item \textbf{Filtro \texttt{status: "committed"} su tutti i lettori:} tutti gli script che leggono il layer Gold — \texttt{list\_loaded\_cases} in \texttt{src/analysis/queries.py}, \texttt{detector.py}, \texttt{evaluate\_models.py} e \texttt{benchmark\_etl.py} — interrogano \texttt{registry} filtrando rigorosamente \texttt{\{"status": "committed"\}}, così da ignorare qualsiasi caso incompleto.
+    \item \textbf{Filtro \texttt{status: "committed"} su tutti i lettori:} tutti gli script che leggono il layer Gold — \texttt{list\_loaded\_cases} in \texttt{src/analysis/queries.py}, \texttt{detector.py}, \texttt{evaluate\_models.py} e \texttt{benchmark\_etl.py} — interrogano \texttt{registry} filtrando rigorosamente \texttt{\{"status": "committed"\}} (esteso con operatore \texttt{\$or} a \texttt{\{"status": \{"\$exists": false\}\}} per preservare retrocompatibilità con eventuali record caricati in prove preliminari), così da escludere a priori qualsiasi caso rimasto nello stato \texttt{loading} o \texttt{failed}.
 \end{itemize}
 
 \section{Pipeline di aggregazione e ottimizzazione delle query}
@@ -179,7 +182,7 @@ La funzione \texttt{downsample\_case(db, case\_id, window\_seconds)} risolve il 
     \item \texttt{\$project} e \texttt{\$sort} rinominano la chiave di gruppo in \texttt{window\_start} e restituiscono le finestre ordinate nel tempo.
 \end{enumerate}
 
-\begin{lstlisting}[caption={Pipeline di aggregazione MongoDB per il downsampling temporale in src/analysis/queries.py.}, label={lst:downsample_pipeline}]
+\begin{lstlisting}
 // Pipeline eseguita da downsample_case() in src/analysis/queries.py
 pipeline = [
     {"$match": {"metadata.case_id": case_id}},
@@ -203,6 +206,9 @@ pipeline = [
     {"$sort": {"window_start": 1}}
 ]
 \end{lstlisting}
+\vspace{2pt}
+\captionof{lstlisting}{Pipeline di aggregazione MongoDB per il downsampling temporale in src/analysis/queries.py.}\label{lst:downsample_pipeline}
+\vspace{6pt}
 
 \subsection{Eliminazione del problema N+1 sull'elenco dei pazienti (e relativo limite)}
 Quando la dashboard si apre, chiama l'endpoint \texttt{GET /cases} per popolare la barra laterale con i $500$ pazienti, mostrando per ciascuno l'ID, il reparto chirurgico, l'età e il sesso. Poiché nel \texttt{registry} sono salvati solo \texttt{case\_id} e \texttt{record\_count}, un'implementazione ingenua farebbe prima una query su \texttt{registry} e poi $500$ query \texttt{find\_one} separate su \texttt{vital\_signals} per leggere i metadati di ogni paziente ($N+1 = 501$ query totali).

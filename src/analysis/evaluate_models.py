@@ -33,8 +33,11 @@ def evaluate_anomaly_models():
     client = MongoClient(config.MONGO_URI)
     db = client[config.DB_NAME]
     
-    # Recupera esclusivamente i casi con commit completato dal registry
-    registry_cases = list(db['registry'].find({"status": "committed"}, {"_id": 0, "case_id": 1}))
+    # Recupera esclusivamente i casi con commit completato dal registry (inclusi record legacy)
+    registry_cases = list(db['registry'].find(
+        {"$or": [{"status": "committed"}, {"status": {"$exists": False}}]},
+        {"_id": 0, "case_id": 1}
+    ))
     case_ids = [c["case_id"] for c in registry_cases]
     
     if not case_ids:

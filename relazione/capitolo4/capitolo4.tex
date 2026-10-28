@@ -95,7 +95,7 @@ Come illustrato nella Figura~\ref{fig:lstm_arch} e nel Listato~\ref{lst:lstm_pyt
     \item \textbf{Proiettore lineare (\texttt{nn.Linear(32, 8)}):} all'uscita del decoder abbiamo aggiunto uno strato lineare \texttt{self.out = nn.Linear(hidden\_size, n\_features)}. Questa scelta è stata fondamentale: l'uscita nativa di una cella LSTM passa attraverso una tangente iperbolica ($\tanh$), che restituisce solo valori compresi tra $-1$ e $+1$. Poiché le nostre feature sono standardizzate in Z-score e possono tranquillamente assumere valori come $+2,5$ o $-3,0$, senza il layer \texttt{nn.Linear} finale la rete sarebbe stata fisicamente incapace di ricostruire i valori oltre $\pm 1$.
 \end{itemize}
 
-\begin{lstlisting}[caption={Definizione reale della classe PyTorch \texttt{\_LSTMAutoencoder} in \texttt{src/detection/detector.py}.}, label={lst:lstm_pytorch}]
+\begin{lstlisting}
 def _make_lstm_autoencoder_class():
     """Costruisce la classe LSTMAutoencoder come nn.Module solo se PyTorch e' disponibile."""
     if not _TORCH_AVAILABLE:
@@ -121,6 +121,9 @@ def _make_lstm_autoencoder_class():
 
     return _LSTMAutoencoder
 \end{lstlisting}
+\vspace{2pt}
+\captionof{lstlisting}{Definizione reale della classe PyTorch \texttt{\_LSTMAutoencoder} in \texttt{src/detection/detector.py}.}\label{lst:lstm_pytorch}
+\vspace{6pt}
 
 \subsubsection{Gestione della memoria sui 500 casi: viste zero-copy e sottocampionamento di training}
 Quando siamo passati dai primi test su 50 casi all'intera coorte di \textbf{500 casi} (\textbf{5.402.386 righe}), ci siamo scontrati con un problema concreto di memoria RAM nella classe \texttt{LSTMAutoencoderDetector}. Creare una finestra scorrevole di lunghezza $30$ e passo $1$ su $5,4$ milioni di punti significa generare circa $5,39$ milioni di finestre di forma $(30, 8)$. Se avessimo concatenato tutte queste finestre in un unico array NumPy tridimensionale tramite \texttt{np.concatenate}, avremmo dovuto allocare di colpo oltre \textbf{5,17 GB} di RAM in \texttt{float32} (o oltre \textbf{10,3 GB} in \texttt{float64}), mandando in crash il container Docker per \textit{Out-Of-Memory}.
@@ -139,7 +142,7 @@ Per evitare questa diluizione, nel codice calcoliamo prima l'errore quadratico m
 $$\mathcal{E}(X) = \max_{c \in \{1, \dots, 8\}} \left( \frac{1}{30} \sum_{t=1}^{30} (X_{t,c} - \hat{X}_{t,c})^2 \right)$$
 L'errore $\mathcal{E}(X)$ di ciascuna finestra di 30 secondi viene assegnato al suo ultimo istante temporale (\texttt{case\_idx[self.window\_size - 1:]}) e vengono marcati come anomali i punti che superano il $95^\circ$ percentile (\texttt{self.percentile = 95.0}) degli errori calcolati sulle finestre. I primi 29 secondi di ciascun paziente, non avendo ancora una finestra completa di 30 campioni alle spalle, mantengono errore zero e non vengono marcati dall'Autoencoder.
 
-\begin{techbox}[brandCyan]{Sintesi delle scelte sull'LSTM Autoencoder}
+\begin{techbox}{Sintesi delle scelte sull'LSTM Autoencoder}
 L'uso del massimo errore tra i canali ($\max_c \text{MSE}_c$) evita che i canali pressori costanti in \textit{forward-fill} nascondano la caduta acuta di un singolo parametro vitale. Allo stesso tempo, le viste \texttt{sliding\_window\_view} per paziente e la valutazione a blocchi da $4.096$ finestre evitano di allocare oltre $5\text{ GB}$ di tensori 3D in RAM.
 \end{techbox}
 
@@ -207,7 +210,7 @@ Nelle prime versioni del progetto, prima di salvare le nuove anomalie cancellava
     (se invece per i casi analizzati non è stata trovata alcuna anomalia, viene eseguita la pulizia con \texttt{\{"case\_id": \{"\$in": analyzed\_cases\}\}}).
 \end{enumerate}
 
-\begin{techbox}[orange]{Limiti del modulo di Anomaly Detection e della valutazione ML}
+\begin{techbox}{Limiti del modulo di Anomaly Detection e della valutazione ML}
 Anche per la parte di rilevamento delle anomalie è importante elencare con trasparenza i limiti progettuali e operativi del nostro sistema:
 \begin{enumerate}
     \item \textbf{Frazione di anomalie ML fissata a priori (5\%):} avendo impostato \texttt{contamination=0.05} in Isolation Forest e \texttt{percentile=95.0} nell'LSTM Autoencoder, entrambi i modelli etichettano sempre per costruzione circa il 5\% dei campioni valutati. Il numero complessivo di anomalie ML non è quindi una ``scoperta'' automatica della prevalenza patologica, ma il risultato di una soglia di ranking scelta da noi;

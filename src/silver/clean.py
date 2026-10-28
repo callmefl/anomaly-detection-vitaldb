@@ -208,6 +208,15 @@ def save_silver(df, case_id, silver_dir, department=UNKNOWN_DEPARTMENT):
     partition_dir = silver_dir / f"department={department}"
     partition_dir.mkdir(parents=True, exist_ok=True)
     output_file = partition_dir / f"case_{case_id}.parquet"
+
+    # Rimuove eventuali copie orfane di questo stesso caso in altri reparti (es. UNKNOWN)
+    for existing in silver_dir.rglob(f"case_{case_id}.parquet"):
+        if existing.resolve() != output_file.resolve():
+            try:
+                existing.unlink()
+            except OSError:
+                pass
+
     df.to_parquet(output_file, index=False)
 
 

@@ -47,7 +47,7 @@ Ad ogni avvio di \texttt{download.py} viene generato un nuovo identificativo di 
 
 Per evitare di riscaricare file già presenti quando si rilancia lo script, \texttt{download\_case} controlla se \texttt{case\_<ID>.parquet} esiste già. Prima di marcarlo come \texttt{skipped\_existing}, però, apre il file e verifica che contenga tutte le tracce richieste più la colonna \texttt{Time} e che la differenza tra i primi due istanti (\texttt{Time.iloc[1] - Time.iloc[0]}) coincida con \texttt{SAMPLING\_INTERVAL} ($1,0\text{ s}$).
 
-\begin{techbox}[brandCoral]{Limiti del layer Bronze}
+\begin{techbox}{Limiti del layer Bronze}
 \begin{itemize}
     \item \textbf{Verifica leggera sui file già presenti:} il controllo prima di \texttt{skipped\_existing} verifica i nomi delle colonne e il passo tra i primi due campioni, ma non calcola un hash crittografico del file né controlla che il Parquet provenga dallo stesso \texttt{run\_id}. È un compromesso scelto per non rallentare l'avvio su $500$ file.
     \item \textbf{Tabella \texttt{lab\_data.parquet} non integrata a valle:} i referti di laboratorio vengono scaricati e salvati nel Bronze, ma non sono ancora uniti alle serie a $1\text{ Hz}$ nel Silver o nel Gold.
@@ -102,7 +102,7 @@ Trattiamo in modo diverso i segnali continui e quelli intermittenti:
 
 La Figura~\ref{fig:before_after} mostra l'effetto di questa pulizia su un tracciato reale di frequenza cardiaca, mentre il Listato~\ref{lst:clean_imputation} riporta i passaggi principali di \texttt{clean\_case} in \texttt{src/silver/clean.py}.
 
-\begin{lstlisting}[caption={Identificazione preventiva degli outlier, interpolazione dei gap brevi e LOCF nel layer Silver.}, label={lst:clean_imputation}]
+\begin{lstlisting}
 // Codice estratto da src/silver/clean.py
 # 1. Flag outlier calcolati SUI DATI GREZZI (da config.TRACK_SPECS) prima di imputare
 for track_name, flag_col in outlier_map.items():
@@ -129,13 +129,16 @@ for t, o, imp_col in present_nibp:
 # 4. Scarta solo alla fine le righe con tutte e 5 le tracce vitali contemporaneamente nulle
 df_clean = df_clean.dropna(subset=vital_cols, how='all').copy()
 \end{lstlisting}
+\vspace{2pt}
+\captionof{lstlisting}{Identificazione preventiva degli outlier, interpolazione dei gap brevi e LOCF nel layer Silver.}\label{lst:clean_imputation}
+\vspace{6pt}
 
 \paragraph{5. Partizionamento fisico per reparto e report di qualità.}
 I DataFrame puliti vengono salvati in sottocartelle nominate secondo la convenzione Hive:
 $$\texttt{data/silver/department=<REPARTO>/case\_<ID>.parquet}$$
 Per associare ogni \texttt{case\_id} al reparto leggiamo \texttt{clinical\_data.parquet} (convertendo le chiavi da \texttt{numpy.int64} a \texttt{int} nativo Python per evitare mancati match nel dizionario). Abbiamo scelto di partizionare per reparto chirurgico perché è il criterio di filtro più naturale quando si vogliono analizzare sottogruppi di interventi (es. \textit{General surgery} o \textit{Thoracic surgery}) leggendo da disco solo la cartella interessata (\textit{partition pruning}). Al termine del ciclo, lo script salva il report completo \texttt{data/quality\_report.json} (archiviando la versione precedente in \texttt{data/quality\_history/}).
 
-\begin{techbox}[brandPrimary]{Limiti del layer Silver}
+\begin{techbox}{Limiti del layer Silver}
 \begin{itemize}
     \item \textbf{Assenza di un quality gate bloccante a livello di caso:} \texttt{clean.py} marca ogni singolo secondo anomalo o imputato, ma non scarta un intero paziente se ha una copertura molto bassa (ad esempio se il sensore HR è rimasto staccato per metà intervento). Un caso povero di dati viene comunque salvato in Silver e caricato in Gold, purché abbia almeno una riga non vuota.
     \item \textbf{Approssimazione del forward-fill (LOCF):} mantenere costante la pressione per un massimo di $300\text{ s}$ riduce i \texttt{NaN} dal $66,3\%$ al $26,3\%$, ma resta una semplificazione a gradini: variazioni pressorie rapide che avvengono tra due gonfiaggi del bracciale non sono osservabili.
@@ -158,7 +161,7 @@ Come mostrato nel Listato~\ref{lst:bson_gold}, il documento BSON separa nettamen
     \item \texttt{quality\_flags}: raccoglie i 5 flag \texttt{*\_outlier}, i 5 flag \texttt{*\_imputed} e \texttt{nibp\_age\_s}, così i moduli di anomaly detection possono filtrare gli artefatti e controllare la freschezza pressoria direttamente dal layer Gold.
 \end{enumerate}
 
-\begin{lstlisting}[caption={Struttura del documento BSON inserito nella collezione Time Series vital\_signals (layer Gold).}, label={lst:bson_gold}]
+\begin{lstlisting}
 // Documento BSON archiviato nella collezione 'vital_signals'
 {
   "_id": ObjectId("65d3f1a0e4b01a2b3c4d5e6f"),
@@ -186,3 +189,6 @@ Come mostrato nel Listato~\ref{lst:bson_gold}, il documento BSON separa nettamen
   }
 }
 \end{lstlisting}
+\vspace{2pt}
+\captionof{lstlisting}{Struttura del documento BSON inserito nella collezione Time Series vital\_signals (layer Gold).}\label{lst:bson_gold}
+\vspace{6pt}

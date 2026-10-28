@@ -589,7 +589,10 @@ if __name__ == '__main__':
     client = MongoClient(config.MONGO_URI)
     db = client[config.DB_NAME]
 
-    all_cases = [doc["case_id"] for doc in db['registry'].find({"status": "committed"}, {"case_id": 1})]
+    all_cases = [doc["case_id"] for doc in db['registry'].find(
+        {"$or": [{"status": "committed"}, {"status": {"$exists": False}}]},
+        {"case_id": 1}
+    )]
     if not all_cases:
         print("⚠️ Nessun caso committed nel registry. Eseguire prima il caricamento dei casi.", flush=True)
     else:

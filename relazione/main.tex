@@ -57,29 +57,28 @@
 \usepackage{tcolorbox}
 \tcbuselibrary{skins, breakable}
 
-\newtcolorbox{techbox}[2][brandPrimary]{
+\newtcolorbox{techbox}[2][brandBorder]{
     enhanced,
     breakable,
     colback=brandSurface,
-    colframe=#1!85!black,
+    colframe=brandBorder,
     arc=6pt,
     boxrule=0.8pt,
-    leftrule=3.8pt,
-    drop shadow={opacity=0.06, shadow xshift=1.5pt, shadow yshift=-2pt},
+    drop shadow={opacity=0.04, shadow xshift=1.2pt, shadow yshift=-1.5pt},
     fonttitle=\bfseries\sffamily\small\color{brandDark},
     colbacktitle=white,
     title={#2},
     left=12pt,
     right=12pt,
-    top=9pt,
-    bottom=9pt,
+    top=10pt,
+    bottom=10pt,
     attach boxed title to top left={yshift=-2.5mm, xshift=12pt},
     boxed title style={
-        boxrule=0.7pt,
+        boxrule=0.8pt,
         colframe=brandBorder,
         arc=4pt,
         colback=white,
-        drop shadow={opacity=0.05, shadow xshift=1pt, shadow yshift=-1pt}
+        drop shadow={opacity=0.03, shadow xshift=1pt, shadow yshift=-1pt}
     }
 }
 
@@ -194,24 +193,38 @@
     pdfauthor={Andrea Altieri, Andrea Flaiani}
 }
 
-% === STILE LISTATI DI CODICE (CARD MODERNA CON INCONSOLATA) ===
+% === STILE LISTATI DI CODICE (CARD MODERNA CON INCONSOLATA, STILE MACOS E COLORAZIONE IDE) ===
 \usepackage{listings}
 
-\definecolor{codeGreen}{HTML}{059669}
-\definecolor{codeGray}{HTML}{64748B}
-\definecolor{codePurple}{HTML}{7C3AED}
-\definecolor{codeBlue}{HTML}{0047FF}
+% Palette sintassi IDE moderna (ispirata a VS Code Light)
+\definecolor{ideKeyword}{HTML}{7C3AED}   % Viola per keyword di controllo (def, class, return, async, for, if)
+\definecolor{ideBuiltin}{HTML}{0047FF}   % Electric Blue per booleani, costanti e built-in (True, False, None, self)
+\definecolor{ideType}{HTML}{0284C7}      % Cyan/Azzurro per tipi e classi (int, float, str, torch, nn, ObjectId)
+\definecolor{ideFunc}{HTML}{0D9488}      % Teal per funzioni e metodi chiamati (predict, dropna, fit_predict, get)
+\definecolor{ideString}{HTML}{059669}    % Verde smeraldo per stringhe e valori testuali
+\definecolor{ideComment}{HTML}{64748B}   % Slate per commenti (# e //)
+\definecolor{ideNumber}{HTML}{D97706}    % Ambra/Arancio per numeri e costanti numeriche
+\definecolor{ideField}{HTML}{4338CA}     % Indaco per proprietà e campi chiave ($jsonSchema, bsonType, validator)
+\definecolor{codeGray}{HTML}{94A3B8}     % Slate 400 per numeri di riga
+
+% Colori per i tre pallini stile macOS
+\definecolor{macRed}{HTML}{FF5F56}
+\definecolor{macYellow}{HTML}{FFBD2E}
+\definecolor{macGreen}{HTML}{27C93F}
 
 \lstdefinestyle{codeStyle}{
     backgroundcolor=\color{brandSurface},
-    commentstyle=\itshape\color{codeGray},
-    keywordstyle=\bfseries\color{codeBlue},
+    commentstyle=\itshape\color{ideComment},
+    stringstyle=\color{ideString},
+    keywordstyle=[1]\bfseries\color{ideKeyword},
+    keywordstyle=[2]\bfseries\color{ideBuiltin},
+    keywordstyle=[3]\bfseries\color{ideType},
+    keywordstyle=[4]\color{ideFunc},
+    keywordstyle=[5]\bfseries\color{ideField},
     numberstyle=\tiny\color{codeGray},
-    stringstyle=\color{codeGreen},
     basicstyle=\ttfamily\small\color{brandDark},
     breakatwhitespace=false,
     breaklines=true,
-    captionpos=b,
     keepspaces=true,
     numbers=left,
     numbersep=8pt,
@@ -219,13 +232,58 @@
     showstringspaces=false,
     showtabs=false,
     tabsize=2,
-    frame=single,
-    framerule=0.7pt,
-    rulecolor=\color{brandBorder},
-    xleftmargin=12pt,
-    xrightmargin=4pt
+    frame=none,
+    xleftmargin=14pt,
+    xrightmargin=6pt,
+    morecomment=[l]{\#},
+    morecomment=[l]{//},
+    morestring=[b]",
+    morestring=[b]',
+    morekeywords=[1]{def, class, return, async, await, if, else, elif, for, in, while, try, except, finally, with, as, import, from, lambda, pass, raise, break, continue},
+    morekeywords=[2]{True, False, None, self, super, null},
+    morekeywords=[3]{int, float, str, bool, list, dict, set, tuple, Optional, Any, List, Dict, nn, torch, np, pd, Module, LSTM, Linear, Sequential, ReLU, Tensor, DataFrame, Series},
+    morekeywords=[4]{fit, fit_predict, predict, score_samples, mean, max, min, sum, sliding_window_view, forward, dropna, ffill, bfill, interpolate, copy, mask, where, notna, isna, delete_many, insert_many, find, aggregate, count_documents, get, items, append, keys, values},
+    morekeywords=[5]{ObjectId, ISODate, bsonType, validator, required, properties, description, collMod, jsonSchema, runCommand, dateTrunc},
+    literate=
+      *{0}{{{\color{ideNumber}0}}}{1}
+       {1}{{{\color{ideNumber}1}}}{1}
+       {2}{{{\color{ideNumber}2}}}{1}
+       {3}{{{\color{ideNumber}3}}}{1}
+       {4}{{{\color{ideNumber}4}}}{1}
+       {5}{{{\color{ideNumber}5}}}{1}
+       {6}{{{\color{ideNumber}6}}}{1}
+       {7}{{{\color{ideNumber}7}}}{1}
+       {8}{{{\color{ideNumber}8}}}{1}
+       {9}{{{\color{ideNumber}9}}}{1}
 }
 \lstset{style=codeStyle}
+
+% Rinomina l'etichetta da "Listing" a "Listato" in italiano
+\renewcommand{\lstlistingname}{Listato}
+\renewcommand{\lstlistlistingname}{Elenco dei listati}
+
+\tcolorboxenvironment{lstlisting}{
+    enhanced,
+    breakable,
+    colback=brandSurface,
+    colframe=brandBorder,
+    arc=6pt,
+    boxrule=0.9pt,
+    top=18pt,
+    bottom=8pt,
+    left=6pt,
+    right=6pt,
+    drop shadow={opacity=0.04, shadow xshift=1.2pt, shadow yshift=-1.5pt},
+    overlay unbroken and first={
+        % Tre pallini stile macOS integrati senza alcuna linea divisoria
+        \fill[macRed] ([xshift=14pt, yshift=-10pt]frame.north west) circle (2.8pt);
+        \fill[macYellow] ([xshift=22pt, yshift=-10pt]frame.north west) circle (2.8pt);
+        \fill[macGreen] ([xshift=30pt, yshift=-10pt]frame.north west) circle (2.8pt);
+    },
+    overlay middle and last={
+        \node[anchor=west, font=\sffamily\tiny\color{brandMuted}] at ([xshift=12pt, yshift=-7pt]frame.north west) {continua dalla pagina precedente\dots};
+    }
+}
 
 % Path per le immagini grafiche raster
 \graphicspath{{img/}{capitolo1/img/}{capitolo2/img/}{capitolo3/img/}{capitolo4/img/}}
@@ -233,12 +291,9 @@
 \begin{document}
 
 \hypersetup{pageanchor=false}
-% === FRONTESPIZIO MODERNO (DESIGN ISPIRATO AL LAYOUT CON SFERA GRADIENTE & PILL) ===
+% === FRONTESPIZIO MODERNO (DESIGN CON SFERA GRADIENTE, TITOLO AL CENTRO E CREDENZIALI IN BASSO) ===
 \begin{titlepage}
 \begin{tikzpicture}[remember picture, overlay]
-    % Sottile griglia tecnica blueprint su tutta la pagina
-    \draw[step=1.0cm, brandBorder!45, line width=0.4pt] (current page.south west) grid (current page.north east);
-
     % Composizione geometrica astratta con sfumatura calda Pesca / Corallo / Electric Blue in alto a destra
     \begin{scope}
         \clip ([xshift=1cm, yshift=1cm]current page.north east) rectangle ([xshift=-12cm, yshift=-11cm]current page.north east);
@@ -273,58 +328,8 @@
         \includegraphics[width=2.2cm]{univpm_seal.png}
     };
 
-    % Sezione "Presentato da:" con Pill Badges e mini-sfera gradiente
-    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=2.4cm, yshift=-8.8cm]current page.north west) {Presentato da:};
-
-    % Badge Studente 1: Andrea Altieri
-    \node[
-        anchor=west,
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=12pt,
-        inner xsep=12pt,
-        inner ysep=5.5pt,
-        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] (s1) at ([xshift=2.4cm, yshift=-9.9cm]current page.north west) {
-        \normalsize\sffamily\bfseries\color{brandDark} Andrea Altieri\hspace{8pt}%
-        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
-    };
-
-    % Badge Studente 2: Andrea Flaiani
-    \node[
-        anchor=west,
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=12pt,
-        inner xsep=12pt,
-        inner ysep=5.5pt,
-        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] (s2) at ([xshift=8.0cm, yshift=-9.9cm]current page.north west) {
-        \normalsize\sffamily\bfseries\color{brandDark} Andrea Flaiani\hspace{8pt}%
-        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
-    };
-
-    % Sezione "Docente:" con Pill Badge
-    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=2.4cm, yshift=-11.8cm]current page.north west) {Docente:};
-
-    \node[
-        anchor=west,
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=12pt,
-        inner xsep=12pt,
-        inner ysep=5.5pt,
-        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] at ([xshift=2.4cm, yshift=-12.9cm]current page.north west) {
-        \normalsize\sffamily\bfseries\color{brandDark} Prof.ssa Claudia Diamantini\hspace{8pt}%
-        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
-    };
-
-    % Titolo Principale ad Alto Impatto (Electric Royal Blue e Black Caps)
-    \node[anchor=west, align=left, text width=16cm] at ([xshift=2.4cm, yshift=-18.0cm]current page.north west) {
+    % Titolo Principale ad Alto Impatto posizionato al centro verticale della pagina
+    \node[anchor=west, align=left, text width=16.5cm] at ([xshift=2.4cm, yshift=-13.0cm]current page.north west) {
         {\fontsize{34}{38}\selectfont\sffamily\bfseries\color{brandPrimary} ANOMALY DETECTION\par}
         \vspace{0.18cm}
         {\fontsize{34}{38}\selectfont\sffamily\bfseries\color{brandPrimary} SU DATI BIOMETRICI\par}
@@ -332,11 +337,63 @@
         {\fontsize{18}{22}\selectfont\sffamily\bfseries\color{brandDark} RELAZIONE DI PROGETTO\par}
     };
 
+    % Linea d'accento decorativa sotto il titolo
+    \draw[brandPrimary, line width=2.4pt] ([xshift=2.4cm, yshift=-15.8cm]current page.north west) -- ([xshift=5.6cm, yshift=-15.8cm]current page.north west);
+
+    % --- CREDENZIALI IN BASSO: DOCENTE (SINISTRA) E CANDIDATI (DESTRA) ---
+    % Colonna Sinistra: Docente
+    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=2.4cm, yshift=-18.8cm]current page.north west) {Docente:};
+
+    \node[
+        anchor=west,
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=12pt,
+        inner xsep=12pt,
+        inner ysep=5.5pt,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] at ([xshift=2.4cm, yshift=-20.0cm]current page.north west) {
+        \normalsize\sffamily\bfseries\color{brandDark} Prof.ssa Claudia Diamantini\hspace{8pt}%
+        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
+    };
+
+    % Colonna Destra: Candidati
+    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=11.2cm, yshift=-18.8cm]current page.north west) {Candidati:};
+
+    \node[
+        anchor=west,
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=12pt,
+        inner xsep=12pt,
+        inner ysep=5.5pt,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] (s1) at ([xshift=11.2cm, yshift=-20.0cm]current page.north west) {
+        \normalsize\sffamily\bfseries\color{brandDark} Andrea Altieri\hspace{8pt}%
+        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
+    };
+
+    \node[
+        anchor=west,
+        fill=white,
+        draw=brandBorder,
+        line width=0.8pt,
+        rounded corners=12pt,
+        inner xsep=12pt,
+        inner ysep=5.5pt,
+        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
+    ] (s2) at ([xshift=11.2cm, yshift=-21.4cm]current page.north west) {
+        \normalsize\sffamily\bfseries\color{brandDark} Andrea Flaiani\hspace{8pt}%
+        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
+    };
+
     % Linea divisoria inferiore sottile
-    \draw[brandBorder, line width=0.8pt] ([xshift=2.4cm, yshift=-23.5cm]current page.north west) -- ([xshift=-2.4cm, yshift=-23.5cm]current page.north east);
+    \draw[brandBorder, line width=0.8pt] ([xshift=2.4cm, yshift=-23.8cm]current page.north west) -- ([xshift=-2.4cm, yshift=-23.8cm]current page.north east);
 
     % Anno Accademico in pill badge
-    \node[anchor=west] at ([xshift=2.4cm, yshift=-24.6cm]current page.north west) {
+    \node[anchor=west] at ([xshift=2.4cm, yshift=-24.9cm]current page.north west) {
         \tikz\node[
             fill=brandSurface,
             draw=brandBorder,
