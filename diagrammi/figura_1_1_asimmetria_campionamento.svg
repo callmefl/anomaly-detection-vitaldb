@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 700; fill: #0F172A; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 12px; fill: #64748B; }
+      .header-lane { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
+      .badge-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; }
+      .metric-label { font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11.5px; font-weight: 700; }
+      .axis-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; fill: #475569; }
+      .callout-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; fill: #DC2626; }
+      .callout-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11.5px; fill: #475569; }
+      .footer-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <!-- SFONDO TELA FIGMA (Card Canvas) -->
+  <rect width="1200" height="640" fill="#FFFFFF" rx="16"/>
+
+  <!-- ========================================== -->
+  <!-- HEADER INTRODUTTIVO                        -->
+  <!-- ========================================== -->
+  <g id="Header">
+    <text x="50" y="42" class="title">FIGURA 1.1 — ASIMMETRIA DI CAMPIONAMENTO TRA SENSORI E SPARSITÀ STRUTTURALE</text>
+    <text x="50" y="64" class="subtitle">Confronto sincronizzato nei primi 120 secondi tra sensori continui a 1 Hz e misura intermittente del bracciale oscillometrico</text>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- CORSIA 1: SENSORI CONTINUI A 1 Hz          -->
+  <!-- ========================================== -->
+  <g id="Corsia-1-Sensori-Continui">
+    <!-- Box contenitore -->
+    <rect x="50" y="85" width="1100" height="150" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5"/>
+    
+    <!-- Header corsia 1 -->
+    <rect x="65" y="98" width="460" height="24" rx="5" fill="#EFF6FF" stroke="#BFDBFE"/>
+    <text x="75" y="114" class="header-lane" fill="#1D4ED8">CORSIA 1: SENSORI CONTINUI A 1 Hz (ECG &amp; Pulsossimetro)</text>
+    
+    <rect x="915" y="98" width="220" height="24" rx="5" fill="#F0FDF4" stroke="#BBF7D0"/>
+    <text x="1025" y="114" text-anchor="middle" class="badge-text" fill="#15803D">100% dati presenti (1 dato/sec)</text>
+
+    <!-- Griglia temporale (da t=0s a t=120s) -->
+    <!-- Scala X: t=0s a x=160, t=120s a x=1060 (distanza 900px, 7.5 px/sec) -->
+    <!-- 0s=160, 20s=310, 40s=460, 60s=610, 80s=760, 100s=910, 120s=1060 -->
+    <line x1="160" y1="130" x2="160" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+    <line x1="310" y1="130" x2="310" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+    <line x1="460" y1="130" x2="460" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+    <line x1="610" y1="130" x2="610" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+    <line x1="760" y1="130" x2="760" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+    <line x1="910" y1="130" x2="910" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+    <line x1="1060" y1="130" x2="1060" y2="225" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+
+    <!-- Traccia SpO2 (Verde) -->
+    <path d="M 160,155 Q 260,153 360,156 T 560,154 T 760,155 T 960,154 L 1060,155" fill="none" stroke="#059669" stroke-width="2.5"/>
+    <text x="1075" y="159" class="metric-label" fill="#059669">SpO2 (98%)</text>
+    
+    <!-- Campioni discreti visibili su SpO2 (dimostrazione fisica del campionamento a 1 Hz) -->
+    <circle cx="205" cy="154" r="3" fill="#059669"/><circle cx="235" cy="154" r="3" fill="#059669"/>
+    <circle cx="265" cy="155" r="3" fill="#059669"/><circle cx="295" cy="155" r="3" fill="#059669"/>
+    <circle cx="325" cy="155" r="3" fill="#059669"/><circle cx="355" cy="156" r="3" fill="#059669"/>
+    <circle cx="585" cy="154" r="3" fill="#059669"/><circle cx="615" cy="154" r="3" fill="#059669"/>
+    <circle cx="645" cy="155" r="3" fill="#059669"/><circle cx="855" cy="155" r="3" fill="#059669"/>
+    <circle cx="885" cy="154" r="3" fill="#059669"/><circle cx="915" cy="154" r="3" fill="#059669"/>
+
+    <!-- Traccia HR (Blu) -->
+    <path d="M 160,195 Q 210,183 260,198 T 360,190 T 460,196 T 560,185 T 660,197 T 760,188 T 860,195 T 960,187 L 1060,193" fill="none" stroke="#2563EB" stroke-width="2.5"/>
+    <text x="1075" y="198" class="metric-label" fill="#2563EB">HR (75 bpm)</text>
+    
+    <!-- Campioni discreti HR -->
+    <circle cx="210" cy="186" r="3" fill="#2563EB"/><circle cx="260" cy="198" r="3" fill="#2563EB"/>
+    <circle cx="310" cy="193" r="3" fill="#2563EB"/><circle cx="360" cy="190" r="3" fill="#2563EB"/>
+    <circle cx="410" cy="194" r="3" fill="#2563EB"/><circle cx="460" cy="196" r="3" fill="#2563EB"/>
+    <circle cx="610" cy="192" r="3" fill="#2563EB"/><circle cx="660" cy="197" r="3" fill="#2563EB"/>
+    <circle cx="710" cy="191" r="3" fill="#2563EB"/><circle cx="760" cy="188" r="3" fill="#2563EB"/>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- CORSIA 2: BRACCIALE OSCILLOMETRICO NIBP    -->
+  <!-- ========================================== -->
+  <g id="Corsia-2-Bracciale-NIBP">
+    <!-- Box contenitore -->
+    <rect x="50" y="250" width="1100" height="225" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    
+    <!-- Header corsia 2 -->
+    <rect x="65" y="263" width="460" height="24" rx="5" fill="#FEF2F2" stroke="#FECACA"/>
+    <text x="75" y="279" class="header-lane" fill="#DC2626">CORSIA 2: BRACCIALE PRESSORIO NIBP (Misura Intermittente)</text>
+    
+    <rect x="850" y="263" width="285" height="24" rx="5" fill="#FEF2F2" stroke="#FECACA"/>
+    <text x="992" y="279" text-anchor="middle" class="badge-text" fill="#DC2626">Solo 2 gonfiaggi in 120s (66,3% celle vuote)</text>
+
+    <!-- Linee guida verticali sincronizzate -->
+    <line x1="160" y1="295" x2="160" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+    <line x1="310" y1="295" x2="310" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+    <line x1="460" y1="295" x2="460" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+    <line x1="610" y1="295" x2="610" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+    <line x1="760" y1="295" x2="760" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+    <line x1="910" y1="295" x2="910" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+    <line x1="1060" y1="295" x2="1060" y2="465" stroke="#F1F5F9" stroke-dasharray="3 3"/>
+
+    <!-- ============================================== -->
+    <!-- 1° GONFIAGGIO (t = 15s -> x = 160 + 15*7.5 = 272.5) -->
+    <!-- ============================================== -->
+    <g id="Primo-Gonfiaggio">
+      <line x1="272" y1="305" x2="272" y2="435" stroke="#EA580C" stroke-width="3"/>
+      <circle cx="272" cy="330" r="7" fill="#EA580C" stroke="#FFFFFF" stroke-width="2"/>
+      <circle cx="272" cy="405" r="7" fill="#EA580C" stroke="#FFFFFF" stroke-width="2"/>
+      
+      <!-- Cartellino SBP -->
+      <rect x="200" y="318" width="144" height="22" rx="4" fill="#FFF7ED" stroke="#FDBA74"/>
+      <text x="272" y="333" text-anchor="middle" class="metric-label" fill="#C2410C">SBP: 120 mmHg</text>
+
+      <!-- Cartellino DBP -->
+      <rect x="200" y="415" width="144" height="22" rx="4" fill="#FFF7ED" stroke="#FDBA74"/>
+      <text x="272" y="430" text-anchor="middle" class="metric-label" fill="#C2410C">DBP: 80 mmHg</text>
+
+      <text x="272" y="455" text-anchor="middle" class="badge-text" fill="#0F172A">1° Gonfiaggio (t = 15s)</text>
+    </g>
+
+    <!-- ============================================== -->
+    <!-- ZONA DI VUOTO TOTALE (80 SECONDI: 15s -> 95s)   -->
+    <!-- Larghezza: x=286 a x=858 (572 pixel di vuoto!) -->
+    <!-- ============================================== -->
+    <g id="Vuoto-80-Secondi">
+      <rect x="286" y="302" width="574" height="140" rx="8" fill="#FEF2F2" stroke="#F87171" stroke-width="2" stroke-dasharray="7 5"/>
+      
+      <!-- Freccia orizzontale di ampiezza vuoto -->
+      <line x1="302" y1="330" x2="844" y2="330" stroke="#DC2626" stroke-width="2"/>
+      <polygon points="302,330 314,324 314,336" fill="#DC2626"/>
+      <polygon points="844,330 832,324 832,336" fill="#DC2626"/>
+
+      <!-- Testi esplicativi di massimo impatto -->
+      <text x="573" y="324" text-anchor="middle" class="callout-title">
+        &#x26D4; VUOTO STRUTTURALE: 80 SECONDI SENZA CAMPIONI (da t=15s a t=95s)
+      </text>
+
+      <text x="573" y="358" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13px" font-weight="700" fill="#991B1B">
+        Nel file Parquet grezzo (Bronze): 80 righe consecutive con valore NaN (dato inesistente)
+      </text>
+
+      <rect x="315" y="375" width="516" height="26" rx="4" fill="#FFFFFF" stroke="#FECACA"/>
+      <text x="573" y="392" text-anchor="middle" class="callout-body">
+        &#x1FA7A; <b>Motivazione clinica:</b> il bracciale deve sgonfiarsi per non occludere l'arteria ed evitare ischemia all'arto
+      </text>
+
+      <!-- Linea LOCF tratteggiata -->
+      <line x1="272" y1="418" x2="872" y2="418" stroke="#EA580C" stroke-width="2.5" stroke-dasharray="6 4"/>
+      <rect x="330" y="408" width="486" height="20" rx="4" fill="#FFF7ED" stroke="#FED7AA"/>
+      <text x="573" y="422" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5px" font-weight="700" fill="#C2410C">
+        Soluzione Silver: Last Observation Carried Forward (LOCF) mantiene il valore (age &#x2264; 300s)
+      </text>
+    </g>
+
+    <!-- ============================================== -->
+    <!-- 2° GONFIAGGIO (t = 95s -> x = 160 + 95*7.5 = 872.5) -->
+    <!-- ============================================== -->
+    <g id="Secondo-Gonfiaggio">
+      <line x1="872" y1="305" x2="872" y2="435" stroke="#EA580C" stroke-width="3"/>
+      <circle cx="872" cy="336" r="7" fill="#EA580C" stroke="#FFFFFF" stroke-width="2"/>
+      <circle cx="872" cy="410" r="7" fill="#EA580C" stroke="#FFFFFF" stroke-width="2"/>
+      
+      <!-- Cartellino SBP -->
+      <rect x="800" y="318" width="144" height="22" rx="4" fill="#FFF7ED" stroke="#FDBA74"/>
+      <text x="872" y="333" text-anchor="middle" class="metric-label" fill="#C2410C">SBP: 115 mmHg</text>
+
+      <!-- Cartellino DBP -->
+      <rect x="800" y="415" width="144" height="22" rx="4" fill="#FFF7ED" stroke="#FDBA74"/>
+      <text x="872" y="430" text-anchor="middle" class="metric-label" fill="#C2410C">DBP: 76 mmHg</text>
+
+      <text x="872" y="455" text-anchor="middle" class="badge-text" fill="#0F172A">2° Gonfiaggio (t = 95s)</text>
+    </g>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- ASSE DEL TEMPO GLOBALE SINCRONIZZATO       -->
+  <!-- ========================================== -->
+  <g id="Asse-Temporale-X">
+    <line x1="160" y1="495" x2="1060" y2="495" stroke="#0F172A" stroke-width="1.8"/>
+    
+    <line x1="160" y1="495" x2="160" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="160" y="522" text-anchor="middle" class="axis-text" font-weight="700">0s</text>
+
+    <line x1="310" y1="495" x2="310" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="310" y="522" text-anchor="middle" class="axis-text">20s</text>
+
+    <line x1="460" y1="495" x2="460" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="460" y="522" text-anchor="middle" class="axis-text">40s</text>
+
+    <line x1="610" y1="495" x2="610" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="610" y="522" text-anchor="middle" class="axis-text">60s</text>
+
+    <line x1="760" y1="495" x2="760" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="760" y="522" text-anchor="middle" class="axis-text">80s</text>
+
+    <line x1="910" y1="495" x2="910" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="910" y="522" text-anchor="middle" class="axis-text">100s</text>
+
+    <line x1="1060" y1="495" x2="1060" y2="504" stroke="#0F172A" stroke-width="1.8"/>
+    <text x="1060" y="522" text-anchor="middle" class="axis-text" font-weight="700">120s</text>
+
+    <text x="610" y="542" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5px" font-weight="700" fill="#334155">
+      Asse temporale comune allineato a 1 Hz [secondi di intervento chirurgico]
+    </text>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- CARTELLINI DI SINTESI INFERIORI (FOOTER)   -->
+  <!-- ========================================== -->
+  <g id="Footer-Sintesi">
+    <rect x="50" y="565" width="535" height="52" rx="8" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1.2"/>
+    <text x="70" y="586" class="footer-text" fill="#15803D">&#x2705; Monitoraggio Continuo (Ottico/ECG)</text>
+    <text x="70" y="604" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5px" fill="#166534">
+      Rilevazione 1 Hz senza pause: fondamentale per intercettare tachicardie e desaturazioni acute
+    </text>
+
+    <rect x="615" y="565" width="535" height="52" rx="8" fill="#FFF7ED" stroke="#FED7AA" stroke-width="1.2"/>
+    <text x="635" y="586" class="footer-text" fill="#C2410C">&#x26A0;&#xFE0F; Misura Intermittente (Bracciale NIBP)</text>
+    <text x="635" y="604" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10.5px" fill="#9A3412">
+      Sparsità del 66,3% nel grezzo (Bronze): risolta nel Silver con LOCF e contatore nibp_age_s &#x2264; 120s
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,108 @@
+﻿% Diagramma TikZ a due corsie per l'asimmetria di campionamento e la sparsita' strutturale
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    axisLine/.style={->, line width=0.8pt, color=brandDark},
+    gridLine/.style={color=brandBorder, line width=0.5pt, dashed},
+    traceHR/.style={color=brandPrimary, line width=1.4pt},
+    traceSPO2/.style={color=brandTeal, line width=1.4pt},
+    locfLine/.style={color=brandPeachInk, line width=1.1pt, dashed},
+    spanArrow/.style={<->, line width=1.1pt, color=brandCoralInk}
+]
+
+    % ========================================================
+    % CORSIA 1: SENSORI CONTINUI A 1 Hz (HR & SpO2)
+    % ========================================================
+    \draw[fill=brandSurface, draw=brandBorderStrong, rounded corners=4pt, line width=0.8pt] 
+        (-0.2, 3.4) rectangle (12.6, 5.3);
+    
+    % Intestazione corsia 1
+    \node[anchor=west, font=\scriptsize\bfseries\color{brandPrimary}] at (0.0, 5.05) 
+        {CORSIA 1: SENSORI CONTINUI A 1\,Hz (Sensore ottico $\text{SpO}_2$ ed elettrodi ECG)};
+    \node[anchor=east, font=\tiny\bfseries\color{brandTeal}] at (12.4, 5.05) 
+        {100\% campioni presenti (1 dato al secondo)};
+
+    % Griglia sincronizzata
+    \foreach \t/\x in {0/0, 20/2, 40/4, 60/6, 80/8, 100/10, 120/12} {
+        \draw[gridLine] (\x, 3.6) -- (\x, 4.8);
+    }
+
+    % Traccia SpO2 (verde)
+    \draw[traceSPO2] plot[smooth] coordinates {
+        (0, 4.55) (2, 4.58) (4, 4.52) (6, 4.56) (8, 4.53) (10, 4.57) (12, 4.55)
+    };
+    \foreach \x in {0.5, 1.0, 1.5, 2.0, 2.5, 5.5, 6.0, 6.5, 9.5, 10.0, 10.5, 11.5, 12.0} {
+        \fill[brandTeal] (\x, 4.55) circle (1.2pt);
+    }
+    \node[right, font=\scriptsize\bfseries\color{brandTeal}] at (12.0, 4.55) {$\text{SpO}_2$ (98\%)};
+
+    % Traccia HR (blu)
+    \draw[traceHR] plot[smooth] coordinates {
+        (0, 3.90) (1, 4.05) (2, 3.82) (3, 3.95) (4, 4.10) (5, 3.85)
+        (6, 4.00) (7, 4.15) (8, 3.90) (9, 4.02) (10, 4.18) (11, 3.95) (12, 4.05)
+    };
+    \node[right, font=\scriptsize\bfseries\color{brandPrimary}] at (12.0, 4.00) {$\text{HR}$ (75\,bpm)};
+
+
+    % ========================================================
+    % CORSIA 2: BRACCIALE PNEUMATICO NIBP (INTERMITTENTE)
+    % ========================================================
+    \draw[fill=white, draw=brandBorderStrong, rounded corners=4pt, line width=0.8pt] 
+        (-0.2, 0.8) rectangle (12.6, 3.1);
+
+    % Intestazione corsia 2
+    \node[anchor=west, font=\scriptsize\bfseries\color{brandCoralInk}] at (0.0, 2.85) 
+        {CORSIA 2: BRACCIALE PRESSORIO NIBP (Misura oscillometrica intermittente)};
+    \node[anchor=east, font=\tiny\bfseries\color{brandCoralInk}] at (12.4, 2.85) 
+        {Solo 2 misure in 120 secondi (66,3\% celle vuote)};
+
+    % Griglia sincronizzata
+    \foreach \t/\x in {0/0, 20/2, 40/4, 60/6, 80/8, 100/10, 120/12} {
+        \draw[gridLine] (\x, 1.0) -- (\x, 2.6);
+    }
+
+    % 1° Gonfiaggio a t = 1.5 (15s)
+    \draw[line width=2pt, color=brandPeachInk] (1.5, 1.25) -- (1.5, 2.45);
+    \fill[brandPeachInk] (1.5, 2.45) circle (3pt) node[above=1pt, font=\tiny\bfseries] {120\,mmHg};
+    \fill[brandPeachInk] (1.5, 1.25) circle (3pt) node[below=1pt, font=\tiny\bfseries] {80\,mmHg};
+    \node[font=\tiny\bfseries\color{brandDark}, fill=brandSurface, rounded corners=2pt, inner sep=1.5pt] at (1.5, 1.85) {1° Gonfiaggio};
+
+    % ZONA DI VUOTO STRUTTURALE (80 SECONDI: t = 1.5 -> t = 9.5)
+    \fill[brandCoral!10, rounded corners=3pt] (1.65, 1.0) rectangle (9.35, 2.65);
+    \draw[brandCoral!70, dashed, line width=1pt, rounded corners=3pt] (1.65, 1.0) rectangle (9.35, 2.65);
+
+    \draw[spanArrow] (1.8, 2.40) -- (9.2, 2.40);
+    \node[below, font=\scriptsize\bfseries\color{brandCoralInk}] at (5.5, 2.42) 
+        {80 SECONDI DI VUOTO TOTALE SENZA CAMPIONI (da $t=15\,$s a $t=95\,$s)};
+
+    \node[font=\tiny\bfseries\color{brandDark}] at (5.5, 1.85) 
+        {Nel dataset grezzo: 80 celle consecutive con valore NaN (dato inesistente)};
+
+    \node[font=\tiny\color{brandInkSoft}] at (5.5, 1.50) 
+        {Motivo clinico: il bracciale deve sgonfiarsi per non causare ischemia e lesioni vascolari all'arto};
+
+    % Linea LOCF tratteggiata
+    \draw[locfLine] (1.5, 2.1) -- (9.5, 2.1);
+    \node[font=\tiny\bfseries\color{brandPeachInk}, fill=white, inner sep=1pt] at (5.5, 1.15) 
+        {Soluzione Silver: LOCF (Last Observation Carried Forward) propaga l'ultimo valore valido ($\le 300\,$s)};
+
+    % 2° Gonfiaggio a t = 9.5 (95s)
+    \draw[line width=2pt, color=brandPeachInk] (9.5, 1.25) -- (9.5, 2.40);
+    \fill[brandPeachInk] (9.5, 2.40) circle (3pt) node[above=1pt, font=\tiny\bfseries] {115\,mmHg};
+    \fill[brandPeachInk] (9.5, 1.25) circle (3pt) node[below=1pt, font=\tiny\bfseries] {76\,mmHg};
+    \node[font=\tiny\bfseries\color{brandDark}, fill=brandSurface, rounded corners=2pt, inner sep=1.5pt] at (9.5, 1.85) {2° Gonfiaggio};
+
+
+    % ========================================================
+    % ASSE DEL TEMPO GLOBALE SINCRONIZZATO
+    % ========================================================
+    \draw[axisLine] (-0.2, 0.4) -- (12.6, 0.4) node[right, font=\scriptsize\bfseries] {$t\text{ [s]}$};
+    
+    \foreach \t/\x in {0/0, 20/2, 40/4, 60/6, 80/8, 100/10, 120/12} {
+        \draw[line width=0.8pt, color=brandDark] (\x, 0.4) -- (\x, 0.28) node[below, font=\scriptsize\bfseries] {\t\,s};
+    }
+
+    \node[font=\scriptsize\color{brandInkSoft}] at (6.0, -0.05) 
+        {Asse temporale comune allineato a 1\,Hz [secondi di intervento]};
+
+\end{tikzpicture}

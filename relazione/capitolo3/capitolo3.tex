@@ -1,113 +1,77 @@
 \chapter{Archiviazione e governance con MongoDB Time Series}
 
-\section{Layer Gold: perché abbiamo scelto MongoDB Time Series}
-Il livello \textbf{Gold} è lo strato pensato per servire in modo rapido le query della dashboard web, le API REST e il caricamento dei dati nei modelli di machine learning. I file Parquet puliti del livello Silver vengono caricati su un'istanza \textbf{MongoDB 8.0} all'interno della collezione Time Series nativa \texttt{vital\_signals} tramite lo script \texttt{src/gold/load\_mongo.py}.
+\section{Archiviazione temporale nel livello gold}
+Il livello \textbf{gold} costituisce lo strato di persistenza progettato per servire con bassa latenza le interrogazioni della dashboard web, le rotte dell'interfaccia REST e il caricamento dei dati verso i modelli di apprendimento automatico. Nel progetto sono state confrontate tre opzioni architetturali per questo livello: mantenere i dati unicamente su file Parquet, soluzione ottima per letture sequenziali ma poco adatta a un servizio web che deve filtrare singoli pazienti, calcolare medie su finestre temporali variabili e salvare contemporaneamente le anomalie rilevate; utilizzare una collezione MongoDB standard o una tabella relazionale classica, scelta che su $5,4$ milioni di secondi avrebbe generato un elevato consumo di spazio e di memoria per via della duplicazione delle chiavi e delle voci di indice su ogni singolo secondo; oppure adottare le collezioni temporali native (\textbf{time series}) di \textbf{MongoDB 8.0}.
 
-\paragraph{Alternative valutate e motivazione della scelta.}
-Per il livello Gold avevamo tre strade possibili:
-\begin{enumerate}
-    \item \textbf{Restare solo su file Parquet:} ottimo per analisi batch sequenziali in Python, ma scomodo per un'applicazione web che deve filtrare singoli pazienti, aggregare intervalli temporali al volo (downsampling) e salvare contemporaneamente le anomalie rilevate;
-    \item \textbf{Usare una collezione MongoDB tradizionale (o una tabella SQL):} salvare $5,4$ milioni di secondi come $5,4$ milioni di documenti BSON indipendenti avrebbe generato un forte spreco di spazio e di indici, perché ogni singolo secondo avrebbe avuto il proprio \texttt{\_id}, le stesse chiavi ripetute e una voce nell'indice B-Tree;
-    \item \textbf{Usare una Time Series Collection di MongoDB 8.0 (scelta adottata):} dichiarando la collezione come serie temporale, MongoDB non salva un documento fisico per ogni secondo, ma raggruppa automaticamente i campioni contigui dello stesso paziente dentro blocchi compressi chiamati \textbf{bucket} (nella collezione interna \texttt{system.buckets.vital\_signals}).
-\end{enumerate}
+La scelta \`e ricaduta su quest'ultima soluzione, implementata nello script \texttt{src/gold/load\_mongo.py} mediante la collezione \texttt{vital\_signals}. Dichiarando la collezione come serie temporale nella funzione \texttt{ensure\_timeseries\_collections(db)}, il motore di archiviazione WiredTiger non memorizza un documento fisico indipendente per ogni secondo, ma raccoglie automaticamente le misure contigue appartenenti allo stesso paziente all'interno di contenitori compressi denominati \textbf{bucket}, gestiti nella collezione interna \texttt{system.buckets.vital\_signals}. La configurazione poggia su tre parametri: \texttt{timeField: "timestamp"}, che definisce l'asse temporale di ordinamento; \texttt{metaField: "metadata"}, che raggruppa i campioni per paziente (\texttt{case\_id}, \texttt{sensor\_name}, \texttt{department}, \texttt{age} e \texttt{sex}) e costruisce automaticamente un indice composto su metadati e tempo; e \texttt{granularity: "seconds"}, che calibra l'ampiezza dei bucket per serie acquisite alla frequenza di $1\text{ Hz}$ (fino a mille campioni o un'ora di registrazione per blocco).
 
-La creazione di \texttt{vital\_signals} in \texttt{ensure\_timeseries\_collections(db)} poggia su tre parametri:
-\begin{itemize}
-    \item \texttt{timeField: "timestamp"}, che indica a MongoDB il campo temporale su cui ordinare le misure;
-    \item \texttt{metaField: "metadata"}, che contiene i dati fissi del paziente (\texttt{case\_id}, \texttt{sensor\_name}, \texttt{department}, \texttt{age}, \texttt{sex}) e permette a MongoDB di mettere nello stesso bucket solo misure appartenenti allo stesso intervento;
-    \item \texttt{granularity: "seconds"}, che informa il motore che i dati arrivano ogni secondo, calibrando l'ampiezza dei bucket (fino a $1.000$ campioni o un'ora di dati per bucket).
-\end{itemize}
+All'interno di ciascun bucket, MongoDB organizza i campi in forma colonnare applicando algoritmi di compressione specifici per il tipo di dato. I valori temporali vengono codificati con lo schema \textbf{Delta-of-Delta}: poich\'e i campioni del monitor \texttt{Solar8000} sono distanziati di un secondo costante ($D_i = t_i - t_{i-1} = 1\text{ s}$), la differenza seconda $\Delta_i = D_i - D_{i-1}$ risulta quasi ovunque nulla e richiede un singolo bit anzich\'e $64$ bit per ogni istante. Le serie numeriche in virgola mobile vengono invece compresse tramite codifica differenziale XOR sulle mantisse IEEE 754 seguita dall'algoritmo \textbf{Zstandard}, particolarmente efficace su segnali come frequenza cardiaca e saturazione che variano gradualmente da un secondo al successivo. A questo si aggiunge il vantaggio dell'omissione nativa dei campi assenti in BSON: mentre un file Parquet deve allocare i livelli di definizione per segnalare se una cella \`e piena o vuota, quando la pressione arteriosa risulta \texttt{NaN} la funzione \texttt{build\_records} non scrive la chiave corrispondente nel dizionario \texttt{metrics}, azzerando l'occupazione fisica dei campioni mancanti.
 
-All'interno di ciascun bucket, MongoDB comprime le serie in modo colonnare:
-\begin{itemize}
-    \item \textbf{Compressione dei timestamp (Delta-of-Delta):} poiché i nostri campioni sono distanziati di $1\text{ s}$ costante ($D_i = t_i - t_{i-1} = 1\text{ s}$), la differenza seconda $\Delta_i = D_i - D_{i-1}$ vale quasi sempre zero e viene codificata con pochissimi bit invece di $8\text{ byte}$ per ogni secondo;
-    \item \textbf{Compressione dei valori numerici (XOR + Zstandard):} parametri come frequenza cardiaca e saturazione variano lentamente da un secondo all'altro, quindi la codifica differenziale seguita da Zstandard riduce fortemente il peso del blocco;
-    \item \textbf{Omissione nativa dei campi nulli:} nei file Parquet ogni colonna deve comunque allocare i bit di definizione (\textit{definition levels}) per indicare se una cella è piena o vuota. In BSON, invece, quando in un secondo la pressione NIBP è \texttt{NaN}, \texttt{build\_records} semplicemente non inserisce quella chiave dentro \texttt{metrics}, occupando zero byte fisici.
-\end{itemize}
-
-\section{Benchmark di storage, latenza e sparsità (500 casi)}
-Per misurare in modo oggettivo cosa cambia passando da Bronze a Silver e a Gold, abbiamo scritto lo script \texttt{src/analysis/benchmark\_etl.py}, che salva i risultati in \texttt{data/benchmark\_report.json} marcandoli con lo stesso \texttt{run\_id} e la stessa \texttt{pipeline\_version} (\texttt{"1.1.0"}) del resto della pipeline. Per garantire un confronto ad armi pari, lo script legge prima dalla collezione \texttt{registry} la lista dei \textbf{500 casi con stato \texttt{committed}} ($5.402.386$ record Gold) e calcola lo spazio occupato su disco filtrando esattamente gli stessi $500$ file nei layer Bronze e Silver. I risultati sono riassunti nella Tabella~\ref{tab:etl_benchmark} e nella Figura~\ref{fig:etl_benchmark}.
+\section{Analisi sperimentale di spazio su disco, latenza e valori mancanti}
+Per valutare quantitativamente il comportamento dei tre livelli sulla coorte di $500$ pazienti \`e stato realizzato il modulo \texttt{src/analysis/benchmark\_etl.py}, che salva le misurazioni nel file \texttt{data/benchmark\_report.json} associandovi gli identificativi \texttt{run\_id} e \texttt{pipeline\_version} (\texttt{"1.1.0"}). Per garantire un confronto omogeneo tra file system e database, lo script interroga preliminarmente il catalogo \texttt{registry} prelevando la lista dei \textbf{500 casi con stato \texttt{committed}} ($5.402.386$ secondi attivi) e calcola le dimensioni su disco filtrando esattamente i medesimi cinquecento identificativi nei livelli bronze e silver. I risultati sperimentali sono riportati nella Tabella~\ref{tab:etl_benchmark} e rappresentati graficamente nella Figura~\ref{fig:etl_benchmark}.
 
 \begin{table}[ht]
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccc}
 \toprule
-\textbf{Parametro / Metrica} & \textbf{Bronze (Parquet, 6 col.)} & \textbf{Silver (Parquet, 18 col.)} & \textbf{Gold (MongoDB 8.0 TS)} \\
+\textbf{Metrica sperimentale} & \textbf{Bronze (Parquet, 6 col.)} & \textbf{Silver (Parquet, 18 col.)} & \textbf{Gold (MongoDB 8.0)} \\
 \midrule
-Occupazione disco (500 casi) & 33,95 MB & 44,52 MB (+31,1\% con flag DQ) & \textbf{15,60 MB} (-54,1\% vs Bronze / -65,0\% vs Silver) \\
-Indici B-Tree (\texttt{totalIndexSize}) & N/A (File su disco) & N/A (File su disco) & +2,56 MB (Totale \texttt{collStats}: 18,16 MB) \\
-Latenza query singolo caso & 26,95 ms (Parquet) & 26,95 ms (Parquet) & \textbf{12,02 ms} (Pushdown su \texttt{metaField}) \\
-Fattore di velocizzazione & 1,0$\times$ (Riferimento) & 1,0$\times$ & \textbf{2,2$\times$ più veloce} \\
-Valori mancanti (Null Rate) & 66,3\% & 26,3\% (post-LOCF) & 26,3\% logico / \textbf{0 byte fisici} (Omissione BSON) \\
+Occupazione su disco (500 casi) & 33,95 MB & 44,52 MB (+31,1\% con flag) & \textcolor{brandPrimary}{\textbf{15,60 MB}} (-54,1\% vs bronze / -65,0\% vs silver) \\
+Indici B-Tree (\texttt{totalIndexSize}) & non applicabile & non applicabile & +2,56 MB (totale \texttt{collStats}: 18,16 MB) \\
+Latenza query singolo caso & 26,95 ms (Parquet) & 26,95 ms (Parquet) & \textcolor{brandPrimary}{\textbf{12,02 ms}} (indice su \texttt{metaField}) \\
+Fattore di velocizzazione & 1,0$\times$ (riferimento) & 1,0$\times$ & \textcolor{brandPrimary}{\textbf{2,2$\times$ pi\`u veloce}} \\
+Valori mancanti (tasso di null) & 66,3\% & 26,3\% (dopo LOCF) & 26,3\% logico / \textcolor{brandPrimary}{\textbf{0 byte fisici}} \\
 \bottomrule
 \end{tabular}}
-\caption{Confronto di storage, latenza e valori mancanti sui 500 casi clinici (5.402.386 record Gold).}
+\caption{Confronto sperimentale di spazio su disco, latenza di interrogazione e valori mancanti sui 500 casi clinici.}
 \label{tab:etl_benchmark}
 \end{table}
 
-\begin{figure}[ht]
+\begin{figure}[!htbp]
     \centering
-    \input{benchmark_tikz.tex}
-    \caption{Benchmark comparativo dell'occupazione disco e della latenza di query sui 500 casi clinici generato in TikZ.}
+    \resizebox{\textwidth}{!}{\input{benchmark_tikz.tex}}
+    \caption{Confronto grafico dell'occupazione su disco, dei tempi di risposta e degli indicatori sintetici sui 500 interventi chirurgici.}
     \label{fig:etl_benchmark}
 \end{figure}
 
-Dai numeri della Tabella~\ref{tab:etl_benchmark} emergono tre aspetti importanti che vale la pena spiegare nel dettaglio:
-\begin{enumerate}
-    \item \textbf{Perché Silver è più grande di Bronze (+31,1\%), mentre Gold comprime (-65,0\%):} a prima vista potrebbe sorprendere che il layer Silver pulito pesi \textbf{44,52 MB} contro i \textbf{33,95 MB} del Bronze grezzo. La ragione è che nel nostro progetto il layer Silver non ha lo scopo di comprimere, ma di \textbf{arricchire e densificare}: passa da $6$ a $18$ colonne (aggiungendo $10$ flag booleani, \texttt{case\_id} e \texttt{nibp\_age\_s}) e riempie i buchi pressori con il forward-fill (portando i \texttt{NaN} dal $66,3\%$ al $26,3\%$). In particolare, la colonna \texttt{nibp\_age\_s} è un \texttt{float64} che cresce di $1$ a ogni secondo ($0, 1, 2, \dots, 300$), quindi non ha mai valori uguali consecutivi e impedisce a Parquet di usare il \textit{Run-Length Encoding}. Quando invece passiamo al layer Gold su MongoDB Time Series, i bucket compressi scendono a \textbf{15,60 MB} di \texttt{storageSize} puro (\textbf{-65,0\%} rispetto a Silver e \textbf{-54,1\%} rispetto a Bronze). Per onestà abbiamo separato nel report i \textbf{15,60 MB} di dati compressi (\texttt{storageSize}) dai \textbf{2,56 MB} occupati dagli indici B-Tree (\texttt{totalIndexSize}, per un totale \texttt{collStats} di \textbf{18,16 MB});
-    \item \textbf{Come abbiamo calcolato il Null Rate reale del 26,3\% in Gold:} in una prima versione dello script avevamo messo il Null Rate di MongoDB fisso a $0,0\%$ perché nei documenti BSON i campi nulli non esistono fisicamente. Ci siamo però resi conto che scrivere $0,0\%$ faceva sembrare che in Gold avessimo recuperato tutte le misure mancanti. Abbiamo quindi modificato \texttt{benchmark\_etl.py} (righe $88\text{--}110$) per contare tramite query \texttt{\{"metrics.<traccia>": \{"\$exists": True\}\}} quante volte ciascuna delle $5$ tracce è realmente presente rispetto al totale teorico ($\text{documenti} \times 5$). Il risultato è \textbf{26,3\%}, identico a Silver: questo dimostra che il passaggio a Gold non inventa né perde alcuna misura, pur occupando zero byte su disco per quel $26,3\%$ di valori assenti;
-    \item \textbf{Velocizzazione 2,2$\times$ sulla query per singolo paziente:} per confrontare i tempi di lettura a parità di compito (\textit{like-for-like}), lo script esegue prima un giro di \textit{warmup} e poi misura la mediana su $15$ esecuzioni della stessa operazione: calcolare la media di \texttt{Solar8000/HR} per il caso \texttt{case\_id = 1}. Leggere e aggregare il file Parquet partizionato richiede in mediana \textbf{26,95 ms}, mentre la pipeline MongoDB (\texttt{\$match} su \texttt{metadata.case\_id} seguito da \texttt{\$group}) impiega \textbf{12,02 ms} (\textbf{2,2$\times$ più veloce}), sfruttando l'indice sul \texttt{metaField} per leggere solo i bucket di quel paziente.
-\end{enumerate}
+L'osservazione congiunta della Tabella~\ref{tab:etl_benchmark} e della Figura~\ref{fig:etl_benchmark} mette in luce la diversa funzione svolta dai livelli silver e gold. Nel passaggio dal livello bronze al livello silver il volume complessivo su disco cresce da \textbf{33,95 MB} a \textbf{44,52 MB} (\textbf{+31,1\%}): questo incremento deriva dall'espansione dello schema da $6$ a $18$ colonne e dal riempimento delle lacune pressorie tramite LOCF, che riduce i valori mancanti dal $66,3\%$ al $26,3\%$. In particolare, il contatore \texttt{nibp\_age\_s} \`e memorizzato come numero in virgola mobile a 64 bit che si incrementa di un'unit\`a ad ogni secondo ($0, 1, 2, \dots, 300$), impedendo al compressore di Parquet di sfruttare la ripetizione di valori uguali consecutivi. Quando i medesimi dati vengono trasferiti nella collezione temporale del livello gold, la compressione per bucket di MongoDB riduce lo spazio fisico dei dati (\texttt{storageSize}) a \textbf{15,60 MB}, segnando un risparmio del \textbf{65,0\%} rispetto a silver e del \textbf{54,1\%} rispetto a bronze; includendo anche i \textbf{2,56 MB} occupati dagli indici B-Tree (\texttt{totalIndexSize}), l'impronta totale della collezione si attesta a \textbf{18,16 MB}.
 
-\begin{techbox}{Limiti metodologici del benchmark}
-Il test di latenza misura un caso d'uso reale della nostra dashboard (interrogazione e aggregazione su un singolo paziente), ma va letto conoscendone i confini: la prova è eseguita su una singola macchina locale con dataset caldo in cache dopo il \textit{warmup} e valuta una query selettiva per \texttt{case\_id}. Su scansioni analitiche massive dell'intera coorte senza filtri (tutte le $5,4$ milioni di righe insieme), la lettura colonnare diretta dei file Parquet da parte di \texttt{pandas} resta competitiva rispetto al passaggio attraverso il protocollo di rete di MongoDB.
-\end{techbox}
+Anche il calcolo del tasso di valori mancanti nel livello gold merita una precisazione metodologica. Poich\'e nei documenti BSON le chiavi corrispondenti a misure assenti vengono omesse, una verifica puramente sintattica restituirebbe zero campi nulli; per ottenere una misura fedele dal punto di vista informativo, \texttt{benchmark\_etl.py} esegue una query con l'operatore \texttt{\$exists} su ciascuna delle cinque metriche vitali rapportando le occorrenze effettive al totale teorico di $\text{documenti} \times 5$. Il valore risultante del \textbf{26,3\%}, identico a quello misurato sui file Parquet del livello silver, conferma che la trasformazione in BSON non altera in alcun modo il contenuto informativo pur azzerando il costo di archiviazione dei campioni mancanti.
 
-\section{Data governance: perché un data lakehouse ``simulato''}
-Uno dei temi centrali concordati con la docente riguarda la \textbf{data governance}: come garantire che i dati caricati in Gold siano completi, validati e ricollegabili ai file Bronze e Silver da cui provengono.
+Sul fronte delle prestazioni di lettura, il benchmark confronta a parit\`a di operazione il tempo necessario per calcolare la frequenza cardiaca media dell'intervento \texttt{case\_id = 1}. Dopo un ciclo preliminare di riscaldamento della cache, la mediana calcolata su $15$ esecuzioni consecutive mostra che la lettura e l'aggregazione del file Parquet partizionato richiedono \textbf{26,95 ms}, mentre la pipeline di aggregazione MongoDB composta dagli stadi \texttt{\$match} su \texttt{metadata.case\_id} e \texttt{\$group} completa il calcolo in \textbf{12,02 ms}, risultando \textbf{2,2 volte pi\`u veloce} grazie all'accesso diretto ai soli bucket del paziente richiesto tramite l'indice sul \texttt{metaField}.
 
-\paragraph{Perché non abbiamo usato Delta Lake, Apache Iceberg o Apache Hudi.}
-Nel mondo industriale un data lakehouse si costruisce con formati tabellari aperti come \textbf{Delta Lake}, \textbf{Apache Iceberg} o \textbf{Apache Hudi}, che offrono transazioni ACID su file Parquet, \textit{schema enforcement} e \textit{time travel} tramite un transaction log JSON/Avro. Nel nostro progetto abbiamo scelto di \textbf{non} usare questi framework per due motivi concreti:
-\begin{enumerate}
-    \item \textbf{Complessità infrastrutturale sproporzionata:} Delta Lake e Iceberg sono progettati per girare sopra motori distribuiti come Apache Spark o Trino. Mettere in piedi un cluster Spark + JVM dentro Docker per gestire $500$ casi ($44\text{ MB}$ di file Parquet) avrebbe appesantito enormemente il progetto senza alcun beneficio pratico su una singola macchina;
-    \item \textbf{Focus sul database NoSQL:} il nostro livello Gold non risiede su file Parquet in un object storage S3, ma dentro le \textbf{Time Series Collections di MongoDB 8.0}. Volevamo quindi studiare fino a dove si può arrivare costruendo i meccanismi di governance direttamente con gli strumenti nativi di MongoDB e con il codice Python della pipeline.
-\end{enumerate}
-
-Abbiamo così realizzato un \textbf{lakehouse ``artigianale''}, ricostruendo i quattro mattoni fondamentali (catalogo e stato delle transazioni, dizionario dei metadati, validazione dello schema e recupero dai crash). Nella Tabella~\ref{tab:lakehouse_comparison} riassumiamo cosa offre un lakehouse industriale, come lo abbiamo emulato noi e quale limite paghiamo per questa scelta.
+\section{Architettura di data governance e gestione transazionale}
+Per garantire che i dati esposti nel livello gold siano completi, conformi allo schema atteso e ricollegabili ai file locali da cui derivano, \`e stato progettato un sistema di \textbf{data governance} applicativo che riproduce i meccanismi essenziali di un \textbf{data lakehouse} direttamente su MongoDB 8.0 e Python, senza introdurre dipendenze da motori distribuiti come Apache Spark, Delta Lake o Apache Iceberg. La Tabella~\ref{tab:lakehouse_comparison} sintetizza come ciascuna garanzia tipica di un lakehouse industriale sia stata tradotta nella nostra architettura.
 
 \begin{table}[ht]
 \centering
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{p{3.6cm}p{5.5cm}p{5.5cm}}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{5.5cm}>{\raggedright\arraybackslash}p{5.5cm}}
 \toprule
-\textbf{Funzionalità Lakehouse} & \textbf{Nostra implementazione (MongoDB + Python)} & \textbf{Limite rispetto a Delta Lake / Iceberg} \\
+\textbf{Requisito di governance} & \textbf{Implementazione su MongoDB e Python} & \textbf{Differenza rispetto a Delta Lake / Iceberg} \\
 \midrule
-Transaction Log e isolamento lettori & Collezione \texttt{registry} con stato \texttt{loading} $\to$ \texttt{committed} / \texttt{failed} e filtro \texttt{\{"status": "committed"\}} su tutti i lettori. & Non è una transazione ACID nativa del motore DB: se il processo muore a metà, i punti restano in \texttt{vital\_signals} finché non gira \texttt{recover\_incomplete\_loads}. \\
-\addlinespace
-Schema Enforcement e Data Contract & \texttt{\$jsonSchema} nativo su \texttt{registry} + funzione Python \texttt{validate\_records(records)} prima di \texttt{insert\_many} su \texttt{vital\_signals}. & MongoDB 8.0 vieta \texttt{\$jsonSchema} sulle collezioni Time Series; se qualcuno inserisse dati da \texttt{mongosh} aggirando Python, il DB non bloccherebbe valori fuori range. \\
-\addlinespace
-Catalogo metadati e Single Source of Truth & Dizionario \texttt{TRACK\_SPECS} in \texttt{src/config.py} sincronizzato in \texttt{track\_metadata} da \texttt{seed\_track\_metadata(db)}. & Sincronizzazione unidirezionale all'avvio di \texttt{load\_mongo.py}, non integrata in un metastore esterno (es. Hive Metastore / Unity Catalog). \\
-\addlinespace
-Data Lineage e storicizzazione & \texttt{run\_id} e \texttt{pipeline\_version} condivisi nei 4 JSON e nel \texttt{registry}; backup dei report in \texttt{quality\_history/}. & Manca il \textit{time travel} sui dati (sovrascrivendo un caso non si può interrogare la versione precedente) e \texttt{run\_id} non è copiato dentro ogni singolo documento di \texttt{vital\_signals}. \\
+Registro delle transazioni e isolamento dei lettori & Collezione \texttt{registry} con stati \texttt{loading} $\to$ \texttt{committed} / \texttt{failed} e filtro \texttt{\{"status": "committed"\}} su tutte le letture. & Coordinamento applicativo in due fasi anzich\'e transazione atomica nativa del motore di storage, assistito da \texttt{recover\_incomplete\_loads}. \\
+\addlinespace[3pt]
+Validazione dello schema e contratto dati & Validatore nativo \texttt{\$jsonSchema} su \texttt{registry} e controllo preventivo \texttt{validate\_records(records)} prima di \texttt{insert\_many} su \texttt{vital\_signals}. & MongoDB 8.0 non supporta \texttt{\$jsonSchema} sulle collezioni temporali, rendendo necessario il controllo lato Python per \texttt{vital\_signals}. \\
+\addlinespace[3pt]
+Catalogo dei metadati fisiologici & Dizionario \texttt{TRACK\_SPECS} in \texttt{src/config.py} sincronizzato nella collezione \texttt{track\_metadata} da \texttt{seed\_track\_metadata(db)}. & Sincronizzazione automatica ad ogni esecuzione di \texttt{load\_mongo.py} senza necessit\`a di un metastore esterno separato. \\
+\addlinespace[3pt]
+Tracciabilit\`a delle esecuzioni & Identificativi \texttt{run\_id} e \texttt{pipeline\_version} condivisi nei quattro file JSON e nel \texttt{registry}, con storico in \texttt{quality\_history/}. & Tracciabilit\`a mantenuta a livello di caso nel catalogo \texttt{registry} per non appesantire i singoli documenti temporali. \\
 \bottomrule
 \end{tabular}}
-\caption{Confronto tra le garanzie di un data lakehouse industriale e la nostra emulazione applicativa su MongoDB 8.0.}
+\caption{Confronto tra i meccanismi di un data lakehouse industriale e l'implementazione realizzata su MongoDB 8.0.}
 \label{tab:lakehouse_comparison}
 \end{table}
 
-\subsection{Catalogo, macchina a stati e provenienza (collezione registry)}
-La collezione \texttt{registry} svolge il ruolo di catalogo centrale dei casi caricati nel layer Gold. Ogni documento generato da \texttt{build\_registry\_doc} in \texttt{src/gold/load\_mongo.py} registra:
-\begin{itemize}
-    \item \texttt{case\_id} e \texttt{schema\_version} (\texttt{"1.0"});
-    \item \texttt{status}: lo stato del caricamento, che può valere \texttt{"loading"}, \texttt{"committed"} oppure \texttt{"failed"};
-    \item \texttt{record\_count}: il numero di secondi effettivamente inseriti in \texttt{vital\_signals};
-    \item \texttt{run\_id} e \texttt{pipeline\_version} (\texttt{"1.1.0"}), sia a livello radice sia dentro \texttt{provenance};
-    \item \texttt{provenance}: un sotto-documento che riporta lo step (\texttt{"silver\_to\_gold"}), il \texttt{timestamp} UTC e il dizionario \texttt{cleaning\_params} con i parametri usati nella pulizia (\texttt{max\_gap\_seconds: 5.0}, \texttt{nibp\_staleness\_limit\_s: 300.0}, \texttt{sampling\_interval\_s: 1.0}).
-\end{itemize}
+\subsection{Catalogo dei casi, contratti di schema e metadati delle tracce}
+Il fulcro dell'architettura di controllo \`e costituito dalla collezione \texttt{registry}, che mantiene un documento di stato per ciascuno dei $500$ casi clinici del livello gold. Ogni voce generata dalla funzione \texttt{build\_registry\_doc} in \texttt{src/gold/load\_mongo.py} memorizza l'identificativo \texttt{case\_id}, la versione dello schema (\texttt{schema\_version: "1.0"}), lo stato corrente del caricamento (\texttt{status}, che pu\`o assumere i valori \texttt{loading}, \texttt{committed} oppure \texttt{failed}), il conteggio esatto dei secondi inseriti (\texttt{record\_count}), i riferimenti \texttt{run\_id} e \texttt{pipeline\_version} e il sotto-documento \texttt{provenance}, nel quale sono registrati l'istante UTC di caricamento, i parametri di pulizia applicati (\texttt{max\_gap\_seconds: 5.0}, \texttt{nibp\_staleness\_limit\_s: 300.0}, \texttt{sampling\_interval\_s: 1.0}) e il riepilogo delle metriche di qualit\`a per sensore (\texttt{sensor\_metrics}).
 
-A livello di database, lo script di inizializzazione \texttt{mongo/registry\_schema.js} applica alla collezione \texttt{registry} una regola di \textbf{JSON Schema Validation} con \texttt{validationLevel: "strict"} e \texttt{validationAction: "error"} (Listato~\ref{lst:registry_schema}), che rifiuta qualsiasi documento privo dei campi strutturali obbligatori \texttt{case\_id}, \texttt{schema\_version} e \texttt{provenance}.
+A livello di database, lo script di inizializzazione \texttt{mongo/registry\_schema.js} impone sulla collezione \texttt{registry} un vincolo formale tramite l'operatore nativo \texttt{\$jsonSchema} configurato con \texttt{validationLevel: "strict"} e \texttt{validationAction: "error"}, come mostrato nel Listato~\ref{lst:registry_schema}. In questo modo il motore di MongoDB rifiuta automaticamente qualsiasi inserimento o aggiornamento che risulti privo degli attributi obbligatori \texttt{case\_id}, \texttt{schema\_version} e \texttt{provenance} o che presenti tipi di dato difformi da quelli dichiarati.
+\FloatBarrier
 
+\vspace{4pt}
+\noindent\begin{minipage}{\textwidth}
 \begin{lstlisting}
 // Schema definito in mongo/registry_schema.js
 db.runCommand({
@@ -117,18 +81,9 @@ db.runCommand({
             bsonType: "object",
             required: ["case_id", "schema_version", "provenance"],
             properties: {
-                case_id: {
-                    bsonType: ["int", "long"],
-                    description: "ID del caso VitalDB, richiesto e di tipo intero (32 o 64 bit)"
-                },
-                schema_version: {
-                    bsonType: "string",
-                    description: "Versione dello schema, richiesto e di tipo stringa"
-                },
-                record_count: {
-                    bsonType: ["int", "long"],
-                    description: "Numero di record caricati per questo caso"
-                },
+                case_id: { bsonType: ["int", "long"], description: "ID caso VitalDB" },
+                schema_version: { bsonType: "string", description: "Versione schema" },
+                record_count: { bsonType: ["int", "long"], description: "Secondi caricati" },
                 provenance: {
                     bsonType: "object",
                     required: ["step", "timestamp"],
@@ -144,44 +99,40 @@ db.runCommand({
     validationAction: "error"
 });
 \end{lstlisting}
-\vspace{2pt}
-\captionof{lstlisting}{Validazione JSON Schema applicata alla collezione registry in mongo/registry\_schema.js.}\label{lst:registry_schema}
-\vspace{6pt}
+\captionof{lstlisting}{Regola di validazione \texttt{\$jsonSchema} applicata alla collezione \texttt{registry} in \texttt{mongo/registry\_schema.js}.}\label{lst:registry_schema}
+\end{minipage}
+\vspace{8pt}
 
-\subsection{Catalogo delle tracce e sincronizzazione automatica (track\_metadata)}
-Accanto a \texttt{registry}, abbiamo creato la collezione \texttt{track\_metadata}, che documenta per ciascuna delle cinque tracce del monitor \texttt{Solar8000} l'unità di misura (\texttt{bpm}, \texttt{\%}, \texttt{mmHg}), la descrizione e l'intervallo fisiologico atteso (\texttt{expected\_range}).
+Accanto al catalogo dei pazienti, la collezione \texttt{track\_metadata} conserva il dizionario descrittivo delle cinque tracce del monitor \texttt{Solar8000}, specificando per ciascuna l'unit\`a di misura (\texttt{bpm}, \texttt{\%}, \texttt{mmHg}), il significato clinico e l'intervallo fisiologico ammesso (\texttt{expected\_range}). Poich\'e il container Docker di MongoDB esegue gli script presenti in \texttt{/docker-entrypoint-initdb.d/} soltanto al primo avvio assoluto su volume vuoto, una modifica successiva alle soglie nel codice Python rischierebbe di non riflettersi nel database; per evitare qualsiasi disallineamento, all'inizio di ogni esecuzione di \texttt{process\_silver\_to\_gold} viene invocata la funzione \texttt{seed\_track\_metadata(db)}, che rilegge il dizionario \texttt{config.TRACK\_SPECS} ed esegue un'operazione di \texttt{update\_one(..., upsert=True)} su ciascuna traccia, mantenendo il catalogo sul database costantemente sincronizzato con la configurazione applicativa.
 
-All'avvio del container MongoDB, \texttt{mongo/registry\_schema.js} popola \texttt{track\_metadata} con i valori iniziali. Tuttavia, poiché Docker esegue gli script in \texttt{/docker-entrypoint-initdb.d/} solo la prima volta che crea il volume vuoto, se in seguito cambiassimo un limite fisiologico in Python il database resterebbe con il valore vecchio. Per evitare questo disallineamento, all'inizio di \texttt{process\_silver\_to\_gold} chiamiamo sempre la funzione \texttt{seed\_track\_metadata(db)}, che rilegge \texttt{config.TRACK\_SPECS} ed esegue un \texttt{update\_one(..., upsert=True)} per ogni traccia, mantenendo \texttt{track\_metadata} allineata al codice.
+Per la contabilizzazione della qualit\`a dei dati, salvata sia in \texttt{data/quality\_report.json} sia nel campo \texttt{sensor\_metrics} di ciascun documento del \texttt{registry}, tutti gli indicatori vengono calcolati sullo stesso denominatore di righe attive bonificate \texttt{rows\_cleaned} (\texttt{rows\_after}). Su ciascuno dei cinque canali viene cos\`i garantita l'identit\`a esatta:
+$$\texttt{observed} + \texttt{imputed} + \texttt{missing} \equiv \texttt{rows\_cleaned}$$
+nella quale \texttt{imputed} corrisponde alla somma del flag booleano dedicato (\texttt{HR\_imputed}, \texttt{SPO2\_imputed}, \texttt{SBP\_imputed}, \texttt{DBP\_imputed} o \texttt{MBP\_imputed}), \texttt{observed} misura i campioni acquisiti direttamente dal sensore e \texttt{missing} conta i valori \texttt{NaN} residui. Da queste tre grandezze vengono infine derivate la percentuale di letture dirette $\texttt{observed\_pct} = \frac{\texttt{observed}}{\texttt{rows\_cleaned}} \times 100$, la copertura complessiva disponibile dopo l'imputazione $\texttt{coverage\_pct} = \frac{\texttt{observed} + \texttt{imputed}}{\texttt{rows\_cleaned}} \times 100$ e la copertura rapportata alla durata grezza iniziale del file bronze $\texttt{temporal\_coverage\_bronze\_pct} = \frac{\texttt{observed} + \texttt{imputed}}{\texttt{rows\_original}} \times 100$.
 
-\subsection{Limiti transazionali delle Time Series, protocollo a due fasi e recovery}
-Lavorando con MongoDB 8.0 ci siamo scontrati con due limiti tecnici delle \textbf{Time Series Collections}:
-\begin{enumerate}
-    \item \textbf{Impossibilità di usare transazioni ACID multi-documento:} MongoDB non permette di scrivere in una collezione Time Series dentro una sessione transazionale; se ci si prova, il server restituisce l'errore nativo $263$ (\texttt{OperationNotSupportedInTransaction}). Non potevamo quindi inserire i punti in \texttt{vital\_signals} e aggiornare \texttt{registry} dentro un'unica transazione atomica;
-    \item \textbf{Impossibilità di applicare \texttt{\$jsonSchema} a \texttt{vital\_signals}:} sulle collezioni Time Series MongoDB non accetta validatori di schema lato server.
-\end{enumerate}
+\subsection{Protocollo di caricamento a due fasi e recupero automatico}
+L'implementazione del caricamento verso il livello gold ha richiesto di affrontare due restrizioni architetturali proprie delle collezioni temporali di MongoDB 8.0: da un lato, il motore del database non consente di inserire documenti in una collezione time series all'interno di una transazione multi-documento ACID, restituendo l'errore nativo $263$ (\texttt{OperationNotSupportedInTransaction}); dall'altro, non permette di associare un validatore \texttt{\$jsonSchema} lato server alla collezione \texttt{vital\_signals}.
 
-Per aggirare questi due ostacoli senza cambiare database, in \texttt{src/gold/load\_mongo.py} abbiamo implementato un protocollo applicativo a due fasi (\textit{Two-Phase Load}) combinato con una validazione in Python:
-\begin{itemize}
-    \item \textbf{Validazione preventiva (\texttt{validate\_records(records)}):} prima di toccare il database, la funzione controlla in memoria tutti i documenti del paziente, verificando che \texttt{timestamp} sia un \texttt{datetime} valido, che \texttt{metadata.case\_id} sia un intero nativo Python, che \texttt{metadata.sensor\_name} sia una stringa e che ogni valore in \texttt{metrics} sia un numero finito non-\texttt{NaN}. Se anche un solo record è corrotto, solleva un \texttt{ValueError} prima di iniziare la scrittura;
-    \item \textbf{Fase 1 -- Stato \texttt{loading} e pulizia preventiva:} per ogni caso da caricare, \texttt{load\_case\_to\_mongo} scrive prima nel \texttt{registry} un documento con \texttt{status: "loading"} e \texttt{record\_count: 0}, e subito dopo esegue \texttt{db['vital\_signals'].delete\_many(\{"metadata.case\_id": int(case\_id)\})} per rimuovere eventuali residui di caricamenti precedenti;
-    \item \textbf{Fase 2 -- Inserimento e promozione a \texttt{committed} (o \texttt{failed}):} la funzione esegue \texttt{db['vital\_signals'].insert\_many(records)} per l'intero caso. Se l'inserimento va a buon fine, aggiorna il documento in \texttt{registry} impostando \texttt{status: "committed"}, il \texttt{record\_count} finale e l'oggetto \texttt{provenance} completo. Se invece \texttt{insert\_many} solleva un'eccezione \texttt{PyMongoError}, il blocco \texttt{except} cancella subito i punti parziali appena scritti in \texttt{vital\_signals} e imposta \texttt{status: "failed"} (con il messaggio \texttt{last\_error}) nel \texttt{registry};
-    \item \textbf{Bonifica automatica all'avvio (\texttt{recover\_incomplete\_loads}):} se il container viene fermato bruscamente (es. \texttt{SIGKILL} o caduta di corrente) mentre un caso è in stato \texttt{loading}, il blocco \texttt{except} non fa in tempo a girare. Per questo motivo, ad ogni avvio di \texttt{load\_mongo.py}, la funzione \texttt{recover\_incomplete\_loads(db, active\_case\_ids)} cerca nel \texttt{registry} tutti i casi con \texttt{status != "committed"} e cancella i loro punti da \texttt{vital\_signals}. Inoltre, la stessa funzione controlla se nel database sono rimasti casi che non fanno più parte del perimetro Silver corrente (\texttt{active\_case\_ids}) e li rimuove da \texttt{vital\_signals}, \texttt{registry} e \texttt{anomalies\_detected};
-    \item \textbf{Filtro \texttt{status: "committed"} su tutti i lettori:} tutti gli script che leggono il layer Gold — \texttt{list\_loaded\_cases} in \texttt{src/analysis/queries.py}, \texttt{detector.py}, \texttt{evaluate\_models.py} e \texttt{benchmark\_etl.py} — interrogano \texttt{registry} filtrando rigorosamente \texttt{\{"status": "committed"\}} (esteso con operatore \texttt{\$or} a \texttt{\{"status": \{"\$exists": false\}\}} per preservare retrocompatibilità con eventuali record caricati in prove preliminari), così da escludere a priori qualsiasi caso rimasto nello stato \texttt{loading} o \texttt{failed}.
-\end{itemize}
+Per garantire comunque l'integrit\`a dei dati e l'isolamento dei lettori senza ricorrere a transazioni native, in \texttt{src/gold/load\_mongo.py} \`e stato sviluppato un protocollo applicativo a due fasi abbinato a una validazione preventiva in memoria, il cui flusso operativo complessivo insieme ai tre pilastri di compressione dei bucket \`e rappresentato nella Figura~\ref{fig:governance_tikz}. Prima di avviare qualsiasi scrittura sul database, la funzione \texttt{validate\_records(records)} ispeziona tutti i documenti generati per il paziente verificando che \texttt{timestamp} sia un oggetto \texttt{datetime} valido, che \texttt{metadata.case\_id} sia un intero nativo, che \texttt{metadata.sensor\_name} sia una stringa non vuota e che tutti i valori contenuti in \texttt{metrics} siano numeri finiti privi di \texttt{NaN}, sollevando un'eccezione \texttt{ValueError} in caso di violazione.
 
-\section{Pipeline di aggregazione e ottimizzazione delle query}
-Per mantenere reattiva la dashboard web anche su interventi chirurgici che durano molte ore, abbiamo spostato il lavoro di filtraggio e riduzione dei punti direttamente dentro il motore di aggregazione di MongoDB (\texttt{src/analysis/queries.py}).
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{governance_2pc.png}
+    \caption{Meccanismi di compressione dei bucket nella collezione \texttt{vital\_signals} e macchina a stati per il caricamento atomico a due fasi gestita tramite il catalogo \texttt{registry}.}
+    \label{fig:governance_tikz}
+\end{figure}
+\FloatBarrier
 
-\subsection{Downsampling lato database con \$dateTrunc}
-Un intervento di cinque o sei ore contiene oltre $20.000$ punti a $1\text{ Hz}$. Inviare sempre tutti i punti grezzi via HTTP al browser appesantirebbe il rendering dei grafici Chart.js quando l'utente vuole solo vedere l'andamento generale dell'operazione.
+Superato il controllo in memoria, la funzione \texttt{load\_case\_to\_mongo} avvia la prima fase scrivendo nel catalogo \texttt{registry} un documento con stato \texttt{status: "loading"} e \texttt{record\_count: 0}, seguito immediatamente dalla rimozione preventiva di eventuali punti pregressi del medesimo paziente tramite \texttt{db['vital\_signals'].delete\_many(\{"metadata.case\_id": int(case\_id)\})}. Nella seconda fase viene eseguito l'inserimento massivo \texttt{db['vital\_signals'].insert\_many(records)}: se l'operazione termina correttamente, il documento nel \texttt{registry} viene promosso allo stato \texttt{status: "committed"} aggiornando il conteggio finale dei record e i metadati di provenienza; se invece si verifica un errore \texttt{PyMongoError}, il blocco di gestione delle eccezioni elimina subito i punti parziali appena inseriti in \texttt{vital\_signals} e marca il caso con \texttt{status: "failed"} annotando il messaggio diagnostico nel campo \texttt{last\_error}.
 
-La funzione \texttt{downsample\_case(db, case\_id, window\_seconds)} risolve il problema eseguendo sul database una pipeline a tre stadi (Listato~\ref{lst:downsample_pipeline}):
-\begin{enumerate}
-    \item \texttt{\$match} seleziona i soli bucket del paziente richiesto tramite \texttt{metadata.case\_id};
-    \item \texttt{\$group} usa l'operatore temporale \texttt{\$dateTrunc} per raggruppare i timestamp in finestre fisse di ampiezza \texttt{window\_seconds} ($30$, $60$ o $300$ secondi) e calcola con \texttt{\$avg} la media di ciascuno dei cinque parametri vitali nella finestra;
-    \item \texttt{\$project} e \texttt{\$sort} rinominano la chiave di gruppo in \texttt{window\_start} e restituiscono le finestre ordinate nel tempo.
-\end{enumerate}
+Qualora il processo Python o il container venissero interrotti bruscamente da un segnale esterno (come \texttt{SIGKILL} o una caduta di alimentazione) prima dell'esecuzione del blocco di compensazione, al successivo avvio dello script interviene automaticamente la funzione \texttt{recover\_incomplete\_loads(db, active\_case\_ids)}: essa individua nel \texttt{registry} tutti i casi rimasti in uno stato diverso da \texttt{committed}, rimuove i relativi campioni orfani da \texttt{vital\_signals} ed elimina inoltre dal database eventuali pazienti che non appartengono pi\`u al perimetro silver corrente. Poich\'e tutti i moduli di lettura a valle interrogano il catalogo applicando il filtro \texttt{\{"status": "committed"\}}, nessun caso incompleto o fallito pu\`o mai essere letto dall'API o dai modelli di rilevamento.
 
+\section{Pipeline di aggregazione e ottimizzazione delle interrogazioni}
+Per mantenere fluida l'interazione sulla dashboard web anche quando si esplorano interventi chirurgici della durata di molte ore, le operazioni di riduzione temporale e di recupero dei metadati sono state delegate direttamente al motore di aggregazione di MongoDB nel modulo \texttt{src/analysis/queries.py}. Un intervento di sei ore a $1\text{ Hz}$ comprende oltre ventimila documenti temporali: trasferire sistematicamente l'intera serie grezza via HTTP verso il browser appesantirebbe il disegno dei grafici quando l'utente desidera osservare l'andamento complessivo dell'operazione.
+
+La funzione \texttt{downsample\_case(db, case\_id, window\_seconds)} risolve il problema eseguendo sul database la pipeline a quattro stadi riportata nel Listato~\ref{lst:downsample_pipeline}. Il primo stadio \texttt{\$match} seleziona i bucket del singolo paziente sfruttando l'indice su \texttt{metadata.case\_id}; il secondo stadio \texttt{\$group} applica l'operatore nativo \texttt{\$dateTrunc} per discretizzare l'asse temporale in finestre regolari di ampiezza configurabile ($30$, $60$ oppure $300$ secondi) calcolando con \texttt{\$avg} il valore medio dei cinque parametri vitali in ciascun intervallo; gli stadi finali \texttt{\$project} e \texttt{\$sort} riformattano l'istante iniziale della finestra nel campo \texttt{window\_start} e restituiscono la sequenza ordinata cronologicamente.
+
+\vspace{4pt}
+\noindent\begin{minipage}{\textwidth}
 \begin{lstlisting}
 // Pipeline eseguita da downsample_case() in src/analysis/queries.py
 pipeline = [
@@ -206,36 +157,8 @@ pipeline = [
     {"$sort": {"window_start": 1}}
 ]
 \end{lstlisting}
-\vspace{2pt}
-\captionof{lstlisting}{Pipeline di aggregazione MongoDB per il downsampling temporale in src/analysis/queries.py.}\label{lst:downsample_pipeline}
-\vspace{6pt}
+\captionof{lstlisting}{Pipeline di aggregazione con operatore \texttt{\$dateTrunc} per la riduzione temporale in \texttt{src/analysis/queries.py}.}\label{lst:downsample_pipeline}
+\end{minipage}
+\vspace{8pt}
 
-\subsection{Eliminazione del problema N+1 sull'elenco dei pazienti (e relativo limite)}
-Quando la dashboard si apre, chiama l'endpoint \texttt{GET /cases} per popolare la barra laterale con i $500$ pazienti, mostrando per ciascuno l'ID, il reparto chirurgico, l'età e il sesso. Poiché nel \texttt{registry} sono salvati solo \texttt{case\_id} e \texttt{record\_count}, un'implementazione ingenua farebbe prima una query su \texttt{registry} e poi $500$ query \texttt{find\_one} separate su \texttt{vital\_signals} per leggere i metadati di ogni paziente ($N+1 = 501$ query totali).
-
-Per evitare $501$ chiamate di rete, in \texttt{api/main.py} abbiamo ridotto l'operazione a \textbf{due sole query}:
-\begin{enumerate}
-    \item una chiamata a \texttt{list\_loaded\_cases(db)} che legge in blocco i $500$ casi \texttt{committed} da \texttt{registry};
-    \item una singola aggregazione su \texttt{vital\_signals} con \texttt{\$group} su \texttt{\$metadata.case\_id} e \texttt{\$first} sui campi \texttt{department}, \texttt{age} e \texttt{sex}, unendo poi i due risultati in memoria in Python.
-\end{enumerate}
-
-\textbf{Limite di questa soluzione:} anche se evita le $500$ query separate, lo stadio \texttt{\$group} su \texttt{vital\_signals} costringe comunque MongoDB a scorrere i bucket della collezione Time Series ad ogni apertura della pagina. Con il senno di poi, una soluzione ancora più leggera sarebbe stata salvare \texttt{department}, \texttt{age} e \texttt{sex} direttamente dentro il documento della collezione \texttt{registry} durante il caricamento Gold, così da servire \texttt{GET /cases} leggendo unicamente i $500$ documenti del catalogo.
-
-\section{Metriche di data quality per sensore e analisi critica}
-Oltre ai flag salvati dentro ciascun documento BSON (\texttt{quality\_flags}), la pipeline produce alla fine dello step Silver il report \texttt{data/quality\_report.json}.
-
-Durante la revisione dei risultati ci siamo accorti che nella prima versione del report i conteggi non avevano tutti lo stesso denominatore: i valori osservati venivano contati sul file Bronze grezzo, mentre i valori mancanti venivano contati dopo aver scartato le righe vuote, e per le tre pressioni NIBP il numero di imputati veniva stimato indirettamente da \texttt{nibp\_age\_s > 0} invece che contato su ogni singolo canale. Abbiamo quindi riscritto la sezione \texttt{sensor\_metrics} di \texttt{clean.py} (righe $288\text{--}312$) calcolando tutti gli indicatori sullo stesso perimetro di righe pulite \texttt{rows\_cleaned} (\texttt{rows\_after}). Per ognuna delle cinque tracce vale ora l'identità esatta:
-$$\texttt{observed} + \texttt{imputed} + \texttt{missing} \equiv \texttt{rows\_cleaned}$$
-dove \texttt{imputed} è la somma del flag booleano dedicato (\texttt{HR\_imputed}, \texttt{SPO2\_imputed}, \texttt{SBP\_imputed}, \texttt{DBP\_imputed}, \texttt{MBP\_imputed}), \texttt{observed} conta le celle non nulle e non imputate, e \texttt{missing} conta i \texttt{NaN} residui. A questi conteggi sono affiancate tre percentuali:
-\begin{itemize}
-    \item $\texttt{observed\_pct} = \frac{\texttt{observed}}{\texttt{rows\_cleaned}} \times 100$: quota di misure realmente lette dal sensore sulle righe attive;
-    \item $\texttt{coverage\_pct} = \frac{\texttt{observed} + \texttt{imputed}}{\texttt{rows\_cleaned}} \times 100$: copertura effettiva disponibile in Silver/Gold dopo l'interpolazione e il LOCF;
-    \item $\texttt{temporal\_coverage\_bronze\_pct} = \frac{\texttt{observed} + \texttt{imputed}}{\texttt{rows\_original}} \times 100$: copertura rapportata alla durata grezza iniziale del file Bronze (\texttt{rows\_before}).
-\end{itemize}
-
-Chiudiamo il capitolo riassumendo tre limiti strutturali della nostra gestione della qualità e del layer Gold:
-\begin{enumerate}
-    \item \textbf{Qualità controllata per riga ma non per intero caso:} grazie ai flag in \texttt{quality\_flags} evitiamo di scartare un intero intervento se un sensore si stacca per qualche minuto, ma l'assenza di una soglia minima bloccante (\textit{case-level quality gate}) fa sì che anche casi con copertura molto bassa vengano comunque caricati in Gold;
-    \item \textbf{Lineage fermata al catalogo \texttt{registry}:} l'identificativo \texttt{run\_id} è salvato nel \texttt{registry} e nei file JSON, ma non dentro ogni singolo documento di \texttt{vital\_signals} (scelta fatta per non gonfiare i documenti Time Series). Tutte le letture passano quindi da \texttt{registry} per sapere quali casi sono validi;
-    \item \textbf{Asse temporale convenzionale (\texttt{2020-01-01 + Time}):} poiché VitalDB fornisce solo i secondi relativi dall'inizio della registrazione per ragioni di anonimizzazione, tutte le serie Gold partono dalla data fittizia del $1^\circ$ gennaio $2020$. Questo non influisce né sulla compressione Delta-of-Delta né sui modelli, ma in un sistema ospedaliero reale verrebbe sostituito dall'orario effettivo del monitor.
-\end{enumerate}
+Un'ulteriore ottimizzazione riguarda il popolamento della barra laterale dei pazienti nella dashboard tramite la rotta \texttt{GET /cases}, che deve mostrare per tutti i $500$ interventi l'identificativo, il conteggio dei punti, il reparto chirurgico, l'et\`a e il sesso. Poich\'e i documenti della collezione \texttt{registry} contengono \texttt{case\_id} e \texttt{record\_count} ma non i dati anagrafici, un'implementazione ingenua eseguirebbe prima una query sul catalogo e poi $500$ interrogazioni \texttt{find\_one} distinte su \texttt{vital\_signals} (schema $N+1$ pari a $501$ chiamate di rete). Nel file \texttt{api/main.py} il caricamento \`e stato invece ricondotto a due sole interrogazioni complessive: una lettura dei casi \texttt{committed} da \texttt{registry} tramite \texttt{list\_loaded\_cases(db)} e un'unica pipeline di aggregazione su \texttt{vital\_signals} con stadio \texttt{\$group} su \texttt{\$metadata.case\_id} e operatore \texttt{\$first} sui campi \texttt{department}, \texttt{age} e \texttt{sex}, unendo infine i due dizionari in memoria centrale.

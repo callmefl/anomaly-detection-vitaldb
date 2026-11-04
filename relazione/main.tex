@@ -5,8 +5,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
 
-% === TIPOGRAFIA MODERNA ED ELEGANTE (SANS-SERIF GEOMETRICO / NEO-GROTESQUE) ===
-% TeX Gyre Heros per un'estetica pulita e contemporanea come da layout di presentazione
+% === TIPOGRAFIA MODERNA (SANS-SERIF GEOMETRICO + MONOSPACE TECNICO) ===
 \usepackage[scaled=0.95]{helvet}
 \renewcommand*\familydefault{\sfdefault}
 \usepackage[scaled=0.88,varqu,varl]{inconsolata}
@@ -28,74 +27,88 @@
 % === SPAZIATURA TRA PARAGRAFI ===
 \usepackage{parskip}
 \setlength{\parskip}{0.65em}
+\emergencystretch=2em
+\let\origunderscore\_
+\renewcommand{\_}{\origunderscore\allowbreak}
 
-% === BRAND & TECH DESIGN SYSTEM (ELECTRIC ROYAL BLUE & PEACH PALETTE) ===
+% === DESIGN TOKEN DELLA PRESENTAZIONE HTML (SFONDO BIANCO, SENZA GRIGLIA) ===
 \usepackage{xcolor}
-\definecolor{brandPrimary}{HTML}{0047FF}      % Electric Royal Blue (protagonista, dal titolo di tesi)
-\definecolor{brandPrimaryDark}{HTML}{0038D1}  % Royal Blue più profondo per enfasi e contrasto
-\definecolor{brandDark}{HTML}{0F172A}         % Deep Charcoal / Slate 900 istituzionale
-\definecolor{brandNavy}{HTML}{0F172A}         % Slate 900 istituzionale
-\definecolor{brandBlue}{HTML}{1E293B}         % Slate 800 secondario
-\definecolor{brandCyan}{HTML}{0047FF}         % Mappato a Electric Blue per coerenza globale
-\definecolor{brandAzure}{HTML}{2563EB}        % Blue 600 per link ed elementi interattivi
-\definecolor{brandPeach}{HTML}{FFA07A}        % Soft Peach caldo (dall'opera geometrica in alto a destra)
-\definecolor{brandCoral}{HTML}{FF6B6B}        % Corallo vibrante
-\definecolor{brandViolet}{HTML}{7C3AED}       % Viola/Indaco gradiente
-\definecolor{brandTeal}{HTML}{059669}         % Emerald/Teal tecnico per status ok e gold layer
-\definecolor{brandEmerald}{HTML}{059669}      % Alias per compatibilità TikZ
-\definecolor{emerald}{HTML}{059669}           % Alias per compatibilità TikZ
-\definecolor{brandCharcoal}{HTML}{1E293B}     % Slate 800 testo ad alto contrasto
-\definecolor{brandMuted}{HTML}{64748B}        % Slate 500 didascalie ed intestazioni
-\definecolor{brandSurface}{HTML}{F8FAFC}      % Slate 50 fondo card e listati
-\definecolor{brandBorder}{HTML}{E2E8F0}       % Slate 200 linee pulite e moderne
+\definecolor{brandPrimary}{HTML}{0047FF}      % --blue: #0047FF
+\definecolor{brandPrimaryDark}{HTML}{0038D1}  % --blue-deep: #0038D1
+\definecolor{brandDark}{HTML}{0F172A}         % --ink: #0F172A
+\definecolor{brandNavy}{HTML}{0F172A}         % alias --ink
+\definecolor{brandInkSoft}{HTML}{334155}      % --ink-soft: #334155
+\definecolor{brandBlue}{HTML}{1E293B}         % slate 800
+\definecolor{brandCyan}{HTML}{0047FF}         % alias --blue
+\definecolor{brandAzure}{HTML}{2563EB}        % link interattivi
+\definecolor{brandPeach}{HTML}{FFA07A}        % --peach: #FFA07A
+\definecolor{brandPeachSoft}{HTML}{FFB598}    % gradiente sfera e sintassi .code .k
+\definecolor{brandPeachInk}{HTML}{E4602F}     % --peach scuro per testo su chiaro
+\definecolor{brandLavender}{HTML}{A9B8F6}     % passaggio intermedio sfera HTML
+\definecolor{brandCoral}{HTML}{FF6B6B}        % --coral: #FF6B6B
+\definecolor{brandCoralInk}{HTML}{D94646}     % --accent-ink bronze
+\definecolor{brandTeal}{HTML}{059669}         % --teal: #059669
+\definecolor{brandEmerald}{HTML}{059669}      % alias --teal
+\definecolor{emerald}{HTML}{059669}           % alias --teal
+\definecolor{brandCharcoal}{HTML}{1E293B}     % testo secondario
+\definecolor{brandMuted}{HTML}{64748B}        % --muted: #64748B
+\definecolor{brandSurface}{HTML}{F8FAFC}      % --surface: #F8FAFC
+\definecolor{brandBorder}{HTML}{E2E8F0}       % --line: #E2E8F0
+\definecolor{brandBorderStrong}{HTML}{CBD5E1} % --line-strong: #CBD5E1
+
+% Palette sintattica identica a .code della presentazione HTML
+\definecolor{codeBg}{HTML}{0F172A}            % --ink (#0F172A)
+\definecolor{codeText}{HTML}{E2E8F0}          % #E2E8F0
+\definecolor{codeKeyword}{HTML}{FFB598}       % .code .k (#FFB598)
+\definecolor{codeString}{HTML}{7DD3A8}        % .code .s (#7DD3A8)
+\definecolor{codeName}{HTML}{93B4FF}          % .code .n (#93B4FF)
+\definecolor{codeComment}{HTML}{64748B}       % .code .c (#64748B)
 
 % === TIKZ E GRAFICA VETTORIALE ===
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric, shadows, calc, backgrounds, fit}
 
-% === TCOLORBOX PER SCHEDE TECNICHE E CALLOUT (PILL & CARD MODERNE) ===
-\usepackage{tcolorbox}
-\tcbuselibrary{skins, breakable}
+% Barra superiore .accent-top ancorata al bordo superiore sinistro di una card TikZ
+\newcommand{\accenttop}[2][brandPrimary]{%
+    \fill[#1, rounded corners=1.2pt] ([xshift=14pt]#2.north west) rectangle ([xshift=44pt, yshift=-3.2pt]#2.north west);%
+}
 
-\newtcolorbox{techbox}[2][brandBorder]{
-    enhanced,
-    breakable,
-    colback=brandSurface,
-    colframe=brandBorder,
-    arc=6pt,
-    boxrule=0.8pt,
-    drop shadow={opacity=0.04, shadow xshift=1.2pt, shadow yshift=-1.5pt},
-    fonttitle=\bfseries\sffamily\small\color{brandDark},
-    colbacktitle=white,
-    title={#2},
-    left=12pt,
-    right=12pt,
-    top=10pt,
-    bottom=10pt,
-    attach boxed title to top left={yshift=-2.5mm, xshift=12pt},
-    boxed title style={
-        boxrule=0.8pt,
-        colframe=brandBorder,
-        arc=4pt,
-        colback=white,
-        drop shadow={opacity=0.03, shadow xshift=1pt, shadow yshift=-1pt}
+% Stili condivisi per tutte le card TikZ (stile editoriale pulito, senza ombreggiature)
+\tikzset{
+    htmlCard/.style={
+        draw=brandBorder,
+        fill=white,
+        rounded corners=4pt,
+        line width=0.8pt,
+        inner sep=10pt
+    },
+    htmlSubCard/.style={
+        draw=brandBorder,
+        fill=brandSurface,
+        rounded corners=3pt,
+        line width=0.8pt,
+        inner xsep=8pt,
+        inner ysep=6pt
     }
 }
 
-% === TITOLI DI CAPITOLO E SEZIONE (STILE GEOMETRICO MODERNO) ===
+% === TCOLORBOX PER I LISTATI DI CODICE ===
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+\newcommand{\FloatBarrier}{}
+
+% === TITOLI DI CAPITOLO E SEZIONE (TIPOGRAFIA EDITORIALE PULITA) ===
 \usepackage{titlesec}
 
-% Capitolo moderno con badge e titolo in Electric Blue / Dark Slate
 \titleformat{\chapter}[display]
     {\normalfont\sffamily\bfseries}
-    {\tikz[baseline=-3pt]\node (chapterbadge) [fill=brandPrimary!10, draw=brandPrimary!35, line width=0.8pt, rounded corners=5pt, inner xsep=8pt, inner ysep=3.5pt]{\footnotesize\bfseries\color{brandPrimary}CAPITOLO \thechapter};}
-    {0.5em}
-    {\fontsize{24}{28}\selectfont\bfseries\color{brandDark}}
-    [\vspace{0.4em}{\color{brandPrimary}\titlerule[2.2pt]}\vspace{0.15em}{\color{brandBorder}\titlerule[0.5pt]}]
+    {\fontsize{11}{14}\selectfont\bfseries\color{brandPrimary}Capitolo \thechapter}
+    {0.35em}
+    {\fontsize{22}{26}\selectfont\bfseries\color{brandDark}}
+    [{\vspace{0.45em}\color{brandBorderStrong}\titlerule[0.8pt]}]
 
-\titlespacing*{\chapter}{0pt}{-20pt}{22pt}
+\titlespacing*{\chapter}{0pt}{10pt}{22pt}
 
-% Sezione pulita con numero colorato in Electric Blue
 \titleformat{\section}
     {\normalfont\Large\sffamily\bfseries\color{brandDark}}
     {\color{brandPrimary}\thesection\quad}
@@ -103,41 +116,33 @@
     {}
 
 \titleformat{\subsection}
-    {\normalfont\large\sffamily\bfseries\color{brandDark!90}}
-    {\color{brandPrimary!85!brandDark}\thesubsection\quad}
+    {\normalfont\large\sffamily\bfseries\color{brandInkSoft}}
+    {\color{brandPrimary}\thesubsection\quad}
     {0em}
     {}
 
-\titleformat{\subsubsection}
-    {\normalfont\normalsize\sffamily\bfseries\color{brandDark!80}}
-    {\color{brandPrimary!75}\thesubsubsection\quad}
-    {0em}
-    {}
+\titlespacing*{\section}{0pt}{15pt}{6pt}
+\titlespacing*{\subsection}{0pt}{11pt}{4pt}
 
-\titlespacing*{\section}{0pt}{14pt}{6pt}
-\titlespacing*{\subsection}{0pt}{10pt}{4pt}
-
-% === HEADER E FOOTER CON FANCYHDR ===
+% === HEADER E FOOTER EDITORIALI ===
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrulewidth}{0.5pt}
 \renewcommand{\headrule}{\hbox to\headwidth{\color{brandBorder}\leaders\hrule height \headrulewidth\hfill}}
 \fancyhead[L]{\textcolor{brandMuted}{\footnotesize\sffamily\nouppercase{\leftmark}}}
-\fancyhead[R]{} % "VitalDB Anomaly Detection" ELIMINATO completamente dalla testata superiore come richiesto
-\fancyfoot[R]{%
-    \tikz[baseline=-3pt]\node[
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=8pt,
-        inner xsep=9pt,
-        inner ysep=3.5pt,
-        text=brandDark,
-        drop shadow={opacity=0.06, shadow xshift=1.2pt, shadow yshift=-1.5pt}
-    ]{\scriptsize\sffamily\bfseries Pag. \textcolor{brandPrimary}{\thepage}};%
+\fancyhead[R]{}
+\fancyfoot[L]{}
+\newcommand{\footerfolio}{\footnotesize\sffamily\bfseries\color{brandDark}}
+\fancyfoot[R]{\footerfolio\thepage}
+
+% Stile plain per le pagine di apertura capitolo coerente con il resto
+\fancypagestyle{plain}{%
+    \fancyhf{}%
+    \renewcommand{\headrulewidth}{0pt}%
+    \fancyfoot[L]{}%
+    \fancyfoot[R]{\footerfolio\thepage}%
 }
-\fancyfoot[L]{\textcolor{brandMuted!80}{\scriptsize\sffamily\bfseries Relazione di Progetto}}
 
 % === FIGURE, TABELLE E DIDASCALIE ===
 \usepackage{graphicx}
@@ -146,16 +151,22 @@
 \usepackage{caption}
 \usepackage{subcaption}
 
+% Spessore e colore dei filetti delle tabelle allineati a table.eval della presentazione
+\arrayrulecolor{brandBorderStrong}
+\setlength{\heavyrulewidth}{1.1pt}
+\setlength{\lightrulewidth}{0.7pt}
+\renewcommand{\arraystretch}{1.28}
+
 \captionsetup{
-    font={small,sf},
+    font={small,sf,color=brandMuted},
     labelfont={bf,color=brandDark},
     format=plain,
     justification=centering,
     skip=8pt
 }
+\captionsetup[lstlisting]{hypcap=false}
 
 % === CONFIGURAZIONE INDICE DEI CONTENUTI (TOC) ===
-% Capitoli in Electric Blue con enfasi visiva, sezioni e sottosezioni nel colore scuro del testo
 \usepackage{titletoc}
 
 \makeatletter
@@ -164,246 +175,171 @@
 \makeatother
 
 \titlecontents{chapter}[0pt]
-    {\addvspace{1.1em}\sffamily\bfseries\setchapterlinkcolor\color{brandPrimary}}
+    {\addvspace{1.0em}\sffamily\bfseries\setchapterlinkcolor\color{brandPrimary}}
     {\contentslabel[\thecontentslabel]{2.0em}}
     {}
     {\hfill\contentspage}
     [\addvspace{0.15em}\resetlinkcolor]
 
 \titlecontents{section}[2.4em]
-    {\addvspace{0.3em}\sffamily\resetlinkcolor\color{brandDark}}
+    {\addvspace{0.28em}\sffamily\resetlinkcolor\color{brandDark}}
     {\contentslabel[\thecontentslabel]{2.4em}}
     {}
     {\titlerule*[0.7pc]{.}\contentspage}
 
 \titlecontents{subsection}[5.2em]
-    {\addvspace{0.15em}\sffamily\small\resetlinkcolor\color{brandDark!85}}
+    {\addvspace{0.12em}\sffamily\small\resetlinkcolor\color{brandInkSoft}}
     {\contentslabel[\thecontentslabel]{3.0em}}
     {}
     {\titlerule*[0.7pc]{.}\contentspage}
 
-% === HYPERREF (LINK E METADATA PDF) ===
+% === HYPERREF ===
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
-    linkcolor=brandDark, % Il testo dei link generali e sezioni TOC è colore scuro
+    linkcolor=brandDark,
     citecolor=brandPrimary,
-    urlcolor=brandAzure,
+    urlcolor=brandPrimary,
     pdftitle={Anomaly detection su dati biometrici},
     pdfauthor={Andrea Altieri, Andrea Flaiani}
 }
 
-% === STILE LISTATI DI CODICE (CARD MODERNA CON INCONSOLATA, STILE MACOS E COLORAZIONE IDE) ===
+% === STILE LISTATI DI CODICE (IDENTICO A .code DELLA SLIDE 07 HTML: #0F172A, SENZA PALLINI MACOS) ===
 \usepackage{listings}
 
-% Palette sintassi IDE moderna (ispirata a VS Code Light)
-\definecolor{ideKeyword}{HTML}{7C3AED}   % Viola per keyword di controllo (def, class, return, async, for, if)
-\definecolor{ideBuiltin}{HTML}{0047FF}   % Electric Blue per booleani, costanti e built-in (True, False, None, self)
-\definecolor{ideType}{HTML}{0284C7}      % Cyan/Azzurro per tipi e classi (int, float, str, torch, nn, ObjectId)
-\definecolor{ideFunc}{HTML}{0D9488}      % Teal per funzioni e metodi chiamati (predict, dropna, fit_predict, get)
-\definecolor{ideString}{HTML}{059669}    % Verde smeraldo per stringhe e valori testuali
-\definecolor{ideComment}{HTML}{64748B}   % Slate per commenti (# e //)
-\definecolor{ideNumber}{HTML}{D97706}    % Ambra/Arancio per numeri e costanti numeriche
-\definecolor{ideField}{HTML}{4338CA}     % Indaco per proprietà e campi chiave ($jsonSchema, bsonType, validator)
-\definecolor{codeGray}{HTML}{94A3B8}     % Slate 400 per numeri di riga
-
-% Colori per i tre pallini stile macOS
-\definecolor{macRed}{HTML}{FF5F56}
-\definecolor{macYellow}{HTML}{FFBD2E}
-\definecolor{macGreen}{HTML}{27C93F}
-
 \lstdefinestyle{codeStyle}{
-    backgroundcolor=\color{brandSurface},
-    commentstyle=\itshape\color{ideComment},
-    stringstyle=\color{ideString},
-    keywordstyle=[1]\bfseries\color{ideKeyword},
-    keywordstyle=[2]\bfseries\color{ideBuiltin},
-    keywordstyle=[3]\bfseries\color{ideType},
-    keywordstyle=[4]\color{ideFunc},
-    keywordstyle=[5]\bfseries\color{ideField},
-    numberstyle=\tiny\color{codeGray},
-    basicstyle=\ttfamily\small\color{brandDark},
+    backgroundcolor=\color{codeBg},
+    commentstyle=\itshape\color{codeComment},
+    stringstyle=\color{codeString},
+    identifierstyle=\color{codeText},
+    keywordstyle=[1]\bfseries\color{codeKeyword},
+    keywordstyle=[2]\bfseries\color{codeKeyword},
+    keywordstyle=[3]\bfseries\color{codeName},
+    keywordstyle=[4]\color{codeName},
+    keywordstyle=[5]\bfseries\color{codeName},
+    numberstyle=\tiny\color{codeComment},
+    basicstyle=\ttfamily\footnotesize\linespread{0.96}\selectfont\color{codeText},
     breakatwhitespace=false,
     breaklines=true,
     keepspaces=true,
     numbers=left,
-    numbersep=8pt,
+    numbersep=10pt,
     showspaces=false,
     showstringspaces=false,
     showtabs=false,
     tabsize=2,
     frame=none,
     xleftmargin=14pt,
-    xrightmargin=6pt,
+    xrightmargin=8pt,
     morecomment=[l]{\#},
     morecomment=[l]{//},
     morestring=[b]",
     morestring=[b]',
     morekeywords=[1]{def, class, return, async, await, if, else, elif, for, in, while, try, except, finally, with, as, import, from, lambda, pass, raise, break, continue},
-    morekeywords=[2]{True, False, None, self, super, null},
-    morekeywords=[3]{int, float, str, bool, list, dict, set, tuple, Optional, Any, List, Dict, nn, torch, np, pd, Module, LSTM, Linear, Sequential, ReLU, Tensor, DataFrame, Series},
+    morekeywords=[2]{True, False, None, self, super, null, false, true},
+    morekeywords=[3]{int, float, str, bool, list, dict, set, tuple, Optional, Any, List, Dict, nn, torch, np, pd, Module, LSTM, Linear, Sequential, ReLU, Tensor, DataFrame, Series, ISODate, ObjectId},
     morekeywords=[4]{fit, fit_predict, predict, score_samples, mean, max, min, sum, sliding_window_view, forward, dropna, ffill, bfill, interpolate, copy, mask, where, notna, isna, delete_many, insert_many, find, aggregate, count_documents, get, items, append, keys, values},
-    morekeywords=[5]{ObjectId, ISODate, bsonType, validator, required, properties, description, collMod, jsonSchema, runCommand, dateTrunc},
+    morekeywords=[5]{bsonType, validator, required, properties, description, collMod, jsonSchema, runCommand, dateTrunc, timestamp, metadata, metrics, quality_flags},
     literate=
-      *{0}{{{\color{ideNumber}0}}}{1}
-       {1}{{{\color{ideNumber}1}}}{1}
-       {2}{{{\color{ideNumber}2}}}{1}
-       {3}{{{\color{ideNumber}3}}}{1}
-       {4}{{{\color{ideNumber}4}}}{1}
-       {5}{{{\color{ideNumber}5}}}{1}
-       {6}{{{\color{ideNumber}6}}}{1}
-       {7}{{{\color{ideNumber}7}}}{1}
-       {8}{{{\color{ideNumber}8}}}{1}
-       {9}{{{\color{ideNumber}9}}}{1}
+      *{0}{{{\color{codeName}0}}}{1}
+       {1}{{{\color{codeName}1}}}{1}
+       {2}{{{\color{codeName}2}}}{1}
+       {3}{{{\color{codeName}3}}}{1}
+       {4}{{{\color{codeName}4}}}{1}
+       {5}{{{\color{codeName}5}}}{1}
+       {6}{{{\color{codeName}6}}}{1}
+       {7}{{{\color{codeName}7}}}{1}
+       {8}{{{\color{codeName}8}}}{1}
+       {9}{{{\color{codeName}9}}}{1}
+       {è}{{\`e}}1
+       {é}{{\'e}}1
+       {à}{{\`a}}1
+       {ò}{{\`o}}1
+       {ù}{{\`u}}1
+       {ì}{{\`i}}1
 }
 \lstset{style=codeStyle}
 
-% Rinomina l'etichetta da "Listing" a "Listato" in italiano
 \renewcommand{\lstlistingname}{Listato}
 \renewcommand{\lstlistlistingname}{Elenco dei listati}
 
 \tcolorboxenvironment{lstlisting}{
     enhanced,
-    breakable,
-    colback=brandSurface,
-    colframe=brandBorder,
-    arc=6pt,
-    boxrule=0.9pt,
-    top=18pt,
+    colback=codeBg,
+    colframe=brandBlue,
+    colupper=codeText,
+    fontupper=\color{codeText},
+    arc=4pt,
+    boxrule=0.6pt,
+    top=8pt,
     bottom=8pt,
-    left=6pt,
-    right=6pt,
-    drop shadow={opacity=0.04, shadow xshift=1.2pt, shadow yshift=-1.5pt},
-    overlay unbroken and first={
-        % Tre pallini stile macOS integrati senza alcuna linea divisoria
-        \fill[macRed] ([xshift=14pt, yshift=-10pt]frame.north west) circle (2.8pt);
-        \fill[macYellow] ([xshift=22pt, yshift=-10pt]frame.north west) circle (2.8pt);
-        \fill[macGreen] ([xshift=30pt, yshift=-10pt]frame.north west) circle (2.8pt);
-    },
-    overlay middle and last={
-        \node[anchor=west, font=\sffamily\tiny\color{brandMuted}] at ([xshift=12pt, yshift=-7pt]frame.north west) {continua dalla pagina precedente\dots};
-    }
+    left=8pt,
+    right=8pt,
+    after skip=9pt
 }
 
-% Path per le immagini grafiche raster
+% Path per le immagini
 \graphicspath{{img/}{capitolo1/img/}{capitolo2/img/}{capitolo3/img/}{capitolo4/img/}}
 
 \begin{document}
 
 \hypersetup{pageanchor=false}
-% === FRONTESPIZIO MODERNO (DESIGN CON SFERA GRADIENTE, TITOLO AL CENTRO E CREDENZIALI IN BASSO) ===
+% === FRONTESPIZIO (TIPOGRAFIA EDITORIALE MINIMALISTA) ===
 \begin{titlepage}
-\begin{tikzpicture}[remember picture, overlay]
-    % Composizione geometrica astratta con sfumatura calda Pesca / Corallo / Electric Blue in alto a destra
-    \begin{scope}
-        \clip ([xshift=1cm, yshift=1cm]current page.north east) rectangle ([xshift=-12cm, yshift=-11cm]current page.north east);
-        % Sfera principale con gradiente radiale
-        \shade[shading=radial, inner color=brandPeach!95, outer color=brandPrimary!90, opacity=0.92]
-            ([xshift=-1.8cm, yshift=-2.2cm]current page.north east) circle (4.8cm);
-        % Settore curvo complementare superiore
-        \shade[left color=brandPeach!85, right color=brandPrimary!80, opacity=0.88]
-            ([xshift=0.3cm, yshift=-0.2cm]current page.north east) circle (3.4cm);
-        % Linea curva bianca di separazione geometrica
-        \draw[white, line width=3.5pt]
-            ([xshift=-1.8cm, yshift=-2.2cm]current page.north east) circle (4.8cm);
-    \end{scope}
+\sffamily
 
-    % Testata istituzionale UNIVPM in alto a sinistra (stile pulito ed essenziale)
-    \node[anchor=north west, align=left, text width=11.5cm] at ([xshift=2.4cm, yshift=-2.4cm]current page.north west) {
-        {\fontsize{12}{15}\selectfont\sffamily\bfseries\color{brandDark} UNIVERSITÀ POLITECNICA DELLE MARCHE}\\[4pt]
-        {\fontsize{9}{12}\selectfont\sffamily\bfseries\color{brandMuted} DIPARTIMENTO DI INGEGNERIA DELL'INFORMAZIONE}\\[3pt]
-        {\fontsize{8.5}{11.5}\selectfont\sffamily\color{brandDark!70} Corso di Laurea Magistrale in Ingegneria Informatica e dell'Automazione}\\[2.5pt]
-        {\fontsize{8.5}{11.5}\selectfont\sffamily\bfseries\color{brandPrimary} Insegnamento di New Generation Databases}
-    };
+% Testata istituzionale con sigillo ufficiale affiancato
+\noindent
+\begin{minipage}[t]{0.70\textwidth}
+    \vspace{0pt}
+    {\fontsize{13}{16}\selectfont\bfseries\color{brandDark} UNIVERSIT\`A POLITECNICA DELLE MARCHE}\\[5pt]
+    {\fontsize{9.5}{13}\selectfont\bfseries\color{brandMuted} DIPARTIMENTO DI INGEGNERIA DELL'INFORMAZIONE}\\[4pt]
+    {\fontsize{9}{12}\selectfont\color{brandInkSoft} Corso di Laurea Magistrale in Ingegneria Informatica e dell'Automazione}\\[3pt]
+    {\fontsize{9}{12}\selectfont\bfseries\color{brandPrimary} Insegnamento di New Generation Databases}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.26\textwidth}
+    \vspace{0pt}
+    \raggedleft
+    \includegraphics[width=2.5cm]{univpm_seal.png}
+\end{minipage}
 
-    % Sigillo ufficiale UNIVPM racchiuso in card circolare minimalista
-    \node[
-        circle,
-        fill=white,
-        draw=brandBorder,
-        line width=0.9pt,
-        inner sep=3pt,
-        drop shadow={opacity=0.08, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] at ([xshift=-3.2cm, yshift=-6.4cm]current page.north east) {
-        \includegraphics[width=2.2cm]{univpm_seal.png}
-    };
+\vspace{0.8cm}
+{\color{brandBorderStrong}\hrule height 0.8pt}
 
-    % Titolo Principale ad Alto Impatto posizionato al centro verticale della pagina
-    \node[anchor=west, align=left, text width=16.5cm] at ([xshift=2.4cm, yshift=-13.0cm]current page.north west) {
-        {\fontsize{34}{38}\selectfont\sffamily\bfseries\color{brandPrimary} ANOMALY DETECTION\par}
-        \vspace{0.18cm}
-        {\fontsize{34}{38}\selectfont\sffamily\bfseries\color{brandPrimary} SU DATI BIOMETRICI\par}
-        \vspace{0.45cm}
-        {\fontsize{18}{22}\selectfont\sffamily\bfseries\color{brandDark} RELAZIONE DI PROGETTO\par}
-    };
+\vspace{2.8cm}
 
-    % Linea d'accento decorativa sotto il titolo
-    \draw[brandPrimary, line width=2.4pt] ([xshift=2.4cm, yshift=-15.8cm]current page.north west) -- ([xshift=5.6cm, yshift=-15.8cm]current page.north west);
+% Blocco titolo principale e sottotitolo
+\noindent
+{\fontsize{28}{34}\selectfont\bfseries\color{brandDark} Anomaly detection su dati biometrici\par}
+\vspace{0.35cm}
+{\fontsize{15}{19}\selectfont\bfseries\color{brandPrimary} Relazione di progetto\par}
+\vspace{0.55cm}
+{\color{brandPrimary}\rule{3.2cm}{1.5pt}}
 
-    % --- CREDENZIALI IN BASSO: DOCENTE (SINISTRA) E CANDIDATI (DESTRA) ---
-    % Colonna Sinistra: Docente
-    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=2.4cm, yshift=-18.8cm]current page.north west) {Docente:};
+\vfill
 
-    \node[
-        anchor=west,
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=12pt,
-        inner xsep=12pt,
-        inner ysep=5.5pt,
-        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] at ([xshift=2.4cm, yshift=-20.0cm]current page.north west) {
-        \normalsize\sffamily\bfseries\color{brandDark} Prof.ssa Claudia Diamantini\hspace{8pt}%
-        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
-    };
+% Metadati: Docente e Candidati su due colonne bilanciate
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+    {\scriptsize\bfseries\color{brandMuted} DOCENTE}\\[0.45em]
+    {\large\bfseries\color{brandDark} Prof.ssa Claudia Diamantini}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+    {\scriptsize\bfseries\color{brandMuted} CANDIDATI}\\[0.45em]
+    {\large\bfseries\color{brandDark} Andrea Altieri}\\[0.28em]
+    {\large\bfseries\color{brandDark} Andrea Flaiani}
+\end{minipage}
 
-    % Colonna Destra: Candidati
-    \node[anchor=west, font=\sffamily\small\bfseries\color{brandDark!75}] at ([xshift=11.2cm, yshift=-18.8cm]current page.north west) {Candidati:};
+\vspace{1.4cm}
+{\color{brandBorder}\hrule height 0.6pt}
+\vspace{0.5cm}
 
-    \node[
-        anchor=west,
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=12pt,
-        inner xsep=12pt,
-        inner ysep=5.5pt,
-        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] (s1) at ([xshift=11.2cm, yshift=-20.0cm]current page.north west) {
-        \normalsize\sffamily\bfseries\color{brandDark} Andrea Altieri\hspace{8pt}%
-        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
-    };
+% Anno accademico
+\noindent
+{\small\color{brandMuted} Anno accademico 2026/2027}
 
-    \node[
-        anchor=west,
-        fill=white,
-        draw=brandBorder,
-        line width=0.8pt,
-        rounded corners=12pt,
-        inner xsep=12pt,
-        inner ysep=5.5pt,
-        drop shadow={opacity=0.07, shadow xshift=1.5pt, shadow yshift=-2pt}
-    ] (s2) at ([xshift=11.2cm, yshift=-21.4cm]current page.north west) {
-        \normalsize\sffamily\bfseries\color{brandDark} Andrea Flaiani\hspace{8pt}%
-        \tikz[baseline=-2.5pt]\shade[left color=brandPeach, right color=brandPrimary] (0,0) circle (4.5pt);
-    };
-
-    % Linea divisoria inferiore sottile
-    \draw[brandBorder, line width=0.8pt] ([xshift=2.4cm, yshift=-23.8cm]current page.north west) -- ([xshift=-2.4cm, yshift=-23.8cm]current page.north east);
-
-    % Anno Accademico in pill badge
-    \node[anchor=west] at ([xshift=2.4cm, yshift=-24.9cm]current page.north west) {
-        \tikz\node[
-            fill=brandSurface,
-            draw=brandBorder,
-            line width=0.8pt,
-            rounded corners=8pt,
-            inner xsep=10pt,
-            inner ysep=4pt
-        ]{\sffamily\bfseries\small\color{brandDark} Anno Accademico 2026/2027};
-    };
-\end{tikzpicture}
 \end{titlepage}
 \hypersetup{pageanchor=true}
 

@@ -1,0 +1,89 @@
+% Diagramma TikZ per regole di bonifica ed evoluzione dello schema (essenziale e pulito)
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    node distance=0.8cm,
+    ruleBox/.style={
+        draw=brandBorderStrong,
+        fill=white,
+        rounded corners=4pt,
+        line width=0.8pt,
+        minimum width=6.2cm,
+        minimum height=1.05cm,
+        align=left,
+        inner xsep=8pt,
+        inner ysep=4pt
+    },
+    schemaBox/.style={
+        draw=brandBorderStrong,
+        fill=white,
+        rounded corners=4pt,
+        line width=0.9pt,
+        minimum width=5.6cm,
+        minimum height=1.35cm,
+        align=center,
+        inner sep=6pt
+    },
+    flowArrow/.style={
+        ->,
+        line width=1.4pt,
+        color=brandPrimary
+    }
+]
+
+    % ==================== COLONNA SINISTRA: 4 REGOLE DI BONIFICA ====================
+    \node[font=\footnotesize\bfseries\color{brandPrimary}, anchor=west] at (-6.8, 3.4) {4 Regole Fisiologiche di Bonifica};
+
+    % Regola 1: Outlier
+    \node[ruleBox, draw=brandCoral, fill=brandCoral!5] (r1) at (-3.7, 2.5) {
+        \textbf{\color{brandCoralInk}1. Mascheramento Outlier}\\
+        {\scriptsize $x \notin \text{TRACK\_SPECS} \implies \texttt{*\_outlier = True} \land x = \text{NaN}$}
+    };
+
+    % Regola 2: Interpolazione
+    \node[ruleBox, draw=brandPrimary, fill=brandPrimary!5, below=0.35cm of r1] (r2) {
+        \textbf{\color{brandPrimary}2. Interpolazione Lineare Gap Brevi}\\
+        {\scriptsize $\Delta t \le 5\text{ s} \implies \text{interpolazione}$ (\texttt{HR\_imputed = True})}
+    };
+
+    % Regola 3: LOCF
+    \node[ruleBox, draw=brandPeachInk, fill=brandPeach!8, below=0.35cm of r2] (r3) {
+        \textbf{\color{brandPeachInk}3. Propagazione NIBP (LOCF)}\\
+        {\scriptsize $\Delta t \le 300\text{ s} \implies \text{mantieni costante}$ (\texttt{SBP\_imputed = True})}
+    };
+
+    % Regola 4: Decadimento
+    \node[ruleBox, draw=brandTeal, fill=brandTeal!5, below=0.35cm of r3] (r4) {
+        \textbf{\color{brandTeal}4. Contatore di Freschezza Misura}\\
+        {\scriptsize $\texttt{nibp\_age\_s} = t - t_{\text{last\_cuff}} \quad (\text{sentinella } 9999.0)$}
+    };
+
+    % ==================== COLONNA DESTRA: EVOLUZIONE DELLO SCHEMA ====================
+    \node[font=\footnotesize\bfseries\color{brandDark}, anchor=west] at (1.0, 3.4) {Evoluzione Formale dello Schema};
+
+    % Schema 1: Bronze
+    \node[schemaBox, draw=brandCoral, fill=brandCoral!6] (s1) at (3.8, 2.3) {
+        {\textbf{\color{brandCoralInk}Bronze Parquet (6 colonne)}}\\[2pt]
+        {\scriptsize \texttt{Time}, 5 tracce biometriche grezze}
+    };
+
+    % Schema 2: Silver
+    \node[schemaBox, draw=brandPrimary, fill=brandPrimary!6, below=0.9cm of s1] (s2) {
+        {\textbf{\color{brandPrimary}Silver Parquet (18 colonne)}}\\[2pt]
+        {\scriptsize 6 vitali + 5 outlier + 5 imputed + \texttt{age} + \texttt{dep}}
+    };
+
+    % Schema 3: Gold
+    \node[schemaBox, draw=brandTeal, fill=brandTeal!6, below=0.9cm of s2] (s3) {
+        {\textbf{\color{brandTeal}Gold Documento BSON (4 sezioni)}}\\[2pt]
+        {\scriptsize \texttt{timestamp}, \texttt{metadata}, \texttt{metrics}, \texttt{flags} (NaN omessi)}
+    };
+
+    % Frecce verticali di transizione dello schema
+    \draw[flowArrow] (s1) -- (s2)
+        node[midway, right=3pt, font=\scriptsize\bfseries\color{brandPrimary}] {+12 flag \& feature};
+
+    \draw[flowArrow, color=brandTeal] (s2) -- (s3)
+        node[midway, right=3pt, font=\scriptsize\bfseries\color{brandTeal}] {BSON (-40 pt null)};
+
+\end{tikzpicture}
