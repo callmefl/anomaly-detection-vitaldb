@@ -48,6 +48,10 @@
 
             --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
             --duration: 0.75s;
+
+            /* Ombre editoriali per i riquadri */
+            --card-shadow: 0 10px 30px rgba(10, 15, 29, 0.08), 0 2px 8px rgba(10, 15, 29, 0.04);
+            --card-shadow-lg: 0 16px 44px rgba(10, 15, 29, 0.10), 0 4px 12px rgba(10, 15, 29, 0.05);
         }
 
         * {
@@ -176,7 +180,15 @@
             text-transform: uppercase;
             color: var(--ink);
             margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 2px solid var(--ink);
             flex: 0 0 auto;
+        }
+
+        .slide.cover .slide-title,
+        .slide.conclusion .slide-title {
+            border-bottom: none;
+            padding-bottom: 0;
         }
 
         .slide-title em {
@@ -284,7 +296,7 @@
             border-left: 5px solid var(--blue);
             padding: 18px 24px;
             border-radius: 0 16px 16px 0;
-            box-shadow: 0 6px 24px rgba(10, 15, 29, 0.04);
+            box-shadow: var(--card-shadow);
             font-size: 21px;
             line-height: 1.4;
             color: var(--ink-soft);
@@ -315,7 +327,7 @@
             background: #fff;
             border-radius: 20px;
             padding: 32px 36px;
-            box-shadow: 0 8px 32px rgba(10, 15, 29, 0.05);
+            box-shadow: var(--card-shadow-lg);
             border: 1px solid var(--line);
         }
 
@@ -373,7 +385,7 @@
             border-radius: 18px;
             padding: 24px 28px;
             border: 1px solid var(--line);
-            box-shadow: 0 6px 20px rgba(10, 15, 29, 0.04);
+            box-shadow: var(--card-shadow);
         }
 
         .stat-item .val {
@@ -421,7 +433,7 @@
             border-radius: 20px;
             padding: 28px 32px;
             border: 1px solid var(--line);
-            box-shadow: 0 8px 32px rgba(10, 15, 29, 0.05);
+            box-shadow: var(--card-shadow-lg);
             width: 100%;
         }
 
@@ -586,7 +598,7 @@
             padding: 36px 36px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 8px 32px rgba(10, 15, 29, 0.05);
+            box-shadow: var(--card-shadow-lg);
         }
 
         .med-col.highlight {
@@ -762,7 +774,7 @@
             border-radius: 16px;
             padding: 16px 8px;
             text-align: center;
-            box-shadow: 0 4px 16px rgba(10, 15, 29, 0.04);
+            box-shadow: var(--card-shadow);
         }
 
         .flow-card.hero {
@@ -966,8 +978,32 @@
         }
 
         /* ===========================================
-           FRONTESPIZIO & CHIUSURA
+           ELEMENTI GRAFICI DI SFONDO
            =========================================== */
+        /* Sfere speciali copertina */
+        .sphere {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(80px);
+            z-index: 0;
+        }
+
+        .sphere.xl-a {
+            width: 600px;
+            height: 600px;
+            right: -100px;
+            top: -100px;
+            background: radial-gradient(circle, rgba(0, 71, 255, 0.25) 0%, rgba(220, 38, 38, 0.18) 50%, transparent 75%);
+        }
+
+        .sphere.xl-b {
+            width: 500px;
+            height: 500px;
+            right: 200px;
+            top: 100px;
+            background: radial-gradient(circle, rgba(10, 15, 29, 0.15) 0%, transparent 70%);
+        }
         .slide.cover {
             padding: 80px 100px;
             justify-content: space-between;
@@ -1760,185 +1796,391 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Qualità & Governance">
                 <div class="kick reveal"><i class="dot"></i> 02 · Data Governance</div>
-                <h2 class="slide-title reveal">Data Governance: <em>integrità garantita</em></h2>
+                <h2 class="slide-title reveal">Data Governance: <em>integrità e controllo dei dati</em></h2>
 
                 <div class="canvas">
-                    <div class="stat-row cols-4 reveal" style="height:100%; align-items:stretch;">
-                        <div class="stat-item" style="display:flex; flex-direction:column; justify-content:space-between;">
-                            <div>
-                                <div class="kick" style="margin:0 0 12px 0;"><i class="dot dark"></i> Registry</div>
-                                <div class="lbl" style="font-size:24px; margin-bottom:8px;">Catalogo Casi</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Collezione dedicata con metadati anagrafici, durata e stato di caricamento validato via <b>JSON Schema obbligatorio</b>.
-                                </p>
+                    <div class="editorial-split equal">
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Il passaggio alla sala operatoria richiede <b class="blue">regole formali di conformità</b> per prevenire record incompleti o corruzioni silenziose.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet dark"></div>
+                                    <div><b>Catalogo centralizzato (<span class="mono">registry</span>)</b>: ogni intervento registra stato, durata, reparto e timestamp. Ingestione vincolata da <b>JSON Schema nativo</b> MongoDB.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Dizionario unico (<span class="mono">TRACK_SPECS</span>)</b>: sorgente unica condivisa tra pipeline di pulizia, controlli database e interfaccia utente.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet red"></div>
+                                    <div><b>Audit continuo (<span class="mono">quality_report.json</span>)</b>: tracciamento sistematico di tassi di campionamento, celle mancanti e valori corretti.</div>
+                                </div>
                             </div>
-                            <span class="chip" style="align-self:flex-start;">Schema Validation</span>
                         </div>
 
-                        <div class="stat-item" style="display:flex; flex-direction:column; justify-content:space-between;">
-                            <div>
-                                <div class="kick" style="margin:0 0 12px 0;"><i class="dot"></i> Dizionario</div>
-                                <div class="lbl" style="font-size:24px; margin-bottom:8px;">TRACK_SPECS</div>
-                                <p class="desc" style="font-size:18px;">
-                                    <b>Unico file di configurazione</b> condiviso tra pipeline di pulizia, controlli database e interfaccia utente.
-                                </p>
+                        <div class="open-table-wrap reveal" style="padding: 24px 28px;">
+                            <div style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
+                                Matrice di Governance e Garanzie del Sistema
                             </div>
-                            <span class="chip" style="align-self:flex-start;">Single Source of Truth</span>
-                        </div>
-
-                        <div class="stat-item" style="display:flex; flex-direction:column; justify-content:space-between;">
-                            <div>
-                                <div class="kick" style="margin:0 0 12px 0;"><i class="dot red"></i> Qualità</div>
-                                <div class="lbl" style="font-size:24px; margin-bottom:8px;">Quality Report</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Reportistica automatica generata ad ogni caricamento con percentuali di valori reali, interpolati e mancanti.
-                                </p>
+                            <table class="open-table" style="font-size:18px;">
+                                <thead>
+                                    <tr>
+                                        <th>Componente</th>
+                                        <th>Meccanismo di Controllo</th>
+                                        <th class="r">Garanzia Fornita</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><b class="mono">registry</b></td>
+                                        <td>JSON Schema Validator</td>
+                                        <td class="r">Rifiuto record orfani</td>
+                                    </tr>
+                                    <tr class="hl">
+                                        <td><b class="mono">TRACK_SPECS</b></td>
+                                        <td>Single Source of Truth</td>
+                                        <td class="r">Zero drift nelle soglie</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b class="mono">transazioni</b></td>
+                                        <td>Stato <span class="mono">loading → committed</span></td>
+                                        <td class="r">Nessuna lettura parziale</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b class="mono">quality_report</b></td>
+                                        <td>Generazione automatica</td>
+                                        <td class="r">Audit clinico 100% tracciato</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="callout-box" style="margin-top:18px; font-size:17px; padding:14px 18px;">
+                                <b>Sicurezza clinica</b>: se il caricamento di un caso fallisce o viene interrotto, il database esclude il paziente dalle analisi mediche finché l'integrità non è ristabilita.
                             </div>
-                            <span class="chip" style="align-self:flex-start; color:var(--red); border-color:var(--red-line);">Automated Audit</span>
-                        </div>
-
-                        <div class="stat-item" style="display:flex; flex-direction:column; justify-content:space-between;">
-                            <div>
-                                <div class="kick" style="margin:0 0 12px 0;"><i class="dot"></i> Transazioni</div>
-                                <div class="lbl" style="font-size:24px; margin-bottom:8px;">Caricamento a 2 Fasi</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Stato <span class="mono">loading → committed</span>. I consumatori leggono solo dati completi; i fallimenti vengono purgati.
-                                </p>
-                            </div>
-                            <span class="chip" style="align-self:flex-start;">Two-Phase Commit</span>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- ===========================================
-                 12 — QUATTRO METODI
+                 12 — QUATTRO METODI (GRIGLIA 2x2)
                  =========================================== -->
             <section class="slide" data-section="03 · Rilevamento">
                 <div class="kick reveal"><i class="dot red"></i> 03 · Metodi di Rilevamento</div>
-                <h2 class="slide-title reveal">Rilevamento anomalie: <em>quattro metodi a confronto</em></h2>
+                <h2 class="slide-title reveal">Architettura di rilevamento: <em>quattro metodi complementari</em></h2>
 
-                <div class="canvas">
-                    <div class="stat-row cols-4 reveal" style="height:100%; align-items:stretch;">
-                        <div class="stat-item" style="border-top:5px solid var(--blue); display:flex; flex-direction:column; justify-content:space-between;">
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:center;">
+                    <!-- Griglia 2x2 pulita senza bordi colorati con icone e formule -->
+                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:26px; width:100%;" class="reveal">
+                        
+                        <!-- Blocco 1: Shock Index (Clinico Rapido) -->
+                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <span class="pill sm blue-solid" style="margin-bottom:14px;">Regola Clinica</span>
-                                <div class="lbl" style="font-size:26px;">Shock Index</div>
-                                <div class="formula red" style="margin:10px 0;">HR / SBP &gt; 0,9</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Frequenza cardiaca elevata con pressione sistolica bassa. Rileva ipovolemia e collasso cardiocircolatorio imminente.
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                    <div style="display:flex; align-items:center; gap:14px;">
+                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--red-wash); display:flex; align-items:center; justify-content:center; color:var(--red); flex-shrink:0;">
+                                            <!-- Icona Cuore / Battito -->
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                                                <path d="M12 5v1.5l1.5 2 2-4 1.5 3.5 1.5-3"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <span class="pill sm red-soft" style="font-size:14px; padding:6px 14px;">CLINICO #1 · SALVAVITA</span>
+                                        </div>
+                                    </div>
+                                    <span style="font-size:16px; font-weight:700; color:var(--muted); font-family:var(--font-mono);">&lt; 1 sec</span>
+                                </div>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Shock Index (SI)</h3>
+                                <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
+                                    Indice emodinamico di compenso cardiovascolare rapido.
                                 </p>
+                                
+                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Condizione di Trigger</div>
+                                    <div style="font-size:24px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">HR / SBP &gt; 0,9</div>
+                                </div>
+
+                                <div style="font-size:18px; color:var(--muted); line-height:1.45;">
+                                    <b style="color:var(--ink);">Target clinico</b>: Riconosce shock ipovolemico, emorragico o settico prima del tracollo pressorio conclamato.
+                                </div>
                             </div>
-                            <div style="font-size:15px; color:var(--muted); font-weight:600;">Richiede NIBP &lt; 120 s</div>
                         </div>
 
-                        <div class="stat-item" style="border-top:5px solid var(--blue); display:flex; flex-direction:column; justify-content:space-between;">
+                        <!-- Blocco 2: Ipotensione + Ipossia (Clinico Emergenza) -->
+                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <span class="pill sm blue-solid" style="margin-bottom:14px;">Regola Clinica</span>
-                                <div class="lbl" style="font-size:26px;">Ipotensione + Ipossia</div>
-                                <div class="formula red" style="margin:10px 0;">MBP &lt; 65 e SpO₂ &lt; 90%</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Co-occorrenza di ipoperfusione d'organo e deficit di ossigenazione periferica. Emergenza intraoperatoria critica.
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                    <div style="display:flex; align-items:center; gap:14px;">
+                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--red-wash); display:flex; align-items:center; justify-content:center; color:var(--red); flex-shrink:0;">
+                                            <!-- Icona Allarme / Emergenza -->
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <span class="pill sm red-soft" style="font-size:14px; padding:6px 14px;">CLINICO #2 · EMERGENZA</span>
+                                        </div>
+                                    </div>
+                                    <span style="font-size:16px; font-weight:700; color:var(--muted); font-family:var(--font-mono);">&lt; 1 sec</span>
+                                </div>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Ipotensione + Ipossia</h3>
+                                <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
+                                    Allarme congiunto di ipoperfusione e deficit d'ossigeno.
                                 </p>
+                                
+                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Condizione di Trigger</div>
+                                    <div style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">MBP &lt; 65 &amp; SpO₂ &lt; 90%</div>
+                                </div>
+
+                                <div style="font-size:18px; color:var(--muted); line-height:1.45;">
+                                    <b style="color:var(--ink);">Target clinico</b>: Rischio ischemico acuto d'organo. Esclude falsi allarmi verificando <span class="mono">nibp_age &lt; 120s</span>.
+                                </div>
                             </div>
-                            <div style="font-size:15px; color:var(--muted); font-weight:600;">Allarme combinato</div>
                         </div>
 
-                        <div class="stat-item" style="border-top:5px solid var(--ink); display:flex; flex-direction:column; justify-content:space-between;">
+                        <!-- Blocco 3: Isolation Forest (ML Multivariato) -->
+                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <span class="pill sm ink-solid" style="margin-bottom:14px;">Machine Learning</span>
-                                <div class="lbl" style="font-size:26px;">Isolation Forest</div>
-                                <div class="formula" style="margin:10px 0; color:var(--ink); background:var(--surface); border-color:var(--line-strong);">8 feature · 5% soglia</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Isola punti anomali multidimensionali su 8 canali fisiologici contemporaneamente, senza assumere distribuzioni note.
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                    <div style="display:flex; align-items:center; gap:14px;">
+                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0;">
+                                            <!-- Icona Albero Decisionali / Rete -->
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="3" y="3" width="6" height="6" rx="2"/>
+                                                <rect x="15" y="15" width="6" height="6" rx="2"/>
+                                                <rect x="3" y="15" width="6" height="6" rx="2"/>
+                                                <path d="M6 9v3a3 3 0 0 0 3 3h6"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">ML MULTIVARIATO STATICO</span>
+                                        </div>
+                                    </div>
+                                    <span style="font-size:16px; font-weight:700; color:var(--blue); font-family:var(--font-mono);">Punto 8D</span>
+                                </div>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Isolation Forest</h3>
+                                <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
+                                    Isolamento rapido geometrico nello spazio 8-dimensionale.
                                 </p>
+                                
+                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Configurazione Modello</div>
+                                    <div style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">100 alberi · Contam. 5%</div>
+                                </div>
+
+                                <div style="font-size:18px; color:var(--muted); line-height:1.45;">
+                                    <b style="color:var(--ink);">Target clinico</b>: Intercetta discordanze atipiche tra parametri (es. FC vs Pressione vs EtCO₂) non catturate da soglie singole.
+                                </div>
                             </div>
-                            <div style="font-size:15px; color:var(--muted); font-weight:600;">Algoritmo non parametrico</div>
                         </div>
 
-                        <div class="stat-item" style="border-top:5px solid var(--ink); display:flex; flex-direction:column; justify-content:space-between;">
+                        <!-- Blocco 4: Autoencoder LSTM (Deep Learning) -->
+                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <span class="pill sm ink-solid" style="margin-bottom:14px;">Deep Learning</span>
-                                <div class="lbl" style="font-size:26px;">Autoencoder LSTM</div>
-                                <div class="formula" style="margin:10px 0; color:var(--ink); background:var(--surface); border-color:var(--line-strong);">Finestre da 30 secondi</div>
-                                <p class="desc" style="font-size:18px;">
-                                    Rete neurale ricorrente che apprende l'andamento fisiologico normale; sequenze non ricostruibili segnalano crisi.
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                    <div style="display:flex; align-items:center; gap:14px;">
+                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0;">
+                                            <!-- Icona Onde Temporali / Serie temporale -->
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M3 12h3l3-8 4 16 3-8h5"/>
+                                                <circle cx="19" cy="12" r="2"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">DEEP LEARNING DINAMICO</span>
+                                        </div>
+                                    </div>
+                                    <span style="font-size:16px; font-weight:700; color:var(--blue); font-family:var(--font-mono);">Finestra 30s</span>
+                                </div>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Autoencoder LSTM</h3>
+                                <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
+                                    Apprendimento della normale dinamica temporale dei segnali.
                                 </p>
+                                
+                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Metrica di Errore</div>
+                                    <div style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">Worst-ch MSE &gt; P99</div>
+                                </div>
+
+                                <div style="font-size:18px; color:var(--muted); line-height:1.45;">
+                                    <b style="color:var(--ink);">Target clinico</b>: Rileva trend lenti premonitori e instabilità progressive 30-60 secondi prima dell'allarme clinico.
+                                </div>
                             </div>
-                            <div style="font-size:15px; color:var(--muted); font-weight:600;">Modello temporale sequenziale</div>
                         </div>
+
                     </div>
                 </div>
             </section>
 
             <!-- ===========================================
-                 13 — AUTOENCODER LSTM
+                 13 — AUTOENCODER LSTM: COME FUNZIONA
                  =========================================== -->
-            <section class="slide" data-section="03 · Autoencoder">
+            <section class="slide" data-section="03 · Autoencoder LSTM">
                 <div class="kick reveal"><i class="dot"></i> 03 · Deep Learning Temporale</div>
-                <h2 class="slide-title reveal">Autoencoder LSTM: <em>architettura e ricostruzione</em></h2>
+                <h2 class="slide-title reveal">Autoencoder LSTM: <em>imparare la normalità per scovare le crisi</em></h2>
 
-                <div class="canvas">
-                    <div class="flow-chain reveal">
-                        <div class="flow-card">
-                            <div class="cat">INPUT</div>
-                            <div class="main-lbl">Finestra</div>
-                            <div class="dim">30s × 8 ch</div>
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between; gap:26px;">
+                    
+                    <!-- Diagramma Funzionamento Intuitivo a 3 Fasi Chiare -->
+                    <div class="reveal" style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:36px 42px; box-shadow:var(--card-shadow-lg);">
+                        <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between;">
+                            <span>Come ragiona la rete neurale passo dopo passo:</span>
+                            <span class="pill sm blue-soft" style="font-size:15px; padding:6px 16px;">Finestra di 30 secondi · 8 parametri insieme</span>
                         </div>
-                        <div class="flow-arrow"><svg width="20" height="16" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-                        <div class="flow-card">
-                            <div class="cat">ENCODER</div>
-                            <div class="main-lbl">LSTM</div>
-                            <div class="dim">32 hidden</div>
-                        </div>
-                        <div class="flow-arrow"><svg width="20" height="16" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-                        <div class="flow-card hero">
-                            <div class="cat">LATENT</div>
-                            <div class="main-lbl">Vettore h</div>
-                            <div class="dim">32 valori</div>
-                        </div>
-                        <div class="flow-arrow"><svg width="20" height="16" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-                        <div class="flow-card">
-                            <div class="cat">REPEAT</div>
-                            <div class="main-lbl">RepeatVector</div>
-                            <div class="dim">× 30 passi</div>
-                        </div>
-                        <div class="flow-arrow"><svg width="20" height="16" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-                        <div class="flow-card">
-                            <div class="cat">DECODER</div>
-                            <div class="main-lbl">LSTM</div>
-                            <div class="dim">32 hidden</div>
-                        </div>
-                        <div class="flow-arrow"><svg width="20" height="16" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-                        <div class="flow-card">
-                            <div class="cat">OUTPUT</div>
-                            <div class="main-lbl">Ricostruzione</div>
-                            <div class="dim">30s × 8 ch</div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 40px 1.15fr 40px 1fr; align-items:center; gap:0;">
+                            
+                            <!-- Passo 1: Ingresso (Nero/Ink naturale su fondo chiaro) -->
+                            <div style="background:#fff; border:1px solid var(--line); border-radius:20px; padding:28px 24px; text-align:center; box-shadow:var(--card-shadow);">
+                                <div style="display:inline-block; font-size:14px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Fase 1 · Ingresso</div>
+                                <div style="font-size:32px; font-weight:800; color:var(--ink); margin-bottom:8px;">30 Secondi</div>
+                                <p style="font-size:20px; line-height:1.4; color:var(--ink-soft);">
+                                    La rete legge i tracciati (battito, pressione, ossigeno) negli ultimi 30 secondi.
+                                </p>
+                            </div>
+
+                            <div style="text-align:center; color:var(--muted);"><svg width="28" height="24" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+
+                            <!-- Passo 2: Il Riassunto (Nero pieno solido var(--ink), elemento centrale) -->
+                            <div style="background:var(--ink); border-radius:22px; padding:32px 26px; text-align:center; color:#fff; box-shadow:var(--card-shadow-lg);">
+                                <div style="display:inline-block; font-size:14px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Fase 2 · Compressione</div>
+                                <div style="font-size:32px; font-weight:800; color:#fff; margin-bottom:8px;">Il "Riassunto"</div>
+                                <p style="font-size:20px; line-height:1.4; color:#E2E8F0;">
+                                    Comprime tutti i dati in un piccolo pacchetto di <b style="color:#93B4FF;">32 numeri chiave</b>.
+                                </p>
+                            </div>
+
+                            <div style="text-align:center; color:var(--blue);"><svg width="28" height="24" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+
+                            <!-- Passo 3: Ricostruisci (Blu solido var(--blue), risultato del modello) -->
+                            <div style="background:var(--blue); border-radius:22px; padding:32px 26px; text-align:center; color:#fff; box-shadow:var(--card-shadow-lg);">
+                                <div style="display:inline-block; font-size:14px; font-weight:800; color:rgba(255,255,255,0.8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Fase 3 · Verifica</div>
+                                <div style="font-size:32px; font-weight:800; color:#fff; margin-bottom:8px;">Ricostruzione</div>
+                                <p style="font-size:20px; line-height:1.4; color:rgba(255,255,255,0.95);">
+                                    Dal riassunto prova a ridisegnare il tracciato originale esatto.
+                                </p>
+                            </div>
+
                         </div>
                     </div>
 
-                    <div class="stat-row reveal" style="flex:1;">
-                        <div class="stat-item" style="border-left:4px solid var(--red);">
-                            <div class="lbl" style="color:var(--red);">Errore sul Segnale Peggiore</div>
-                            <div class="formula red" style="margin:8px 0;">max over channels(MSE)</div>
-                            <p class="desc" style="font-size:18px;">
-                                Non usiamo la media dei canali: se l'ossigeno crolla al 60%, <b>l'anomalia non deve essere diluita</b> dalla stabilità degli altri 7 canali normali.
-                            </p>
+                    <!-- 2 Grandi Riquadri Spiegati in Modo Semplice -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:26px; flex:1;" class="reveal">
+                        
+                        <!-- Riquadro 1: Perché trova le anomalie -->
+                        <div style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                    <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">IL TRUCCO CLINICO</span>
+                                </div>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">Impara a memoria solo la salute</h3>
+                                <p style="font-size:21px; line-height:1.5; color:var(--ink-soft);">
+                                    La rete è stata addestrata <b>solamente su pazienti sani e stabili</b>. Sa ricostruire alla perfezione solo ciò che è normale.
+                                </p>
+                            </div>
+                            <div style="background:var(--red-wash); border-left:5px solid var(--red); border-radius:0 14px 14px 0; padding:18px 22px; margin-top:16px;">
+                                <div style="font-size:21px; font-weight:700; color:var(--red);">
+                                    Quando il paziente peggiora:
+                                </div>
+                                <div style="font-size:19px; color:var(--ink); margin-top:6px; line-height:1.4;">
+                                    La rete non riconosce quel pattern insolito, sbaglia a ridisegnarlo e l'<b>errore schizza alle stelle</b> dando l'allarme.
+                                </div>
+                            </div>
                         </div>
-                        <div class="stat-item" style="border-left:4px solid var(--blue);">
-                            <div class="lbl">Zero Duplicazione in RAM</div>
-                            <div class="formula" style="margin:8px 0;">14,4 MB vs 5,17 GB</div>
-                            <p class="desc" style="font-size:18px;">
-                                Le 15.000 finestre di addestramento sono puntatori a stridere sull'array Silver in memoria, senza generare copie massive.
-                            </p>
+
+                        <!-- Riquadro 2: Come fa a essere così veloce -->
+                        <div style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                    <span class="pill sm dark-solid" style="font-size:14px; padding:6px 14px;">EFFICIENZA TECNICA</span>
+                                </div>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">Leggero e immediato in sala</h3>
+                                <p style="font-size:21px; line-height:1.5; color:var(--ink-soft);">
+                                    Invece di copiare milioni di dati in memoria, la pipeline legge i secondi facendoli scorrere come una lente d'ingrandimento.
+                                </p>
+                            </div>
+                            <div style="background:var(--surface); border-radius:14px; padding:20px 24px; margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-size:14px; font-weight:700; color:var(--muted); text-transform:uppercase;">Memoria RAM utilizzata</div>
+                                    <div style="font-size:32px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:2px;">
+                                        14 MB <span style="font-size:18px; color:var(--muted); font-weight:500;">(anziché 5.000 MB)</span>
+                                    </div>
+                                </div>
+                                <span class="pill sm blue-solid" style="font-size:15px; padding:8px 16px;">−99,7% RAM</span>
+                            </div>
                         </div>
-                        <div class="stat-item" style="border-left:4px solid var(--ink);">
-                            <div class="lbl">Strato Lineare Proiettivo</div>
-                            <div class="formula" style="margin:8px 0; color:var(--ink); background:var(--surface); border-color:var(--line-strong);">Linear(32 → 8)</div>
-                            <p class="desc" style="font-size:18px;">
-                                Lo strato finale fully connected permette di ricostruire anche valori standardizzati oltre l'intervallo ±1 della tanh.
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 13-B — PERCHÉ USIAMO IL CANALE PEGGIORE
+                 =========================================== -->
+            <section class="slide" data-section="03 · Metrica LSTM">
+                <div class="kick reveal"><i class="dot red"></i> 03 · Regola Decisionale</div>
+                <h2 class="slide-title reveal">Come diamo l'allarme: <em>la regola del canale peggiore</em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split">
+                        
+                        <!-- Colonna Sinistra: Concetto semplice -->
+                        <div class="story reveal">
+                            <p class="lead-text" style="font-size:30px; line-height:1.4;">
+                                In sala operatoria basta che crolli <b class="red">anche un solo parametro vitale</b> per rischiare la vita del paziente.
                             </p>
+
+                            <div style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow);">
+                                <div style="font-size:15px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">La nostra regola:</div>
+                                <div style="font-size:34px; font-weight:800; color:var(--red); font-family:var(--font-mono); margin:12px 0;">
+                                    Allarme = Errore Massimo
+                                </div>
+                                <p style="font-size:21px; color:var(--ink-soft); line-height:1.45;">
+                                    Non facciamo la media. Guardiamo gli 8 segnali uno per uno e <b>prendiamo il peggiore</b>.
+                                </p>
+                            </div>
+
+                            <div class="callout-box red" style="font-size:22px; padding:22px 28px;">
+                                <b>Soglia automatica (P99)</b>: Se il segnale peggiore supera il valore limite stabilito sui pazienti sani, l'allarme suona all'istante.
+                            </div>
                         </div>
+
+                        <!-- Colonna Destra: Esempio pratico a confronto -->
+                        <div class="story reveal">
+                            <div style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:34px 38px; box-shadow:var(--card-shadow-lg);">
+                                <div style="font-size:22px; font-weight:800; color:var(--ink); margin-bottom:22px;">
+                                    Esempio pratico: l'ossigeno crolla al 70%
+                                </div>
+
+                                <!-- Caso 1: La media fallisce -->
+                                <div style="background:var(--bg-soft); border-left:6px solid var(--muted); border-radius:0 16px 16px 0; padding:22px 24px; margin-bottom:20px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <b style="font-size:20px; color:var(--ink);">Metodo classico: Fare la Media</b>
+                                        <span class="pill sm red-soft" style="font-size:13px; font-weight:800;">ERRORE GRAVE</span>
+                                    </div>
+                                    <p style="font-size:19px; color:var(--ink-soft); margin-top:10px; line-height:1.4;">
+                                        7 segnali sono perfetti e 1 è disastroso. La media fa sembrare tutto tranquillo. <b>Il monitor resta zitto.</b>
+                                    </p>
+                                </div>
+
+                                <!-- Caso 2: Il canale peggiore vince -->
+                                <div style="background:var(--blue-wash); border-left:6px solid var(--blue); border-radius:0 16px 16px 0; padding:22px 24px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <b style="font-size:20px; color:var(--blue);">Nostro metodo: Canale Peggiore</b>
+                                        <span class="pill sm blue-solid" style="font-size:13px; font-weight:800;">ALLARME IMMEDIATO</span>
+                                    </div>
+                                    <p style="font-size:19px; color:var(--ink); margin-top:10px; line-height:1.4;">
+                                        Isola subito l'ossigeno che sta crollando ed <b>emette l'allarme avvisando i medici</b> su quale organo intervenire.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </section>
@@ -2249,9 +2491,9 @@
                         </div>
                     </div>
 
-                    <div class="callout-box dark reveal" style="padding:32px 48px; border-radius:24px; border-left:8px solid var(--blue);">
-                        <p style="font-size:32px; font-weight:600; line-height:1.35; color:#fff; margin:0;">
-                            Le regole mediche costituiscono il <b>paracadute deterministico</b> per le emergenze; i modelli di Machine Learning intercettano i <b>segnali deboli</b> prima che la crisi si manifesti.
+                    <div class="card dark center reveal" style="background:var(--ink); padding:32px 48px; border-radius:24px; text-align:center; box-shadow:0 12px 36px rgba(10,15,29,0.14); border:1px solid rgba(255,255,255,0.08); flex:none; width:100%;">
+                        <p style="font-size:32px; font-weight:500; line-height:1.38; color:#CBD5E1; margin:0;">
+                            Le regole mediche costituiscono il <b style="color:#fff;">paracadute deterministico</b> per le emergenze; i modelli di Machine Learning intercettano i <b style="color:#93B4FF;">segnali deboli</b> prima che la crisi si manifesti.
                         </p>
                     </div>
                 </div>
