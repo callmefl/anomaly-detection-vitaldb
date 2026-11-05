@@ -96,7 +96,11 @@
             flex: none;
             overflow: hidden;
             transform-origin: center center;
-            background: var(--bg);
+            background-color: var(--bg);
+            background-image: 
+                linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
             box-shadow: 0 16px 80px rgba(10, 15, 29, 0.16);
         }
 
@@ -112,7 +116,11 @@
             visibility: hidden;
             opacity: 0;
             pointer-events: none;
-            background-color: var(--bg);
+            background-color: transparent;
+            background-image: 
+                linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
         }
 
         .slide.active,
@@ -3389,7 +3397,8 @@
                 <div class="kick reveal">Capitolo 05 · Conclusioni &amp; Prospettive</div>
                 <h2 class="slide-title reveal">I risultati finali: <em>un sistema leggero, rapido e sicuro</em></h2>
 
-                <div class="canvas" style="justify-content:space-between;">
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between; gap:20px; height:100%;">
+                    <!-- Riga 1: I 4 Grandi Indicatori Quantitativi -->
                     <div class="stat-row cols-4 reveal">
                         <div class="stat-hero">
                             <div class="stat-val">−84,2<small>%</small></div>
@@ -3404,22 +3413,70 @@
                         <div class="stat-hero">
                             <div class="stat-val">4</div>
                             <div class="stat-lbl">Metodi di Controllo</div>
-                            <div class="stat-sub">2 regole mediche immediate + 2 modelli di intelligenza artificiale
-                            </div>
+                            <div class="stat-sub">2 regole mediche immediate + 2 modelli di intelligenza artificiale</div>
                         </div>
                         <div class="stat-hero">
                             <div class="stat-val dark">38 / 38</div>
                             <div class="stat-lbl">Test Superati al 100%</div>
-                            <div class="stat-sub">Ogni passaggio della pipeline è collaudato e verificato</div>
+                            <div class="stat-sub">Tutti i controlli della pipeline superati senza errori</div>
                         </div>
                     </div>
 
+                    <!-- Riga 2: Dettaglio Prestazioni & Copertura Sperimentale (spiegato semplice) -->
+                    <div class="reveal" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:24px; flex:1 1 0; min-height:0;">
+                        <div style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                                <div style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                    </svg>
+                                </div>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>PROVATO SU DATI VERI</b></span>
+                            </div>
+                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">500 Operazioni · 5,4M di Secondi</div>
+                            <p style="font-size:18px; line-height:1.45; color:var(--ink-soft); margin:0;">
+                                Più di 1.500 ore di interventi chirurgici veri processati dall'inizio alla fine senza perdere neanche un dato.
+                            </p>
+                        </div>
+
+                        <div style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                                <div style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>ALLARME IN ANTICIPO</b></span>
+                            </div>
+                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">Avvisa 30–60 Secondi Prima</div>
+                            <p style="font-size:18px; line-height:1.45; color:var(--ink-soft); margin:0;">
+                                La rete neurale si accorge che il paziente sta peggiorando prima ancora che scattino i vecchi allarmi fissi.
+                            </p>
+                        </div>
+
+                        <div style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                                <div style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    </svg>
+                                </div>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>ZERO CRASH</b></span>
+                            </div>
+                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">Funziona Sempre e Non Si Blocca</div>
+                            <p style="font-size:18px; line-height:1.45; color:var(--ink-soft); margin:0;">
+                                Pulizia automatica dei dati, controlli rigorosi e salvataggio sicuro che non lascia mai file a metà.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Riga 3: Banner di Sintesi Strategica -->
                     <div class="card dark center reveal"
-                        style="background:var(--ink); padding:32px 48px; border-radius:24px; text-align:center; box-shadow:0 12px 36px rgba(10,15,29,0.14); border:1px solid rgba(255,255,255,0.08); flex:none; width:100%;">
-                        <p style="font-size:32px; font-weight:500; line-height:1.38; color:#CBD5E1; margin:0;">
-                            Le regole mediche fanno da <b style="color:#fff;">paracadute immediato</b> per le emergenze
-                            improvvise; l'intelligenza artificiale scova i <b style="color:#93B4FF;">peggioramenti lenti
-                                e silenziosi</b> prima che sia troppo tardi.
+                        style="background:var(--ink); padding:26px 44px; border-radius:22px; text-align:center; box-shadow:0 12px 36px rgba(10,15,29,0.14); border:1px solid rgba(255,255,255,0.08); flex:none; width:100%;">
+                        <p style="font-size:28px; font-weight:500; line-height:1.36; color:#CBD5E1; margin:0;">
+                            Le regole mediche fanno da <b style="color:#fff;">paracadute immediato</b> per le emergenze improvvise; l'intelligenza artificiale scova i <b style="color:#93B4FF;">peggioramenti lenti e silenziosi</b> prima che sia troppo tardi.
                         </p>
                     </div>
                 </div>
@@ -3432,62 +3489,64 @@
                 <div class="kick reveal">Capitolo 05 · Conclusioni &amp; Prospettive</div>
                 <h2 class="slide-title reveal">Limiti attuali e <em>prossimi passi del progetto</em></h2>
 
-                <div class="canvas" style="display:flex; flex-direction:column; justify-content:center;">
-                    <div class="editorial-split equal" style="gap:40px; height:auto; min-height:560px;">
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+                    <div class="editorial-split equal" style="gap:40px; height:100%; align-items:stretch;">
 
-                        <!-- Riquadro Limiti: senza bordi colorati, con ombra elegante e testi grandi -->
+                        <!-- Riquadro Limiti: altezza 100% identica, padding simmetrico ed equilibrato -->
                         <div class="story reveal"
-                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:center;">
-                            <div class="kick" style="margin-bottom:12px; font-size:18px;"> Limiti
-                                Attuali</div>
-                            <h3
-                                style="font-size:38px; font-weight:800; color:var(--ink); margin-bottom:24px; line-height:1.2;">
-                                Cosa manca rispetto alla corsia reale</h3>
-                            <div class="takeaway" style="gap:24px;">
-                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
-                                    <div class="bullet"></div>
-                                    <div><b>Nessuna etichetta medica certificata</b>: i dati originali di VitalDB non
-                                        hanno note dei medici che confermino secondo per secondo ogni diagnosi.</div>
+                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;">
+                            <div>
+                                <div class="kick" style="margin-bottom:12px; font-size:18px;">Limiti Attuali</div>
+                                <h3
+                                    style="font-size:36px; font-weight:800; color:var(--ink); margin-bottom:28px; line-height:1.2;">
+                                    Cosa manca rispetto alla sala vera</h3>
+                                <div class="takeaway" style="gap:26px;">
+                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                        <div class="bullet"></div>
+                                        <div><b>Niente etichette dei medici</b>: nei file di VitalDB non ci sono note scritte dai dottori per confermare le crisi secondo per secondo.</div>
+                                    </div>
+                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                        <div class="bullet"></div>
+                                        <div><b>Pressione a singhiozzo</b>: il bracciale misura solo ogni qualche minuto, lasciando dei buchi vuoti tra una lettura e l'altra.</div>
+                                    </div>
+                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                        <div class="bullet"></div>
+                                        <div><b>Orari convenzionali</b>: le registrazioni partono da zero e non indicano l'ora reale dell'orologio della sala operatoria.</div>
+                                    </div>
                                 </div>
-                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
-                                    <div class="bullet"></div>
-                                    <div><b>Pressione a singhiozzo</b>: il bracciale misura solo ogni qualche minuto,
-                                        non ininterrottamente come una cannula inserita in arteria.</div>
-                                </div>
-                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
-                                    <div class="bullet"></div>
-                                    <div><b>Orari convenzionali</b>: i file partono dal secondo 0 senza memorizzare
-                                        l'orario effettivo dell'orologio della sala operatoria.</div>
-                                </div>
+                            </div>
+
+                            <div style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--muted); font-family:var(--font-mono);">
+                                Limiti legati ai dati storici di partenza
                             </div>
                         </div>
 
-                        <!-- Riquadro Prospettive: senza bordi colorati, con ombra elegante e testi grandi -->
+                        <!-- Riquadro Prospettive: altezza 100% identica, padding simmetrico ed equilibrato -->
                         <div class="story reveal"
-                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:center;">
-                            <div class="kick" style="margin-bottom:12px; font-size:18px;">
-                                Prospettive Future</div>
-                            <h3
-                                style="font-size:38px; font-weight:800; color:var(--ink); margin-bottom:24px; line-height:1.2;">
-                                Come possiamo farlo crescere</h3>
-                            <div class="takeaway" style="gap:24px;">
-                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
-                                    <div class="bullet"></div>
-                                    <div><b>Flusso continuo in diretta</b>: ricevere i dati in streaming secondo per
-                                        secondo durante l'intervento vero e proprio.</div>
+                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;">
+                            <div>
+                                <div class="kick" style="margin-bottom:12px; font-size:18px;">Prospettive Future</div>
+                                <h3
+                                    style="font-size:36px; font-weight:800; color:var(--ink); margin-bottom:28px; line-height:1.2;">
+                                    Come farlo crescere</h3>
+                                <div class="takeaway" style="gap:26px;">
+                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                        <div class="bullet"></div>
+                                        <div><b>Dati in diretta streaming</b>: passare dal caricamento a blocchi a un flusso continuo che analizza i parametri in tempo reale.</div>
+                                    </div>
+                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                        <div class="bullet"></div>
+                                        <div><b>Aggiungere altri segnali</b>: includere anidride carbonica espirata, profondità del sonno e ventilazione dei polmoni.</div>
+                                    </div>
+                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                        <div class="bullet"></div>
+                                        <div><b>Spiegazioni chiare a schermo</b>: mostrare con colori ed evidenziazioni quale parametro ha fatto scattare l'allarme.</div>
+                                    </div>
                                 </div>
-                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
-                                    <div class="bullet"></div>
-                                    <div><b>Includere altri parametri vitali</b>: aggiungere anidride carbonica espirata
-                                        e
-                                        profondità dell'anestesia per un quadro clinico totale.</div>
-                                </div>
-                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
-                                    <div class="bullet"></div>
-                                    <div><b>Spiegazioni visive immediate</b>: evidenziare con una freccia quale organo o
-                                        parametro ha provocato l'allarme dell'algoritmo.</div>
+                            </div>
 
-                                </div>
+                            <div style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--blue); font-family:var(--font-mono); font-weight:700;">
+                                Prossimi passi per l'uso clinico
                             </div>
                         </div>
 
