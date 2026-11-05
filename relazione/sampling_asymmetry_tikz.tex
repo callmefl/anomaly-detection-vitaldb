@@ -1,108 +1,151 @@
-﻿% Diagramma TikZ a due corsie per l'asimmetria di campionamento e la sparsita' strutturale
+% Diagramma TikZ a due corsie per l'asimmetria di campionamento e la sparsita' strutturale
+% Allineato graficamente e concettualmente alla Slide 03/04 della presentazione
 \begin{tikzpicture}[
     font=\sffamily,
     >=Stealth,
-    axisLine/.style={->, line width=0.8pt, color=brandDark},
-    gridLine/.style={color=brandBorder, line width=0.5pt, dashed},
-    traceHR/.style={color=brandPrimary, line width=1.4pt},
-    traceSPO2/.style={color=brandTeal, line width=1.4pt},
-    locfLine/.style={color=brandPeachInk, line width=1.1pt, dashed},
-    spanArrow/.style={<->, line width=1.1pt, color=brandCoralInk}
+    axisLine/.style={->, line width=0.9pt, color=brandDark},
+    gridLine/.style={color=brandBorderStrong, line width=0.5pt, dashed},
+    traceHR/.style={color=brandPrimary, line width=1.3pt, line join=round, line cap=round},
+    traceBP/.style={color=brandCoral, line width=1.4pt, line cap=round},
+    voidLine/.style={color=brandCoral!60, line width=1.1pt, dashed},
+    spanArrow/.style={<->, line width=1.1pt, color=brandCoral}
 ]
 
     % ========================================================
-    % CORSIA 1: SENSORI CONTINUI A 1 Hz (HR & SpO2)
+    % CORSIA 1: FREQUENZA CARDIACA (BPM / ECG) - FLUSSO CONTINUO A 1 Hz
     % ========================================================
-    \draw[fill=brandSurface, draw=brandBorderStrong, rounded corners=4pt, line width=0.8pt] 
-        (-0.2, 3.4) rectangle (12.6, 5.3);
+    \draw[fill=brandSurface, draw=brandBorderStrong, rounded corners=6pt, line width=0.8pt] 
+        (-0.2, 3.5) rectangle (12.8, 5.7);
     
     % Intestazione corsia 1
-    \node[anchor=west, font=\scriptsize\bfseries\color{brandPrimary}] at (0.0, 5.05) 
-        {CORSIA 1: SENSORI CONTINUI A 1\,Hz (Sensore ottico $\text{SpO}_2$ ed elettrodi ECG)};
-    \node[anchor=east, font=\tiny\bfseries\color{brandTeal}] at (12.4, 5.05) 
-        {100\% campioni presenti (1 dato al secondo)};
+    \node[anchor=west, font=\scriptsize\bfseries\color{brandDark}] at (0.0, 5.42) 
+        {FREQUENZA CARDIACA (HR / BPM) $\cdot$ FLUSSO CONTINUO};
 
-    % Griglia sincronizzata
-    \foreach \t/\x in {0/0, 20/2, 40/4, 60/6, 80/8, 100/10, 120/12} {
-        \draw[gridLine] (\x, 3.6) -- (\x, 4.8);
+
+    % Riquadro bianco interno segnale (stile monitor/presentazione)
+    \draw[fill=white, draw=brandBorder, rounded corners=4pt] (0.0, 3.7) rectangle (12.6, 5.1);
+
+    % Griglia minuti sincronizzata (ogni 2.4 cm = 1 minuto / 60s, totale 300s = 5 min = 12.0 cm)
+    \foreach \t/\x in {0/0.3, 60/2.7, 120/5.1, 180/7.5, 240/9.9, 300/12.3} {
+        \draw[gridLine] (\x, 3.7) -- (\x, 5.1);
     }
 
-    % Traccia SpO2 (verde)
-    \draw[traceSPO2] plot[smooth] coordinates {
-        (0, 4.55) (2, 4.58) (4, 4.52) (6, 4.56) (8, 4.53) (10, 4.57) (12, 4.55)
-    };
-    \foreach \x in {0.5, 1.0, 1.5, 2.0, 2.5, 5.5, 6.0, 6.5, 9.5, 10.0, 10.5, 11.5, 12.0} {
-        \fill[brandTeal] (\x, 4.55) circle (1.2pt);
-    }
-    \node[right, font=\scriptsize\bfseries\color{brandTeal}] at (12.0, 4.55) {$\text{SpO}_2$ (98\%)};
+    % Linea isoelettrica di riferimento
+    \draw[color=brandPrimary!12, line width=0.6pt] (0.0, 4.35) -- (12.6, 4.35);
 
-    % Traccia HR (blu)
-    \draw[traceHR] plot[smooth] coordinates {
-        (0, 3.90) (1, 4.05) (2, 3.82) (3, 3.95) (4, 4.10) (5, 3.85)
-        (6, 4.00) (7, 4.15) (8, 3.90) (9, 4.02) (10, 4.18) (11, 3.95) (12, 4.05)
-    };
-    \node[right, font=\scriptsize\bfseries\color{brandPrimary}] at (12.0, 4.00) {$\text{HR}$ (75\,bpm)};
+    % Onda classica continua BPM/ECG (complessi QRS regolari e onde P-T)
+    % Ciascun ciclo cardiaco ha passo 0.6cm (21 battiti rappresentati da x=0.3 a x=12.3)
+    \draw[traceHR] (0.0, 4.35) -- (0.3, 4.35)
+        % Ciclo 1
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 2
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 3
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 4
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 5
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 6
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 7
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 8
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 9
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 10
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 11
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 12
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 13
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 14
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 15
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 16
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 17
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 18
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 19
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        % Ciclo 20
+        -- ++(0.12, 0) to[out=60,in=120] ++(0.08, 0) -- ++(0.06, 0) -- ++(0.03, -0.06) -- ++(0.05, 0.52) -- ++(0.05, -0.66) -- ++(0.03, 0.20) -- ++(0.05, 0) to[out=50,in=130] ++(0.10, 0) -- ++(0.03, 0)
+        -- (12.6, 4.35);
 
 
     % ========================================================
-    % CORSIA 2: BRACCIALE PNEUMATICO NIBP (INTERMITTENTE)
+    % CORSIA 2: PRESSIONE ARTERIOSA (NIBP) - MISURE DISCONTINUE EQUIDISTANTI
     % ========================================================
-    \draw[fill=white, draw=brandBorderStrong, rounded corners=4pt, line width=0.8pt] 
-        (-0.2, 0.8) rectangle (12.6, 3.1);
+    \draw[fill=brandSurface, draw=brandBorderStrong, rounded corners=6pt, line width=0.8pt] 
+        (-0.2, 0.8) rectangle (12.8, 3.2);
 
     % Intestazione corsia 2
-    \node[anchor=west, font=\scriptsize\bfseries\color{brandCoralInk}] at (0.0, 2.85) 
-        {CORSIA 2: BRACCIALE PRESSORIO NIBP (Misura oscillometrica intermittente)};
-    \node[anchor=east, font=\tiny\bfseries\color{brandCoralInk}] at (12.4, 2.85) 
-        {Solo 2 misure in 120 secondi (66,3\% celle vuote)};
+    \node[anchor=west, font=\scriptsize\bfseries\color{brandDark}] at (0.0, 2.92) 
+        {PRESSIONE ARTERIOSA (BRACCIALE NIBP) $\cdot$ MISURAZIONI DISCONTINUE};
 
-    % Griglia sincronizzata
-    \foreach \t/\x in {0/0, 20/2, 40/4, 60/6, 80/8, 100/10, 120/12} {
+
+    % Riquadro bianco interno segnale
+    \draw[fill=white, draw=brandBorder, rounded corners=4pt] (0.0, 1.0) rectangle (12.6, 2.6);
+
+    % Griglia minuti sincronizzata
+    \foreach \t/\x in {0/0.3, 60/2.7, 120/5.1, 180/7.5, 240/9.9, 300/12.3} {
         \draw[gridLine] (\x, 1.0) -- (\x, 2.6);
     }
 
-    % 1° Gonfiaggio a t = 1.5 (15s)
-    \draw[line width=2pt, color=brandPeachInk] (1.5, 1.25) -- (1.5, 2.45);
-    \fill[brandPeachInk] (1.5, 2.45) circle (3pt) node[above=1pt, font=\tiny\bfseries] {120\,mmHg};
-    \fill[brandPeachInk] (1.5, 1.25) circle (3pt) node[below=1pt, font=\tiny\bfseries] {80\,mmHg};
-    \node[font=\tiny\bfseries\color{brandDark}, fill=brandSurface, rounded corners=2pt, inner sep=1.5pt] at (1.5, 1.85) {1° Gonfiaggio};
+    % --- 1° MISURAZIONE A t = 0 min (x = 0.3): treno di 2 battiti pressori oscillometrici ---
+    \draw[traceBP] (0.30, 1.30) 
+        .. controls (0.35, 1.30) and (0.40, 2.38) .. (0.45, 2.45)
+        .. controls (0.49, 2.50) and (0.54, 1.82) .. (0.58, 1.68)
+        .. controls (0.60, 1.62) and (0.64, 1.80) .. (0.68, 1.65)
+        .. controls (0.74, 1.48) and (0.80, 1.30) .. (0.85, 1.30)
+        % Battito 2
+        .. controls (0.90, 1.30) and (0.95, 2.38) .. (1.00, 2.45)
+        .. controls (1.04, 2.50) and (1.09, 1.82) .. (1.13, 1.68)
+        .. controls (1.15, 1.62) and (1.19, 1.80) .. (1.23, 1.65)
+        .. controls (1.29, 1.48) and (1.35, 1.30) .. (1.40, 1.30);
+    \node[above, font=\tiny\bfseries\color{brandCoral}] at (0.85, 2.45) {118/76\,mmHg};
+    \node[below, font=\tiny\bfseries\color{brandDark}, fill=brandSurface, rounded corners=2pt, inner sep=1pt] at (0.85, 1.25) {1° Gonfiaggio};
 
-    % ZONA DI VUOTO STRUTTURALE (80 SECONDI: t = 1.5 -> t = 9.5)
-    \fill[brandCoral!10, rounded corners=3pt] (1.65, 1.0) rectangle (9.35, 2.65);
-    \draw[brandCoral!70, dashed, line width=1pt, rounded corners=3pt] (1.65, 1.0) rectangle (9.35, 2.65);
+    % --- ZONA DI VUOTO STRUTTURALE 1 (4 MINUTI EQUIDISTANTI: x = 1.40 -> x = 9.40) ---
+    \draw[voidLine] (1.40, 1.30) -- (9.40, 1.30);
 
-    \draw[spanArrow] (1.8, 2.40) -- (9.2, 2.40);
-    \node[below, font=\scriptsize\bfseries\color{brandCoralInk}] at (5.5, 2.42) 
-        {80 SECONDI DI VUOTO TOTALE SENZA CAMPIONI (da $t=15\,$s a $t=95\,$s)};
 
-    \node[font=\tiny\bfseries\color{brandDark}] at (5.5, 1.85) 
-        {Nel dataset grezzo: 80 celle consecutive con valore NaN (dato inesistente)};
 
-    \node[font=\tiny\color{brandInkSoft}] at (5.5, 1.50) 
-        {Motivo clinico: il bracciale deve sgonfiarsi per non causare ischemia e lesioni vascolari all'arto};
+    % --- 2° MISURAZIONE EQUIDISTANTE A t = 4 min (x = 9.9 - 0.5 = 9.4): treno di battiti pressori ---
+    \draw[traceBP] (9.40, 1.30) 
+        .. controls (9.45, 1.30) and (9.50, 2.38) .. (9.55, 2.45)
+        .. controls (9.59, 2.50) and (9.64, 1.82) .. (9.68, 1.68)
+        .. controls (9.70, 1.62) and (9.74, 1.80) .. (9.78, 1.65)
+        .. controls (9.84, 1.48) and (9.90, 1.30) .. (9.95, 1.30)
+        % Battito 2
+        .. controls (10.00, 1.30) and (10.05, 2.38) .. (10.10, 2.45)
+        .. controls (10.14, 2.50) and (10.19, 1.82) .. (10.23, 1.68)
+        .. controls (10.25, 1.62) and (10.29, 1.80) .. (10.33, 1.65)
+        .. controls (10.39, 1.48) and (10.45, 1.30) .. (10.50, 1.30);
+    \node[above, font=\tiny\bfseries\color{brandCoral}] at (9.95, 2.45) {122/79\,mmHg};
+    \node[below, font=\tiny\bfseries\color{brandDark}, fill=brandSurface, rounded corners=2pt, inner sep=1pt] at (9.95, 1.25) {2° Gonfiaggio};
 
-    % Linea LOCF tratteggiata
-    \draw[locfLine] (1.5, 2.1) -- (9.5, 2.1);
-    \node[font=\tiny\bfseries\color{brandPeachInk}, fill=white, inner sep=1pt] at (5.5, 1.15) 
-        {Soluzione Silver: LOCF (Last Observation Carried Forward) propaga l'ultimo valore valido ($\le 300\,$s)};
-
-    % 2° Gonfiaggio a t = 9.5 (95s)
-    \draw[line width=2pt, color=brandPeachInk] (9.5, 1.25) -- (9.5, 2.40);
-    \fill[brandPeachInk] (9.5, 2.40) circle (3pt) node[above=1pt, font=\tiny\bfseries] {115\,mmHg};
-    \fill[brandPeachInk] (9.5, 1.25) circle (3pt) node[below=1pt, font=\tiny\bfseries] {76\,mmHg};
-    \node[font=\tiny\bfseries\color{brandDark}, fill=brandSurface, rounded corners=2pt, inner sep=1.5pt] at (9.5, 1.85) {2° Gonfiaggio};
+    % Coda vuota verso fine finestra (t = 5 min)
+    \draw[voidLine] (10.50, 1.30) -- (12.6, 1.30);
 
 
     % ========================================================
-    % ASSE DEL TEMPO GLOBALE SINCRONIZZATO
+    % ASSE TEMPORALE COMUNE EQUIDISTANTE E SINCRONIZZATO (0 - 5 MINUTI)
     % ========================================================
-    \draw[axisLine] (-0.2, 0.4) -- (12.6, 0.4) node[right, font=\scriptsize\bfseries] {$t\text{ [s]}$};
+    \draw[axisLine] (-0.2, 0.4) -- (12.8, 0.4) node[right, font=\scriptsize\bfseries] {$t$};
     
-    \foreach \t/\x in {0/0, 20/2, 40/4, 60/6, 80/8, 100/10, 120/12} {
-        \draw[line width=0.8pt, color=brandDark] (\x, 0.4) -- (\x, 0.28) node[below, font=\scriptsize\bfseries] {\t\,s};
+    \foreach \min/\sec/\x in {0\,min/0\,s/0.3, 1\,min/60\,s/2.7, 2\,min/120\,s/5.1, 3\,min/180\,s/7.5, 4\,min/240\,s/9.9, 5\,min/300\,s/12.3} {
+        \draw[line width=0.9pt, color=brandDark] (\x, 0.4) -- (\x, 0.26) 
+            node[below=2pt, font=\scriptsize\bfseries\color{brandDark}] {\min}
+            node[below=11pt, font=\tiny\color{brandMuted}] {(\sec)};
     }
 
-    \node[font=\scriptsize\color{brandInkSoft}] at (6.0, -0.05) 
-        {Asse temporale comune allineato a 1\,Hz [secondi di intervento]};
+
 
 \end{tikzpicture}

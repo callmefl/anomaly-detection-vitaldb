@@ -22,12 +22,12 @@ Nello specifico, l'analisi prende in esame cinque parametri vitali complementari
 
 Accanto alle cinque tracce biometriche, il sistema acquisisce i metadati anagrafici e ospedalieri dei pazienti, salvati nel file \texttt{clinical\_data.parquet} con informazioni quali l'et\`a, il sesso e il reparto chirurgico \texttt{department}, insieme ai referti delle analisi ematochimiche perioperatorie archiviati in \texttt{lab\_data.parquet}. La coorte sperimentale su cui \`e stata validata e misurata l'intera architettura comprende \textbf{500 interventi chirurgici completi}, che corrispondono a \textbf{5.565.384 secondi grezzi} estratti dalla sorgente e a \textbf{5.402.386 secondi attivi} dopo la bonifica, per un volume complessivo superiore a $1.500$ ore di monitoraggio reale in sala operatoria.
 
-La dinamica dell'asimmetria di campionamento e l'origine fisiologica della sparsit\`a sono schematizzate visivamente nella Figura~\ref{fig:sampling_asymmetry}, che mette a confronto sincronizzato le due corsie temporali nei primi due minuti ($120\text{ s}$) di rilevazione.
+La dinamica dell'asimmetria di campionamento e l'origine fisiologica della sparsit\`a sono schematizzate visivamente nella Figura~\ref{fig:sampling_asymmetry}, che mette a confronto sincronizzato le due corsie temporali su una finestra di $5\text{ minuti}$ ($300\text{ s}$) di rilevazione.
 
 \begin{figure}[!htbp]
     \centering
     \resizebox{\textwidth}{!}{\input{sampling_asymmetry_tikz.tex}}
-    \caption{Confronto sincronizzato tra il monitoraggio continuo a $1\text{ Hz}$ ($\text{SpO}_2$ ed $\text{HR}$) e la misura intermittente oscillometrica del bracciale ($\text{NIBP}$): evidenza dell'intervallo di $80\text{ secondi}$ di inattivit\`a del bracciale tra due gonfiaggi, della conseguente sparsit\`a strutturale ($66,3\%$ di celle $\text{NaN}$ nei dati grezzi) e della propagazione controllata $\text{LOCF}$ adottata nel livello silver.}
+    \caption{Confronto sincronizzato su finestra temporale di $5\text{ minuti}$ ($300\text{ s}$) tra il monitoraggio continuo a $1\text{ Hz}$ ($\text{HR}$ ed $\text{ECG/SpO}_2$) e la rilevazione intermittente oscillometrica del bracciale ($\text{NIBP}$): evidenza del vuoto di rilevazione ($>200\text{ secondi}$ di celle $\text{NaN}$ non misurate tra due cicli di gonfiaggio del bracciale), della sparsit\`a strutturale nei dati grezzi e della propagazione controllata con tecnica $\text{LOCF}$ (Last Observation Carried Forward) nel livello silver.}
     \label{fig:sampling_asymmetry}
 \end{figure}
 \FloatBarrier
