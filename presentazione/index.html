@@ -274,21 +274,23 @@
             color: var(--ink-soft);
         }
 
+        .takeaway-item b,
+        .takeaway-item strong {
+            color: var(--ink) !important;
+        }
+
         .takeaway-item .bullet {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: var(--blue);
+            background: var(--blue) !important;
             margin-top: 10px;
             flex: none;
         }
 
-        .takeaway-item .bullet.red {
-            background: var(--red);
-        }
-
+        .takeaway-item .bullet.red,
         .takeaway-item .bullet.dark {
-            background: var(--ink);
+            background: var(--blue) !important;
         }
 
         .callout-box {
@@ -529,12 +531,13 @@
             border: 3px solid var(--blue);
             color: var(--blue);
             font-family: var(--font-mono);
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 800;
             display: grid;
             place-items: center;
             box-shadow: 0 0 0 10px var(--bg);
             margin-bottom: 20px;
+            flex-shrink: 0;
         }
 
         .timeline-node.red .num {
@@ -1004,6 +1007,7 @@
             top: 100px;
             background: radial-gradient(circle, rgba(10, 15, 29, 0.15) 0%, transparent 70%);
         }
+
         .slide.cover {
             padding: 80px 100px;
             justify-content: space-between;
@@ -1212,7 +1216,8 @@
                     <img src="img/univpm_seal.png" alt="Sigillo dell'Università Politecnica delle Marche">
                     <div>
                         <div class="uni">Università Politecnica delle Marche</div>
-                        <div class="course">Dipartimento di Ingegneria dell'Informazione · New Generation Databases</div>
+                        <div class="course">Dipartimento di Ingegneria dell'Informazione · New Generation Databases
+                        </div>
                     </div>
                 </div>
 
@@ -1252,20 +1257,24 @@
                     <div class="editorial-split">
                         <div class="story reveal">
                             <p class="lead-text">
-                                Il monitor di sala operatoria raccoglie milioni di punti, ma <b class="red">oltre la metà del dato grezzo è inutilizzabile</b> senza bonifica.
+                                Il monitor di sala operatoria raccoglie milioni di punti, ma <b class="red">oltre la
+                                    metà del dato grezzo è inutilizzabile</b> senza bonifica.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Sensori disturbati</b>: l'elettrobisturi causa picchi fittizi fino a <b>320 bpm</b>; lo scivolamento del sensore azzera l'ossigeno.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Sensori disturbati</b>: l'elettrobisturi causa picchi fittizi fino a <b>320
+                                            bpm</b>; lo scivolamento del sensore azzera l'ossigeno.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Campionamento asincrono</b>: frequenza cardiaca al secondo, pressione arteriosa ogni 2–5 minuti.</div>
+                                    <div><b>Campionamento asincrono</b>: frequenza cardiaca al secondo, pressione
+                                        arteriosa ogni 2–5 minuti.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
-                                <b>Obiettivo</b>: trasformare flussi grezzi rumorosi e intermittenti in un archivio analitico ad alta velocità, capace di rilevare tempestivamente le crisi del paziente.
+                                <b>Obiettivo</b>: trasformare flussi grezzi rumorosi e intermittenti in un archivio
+                                analitico ad alta velocità, capace di rilevare tempestivamente le crisi del paziente.
                             </div>
                         </div>
 
@@ -1276,7 +1285,9 @@
                                 <div class="stat-sub">Dovute all'intermittenza fisiologica del bracciale NIBP</div>
                             </div>
                             <div class="stat-hero">
-                                <div class="stat-val">1 s <span style="font-size:0.5em; color:var(--ink); font-weight:500;">vs</span> 5 min</div>
+                                <div class="stat-val">1 s <span
+                                        style="font-size:0.5em; color:var(--ink); font-weight:500;">vs</span> 5 min
+                                </div>
                                 <div class="stat-lbl">Disallineamento temporale</div>
                                 <div class="stat-sub">Risolto tramite forward-fill limitato e interpolazione</div>
                             </div>
@@ -1286,85 +1297,221 @@
             </section>
 
             <!-- ===========================================
-                 03 — DATASET VITALDB
+                 03 — DATASET VITALDB & CAMPIONAMENTO ASINCRONO
                  =========================================== -->
             <section class="slide" data-section="01 · Dataset">
                 <div class="kick reveal"><i class="dot"></i> 01 · Dataset Clinico</div>
-                <h2 class="slide-title reveal">VitalDB: <em>la sorgente dei dati</em></h2>
+                <h2 class="slide-title reveal">VitalDB: <em>la sorgente dei dati e il problema del campionamento</em>
+                </h2>
 
-                <div class="canvas">
-                    <div class="editorial-split reversed">
-                        <div class="open-table-wrap reveal">
-                            <table class="open-table">
-                                <thead>
-                                    <tr>
-                                        <th>Segnale</th>
-                                        <th>Descrizione Fisiologica</th>
-                                        <th>Unità</th>
-                                        <th class="r">Frequenza</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="hl">
-                                        <td><b>HR</b></td>
-                                        <td>Frequenza cardiaca</td>
-                                        <td>bpm</td>
-                                        <td class="r">1 s (continuo)</td>
-                                    </tr>
-                                    <tr class="hl">
-                                        <td><b>SpO₂</b></td>
-                                        <td>Saturazione periferica O₂</td>
-                                        <td>%</td>
-                                        <td class="r">1 s (continuo)</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b>SBP</b></td>
-                                        <td>Pressione sistolica (massima)</td>
-                                        <td>mmHg</td>
-                                        <td class="r">2–5 min (NIBP)</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b>DBP</b></td>
-                                        <td>Pressione diastolica (minima)</td>
-                                        <td>mmHg</td>
-                                        <td class="r">2–5 min (NIBP)</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b>MBP</b></td>
-                                        <td>Pressione arteriosa media</td>
-                                        <td>mmHg</td>
-                                        <td class="r">2–5 min (NIBP)</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                <div class="canvas"
+                    style="display:flex; flex-direction:column; justify-content:flex-start; gap: 20px; height:100%; padding-bottom: 24px;">
+
+                    <!-- Box Grafico: ONDA ECG CONTINUA vs ONDA PRESSORIA INTERMITTENTE -->
+                    <div class="reveal"
+                        style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:28px 36px; box-shadow:var(--card-shadow); flex: 1 1 auto; display:flex; flex-direction:column; justify-content:space-between;">
+                        <p class="lead-text" style="margin-bottom:14px; font-size:26px; line-height:1.25;">
+                            Cosa registra il monitor nello stesso arco di 5 minuti (300 secondi): <span
+                                style="color:var(--muted); font-size:21px; font-weight:400; display:block; margin-top:2px;">Disallineamento
+                                temporale tra sensore continuo al dito e bracciale gonfiabile</span>
+                        </p>
+
+                        <!-- Canale 1: HR (Tracciato continuo ECG / Frequenza cardiaca al secondo) -->
+                        <div
+                            style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:18px 24px; margin-bottom:12px;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <b style="font-size:22px; color:var(--ink);">Frequenza Cardiaca (HR) &amp; ECG</b>
+                                <span class="pill sm blue-solid" style="font-size:13px; padding:4px 12px;">1 misura AL
+                                    SECONDO (Flusso continuo)</span>
+                            </div>
+
+                            <!-- Grafico SVG: ONDA CONTINUA ECG CON I CLASSICI COMPLESSI QRS A PICCO TRIANGOLARE -->
+                            <div
+                                style="height:58px; background:#fff; border-radius:12px; border:1px solid var(--line); display:flex; align-items:center; padding:0 16px; position:relative; overflow:hidden;">
+                                <svg width="100%" height="48" viewBox="0 0 1000 48" preserveAspectRatio="none"
+                                    style="display:block;">
+                                    <!-- Linee verticali dei minuti (0m, 1m, 2m, 3m, 4m, 5m) -->
+                                    <line x1="0" y1="0" x2="0" y2="48" stroke="var(--line-strong)" stroke-width="2" />
+                                    <line x1="200" y1="0" x2="200" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="400" y1="0" x2="400" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="600" y1="0" x2="600" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="800" y1="0" x2="800" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="1000" y1="0" x2="1000" y2="48" stroke="var(--line-strong)"
+                                        stroke-width="2" />
+
+                                    <!-- Linea isoelettrica di base -->
+                                    <line x1="0" y1="28" x2="1000" y2="28" stroke="rgba(0,71,255,0.12)"
+                                        stroke-width="1" />
+
+                                    <!-- Onda continua con complessi QRS triangolari ripetuti a ritmo regolare (passo 40px) -->
+                                    <path d="
+                                        M0,28 L10,28 Q14,22 18,28 L22,28 L24,31 L27,4 L30,42 L32,28 L35,28 Q40,20 45,28
+                                        L50,28 Q54,22 58,28 L62,28 L64,31 L67,4 L70,42 L72,28 L75,28 Q80,20 85,28
+                                        L90,28 Q94,22 98,28 L102,28 L104,31 L107,4 L110,42 L112,28 L115,28 Q120,20 125,28
+                                        L130,28 Q134,22 138,28 L142,28 L144,31 L147,4 L150,42 L152,28 L155,28 Q160,20 165,28
+                                        L170,28 Q174,22 178,28 L182,28 L184,31 L187,4 L190,42 L192,28 L195,28 Q200,20 205,28
+                                        L210,28 Q214,22 218,28 L222,28 L224,31 L227,4 L230,42 L232,28 L235,28 Q240,20 245,28
+                                        L250,28 Q254,22 258,28 L262,28 L264,31 L267,4 L270,42 L272,28 L275,28 Q280,20 285,28
+                                        L290,28 Q294,22 298,28 L302,28 L304,31 L307,4 L310,42 L312,28 L315,28 Q320,20 325,28
+                                        L330,28 Q334,20 338,28 L342,28 L344,31 L347,4 L350,42 L352,28 L355,28 Q360,20 365,28
+                                        L370,28 Q374,22 378,28 L382,28 L384,31 L387,4 L390,42 L392,28 L395,28 Q400,20 405,28
+                                        L410,28 Q414,22 418,28 L422,28 L424,31 L427,4 L430,42 L432,28 L435,28 Q440,20 445,28
+                                        L450,28 Q454,22 458,28 L462,28 L464,31 L467,4 L470,42 L472,28 L475,28 Q480,20 485,28
+                                        L490,28 Q494,22 498,28 L502,28 L504,31 L507,4 L510,42 L512,28 L515,28 Q520,20 525,28
+                                        L530,28 Q534,22 538,28 L542,28 L544,31 L547,4 L550,42 L552,28 L555,28 Q560,20 565,28
+                                        L570,28 Q574,22 578,28 L582,28 L584,31 L587,4 L590,42 L592,28 L595,28 Q600,20 605,28
+                                        L610,28 Q614,22 618,28 L622,28 L624,31 L627,4 L630,42 L632,28 L635,28 Q640,20 645,28
+                                        L650,28 Q654,22 658,28 L662,28 L664,31 L667,4 L670,42 L672,28 L675,28 Q680,20 685,28
+                                        L690,28 Q694,22 698,28 L702,28 L704,31 L707,4 L710,42 L712,28 L715,28 Q720,20 725,28
+                                        L730,28 Q734,22 738,28 L742,28 L744,31 L747,4 L750,42 L752,28 L755,28 Q760,20 765,28
+                                        L770,28 Q774,22 778,28 L782,28 L784,31 L787,4 L790,42 L792,28 L795,28 Q800,20 805,28
+                                        L810,28 Q814,22 818,28 L822,28 L824,31 L827,4 L830,42 L832,28 L835,28 Q840,20 845,28
+                                        L850,28 Q854,22 858,28 L862,28 L864,31 L867,4 L870,42 L872,28 L875,28 Q880,20 885,28
+                                        L890,28 Q894,22 898,28 L902,28 L904,31 L907,4 L910,42 L912,28 L915,28 Q920,20 925,28
+                                        L930,28 Q934,22 938,28 L942,28 L944,31 L947,4 L950,42 L952,28 L955,28 Q960,20 965,28
+                                        L970,28 Q974,22 978,28 L982,28 L984,31 L987,4 L990,42 L992,28 L1000,28"
+                                        fill="none" stroke="var(--blue)" stroke-width="2.6" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                <div style="font-size:16px; color:var(--blue); font-weight:700;">
+                                    ✓ Flusso continuo ininterrotto: picco cardiaco registrato a ogni secondo, senza
+                                    interruzioni.
+                                </div>
+                                <span
+                                    style="font-family:var(--font-mono); font-size:15px; color:var(--muted); font-weight:700;">300
+                                    secondi su 300</span>
+                            </div>
                         </div>
 
-                        <div class="story reveal">
-                            <p class="lead-text">
-                                VitalDB raccoglie casi chirurgici reali ad alta risoluzione del <b>Seoul National University Hospital</b>.
-                            </p>
-                            <div class="stat-row">
-                                <div class="stat-item">
-                                    <div class="val">500</div>
-                                    <div class="lbl">Casi Chirurgici</div>
-                                    <div class="desc">Interventi completi</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="val">5,4<small>M</small></div>
-                                    <div class="lbl">Secondi Totali</div>
-                                    <div class="desc">~1.500 ore monitorate</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="val">5</div>
-                                    <div class="lbl">Parametri Vitali</div>
-                                    <div class="desc">Monitor Solar8000</div>
-                                </div>
+                        <!-- Canale 2: Pressione Arteriosa (Forma d'onda pressoria arteriosa con picco sistolico e incisura dicrota, presente solo a intervalli e poi vuoto) -->
+                        <div
+                            style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:18px 24px;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <b style="font-size:22px; color:var(--red);">Pressione Sanguigna (Misurazione Bracciale
+                                    NIBP)</b>
+                                <span class="pill sm red-solid" style="font-size:13px; padding:4px 12px;">Solo 1 misura
+                                    OGNI 4-5 MINUTI (intermittente)</span>
                             </div>
-                            <div class="callout-box dark">
-                                <b>Complessità reale</b>: nessun dato sintetico. Include artefatti da elettrocauterio, stacco temporaneo degli elettrodi e latenze cliniche.
+
+                            <!-- Grafico SVG: sfondo bianco nel riquadro del segnale, perfettamente coordinato con il canale HR -->
+                            <div
+                                style="height:58px; background:#fff; border-radius:12px; border:1px solid var(--line); display:flex; align-items:center; padding:0 16px; position:relative; overflow:hidden;">
+                                <svg width="100%" height="48" viewBox="0 0 1000 48" preserveAspectRatio="none"
+                                    style="display:block;">
+                                    <!-- Linee verticali dei minuti sincronizzate con HR sopra -->
+                                    <line x1="0" y1="0" x2="0" y2="48" stroke="var(--line-strong)" stroke-width="2" />
+                                    <line x1="200" y1="0" x2="200" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="400" y1="0" x2="400" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="600" y1="0" x2="600" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="800" y1="0" x2="800" y2="48" stroke="var(--line)" stroke-width="1"
+                                        stroke-dasharray="2 2" />
+                                    <line x1="1000" y1="0" x2="1000" y2="48" stroke="var(--line-strong)"
+                                        stroke-width="2" />
+
+                                    <!-- 1. PRIMA MISURAZIONE PRESSORIA (Minuto 0): Forma d'onda pressoria reale (upstroke ripido, dicrotic notch, diastole) -->
+                                    <g>
+                                        <!-- Battito pressorio 1 -->
+                                        <path
+                                            d="M5,40 C8,40 12,9 16,5 C20,2 24,16 28,22 C30,24 33,19 36,23 C40,29 46,40 50,40"
+                                            fill="none" stroke="var(--red)" stroke-width="2.8" stroke-linecap="round" />
+                                        <!-- Battito pressorio 2 -->
+                                        <path
+                                            d="M50,40 C53,40 57,9 61,5 C65,2 69,16 73,22 C75,24 78,19 81,23 C85,29 91,40 95,40"
+                                            fill="none" stroke="var(--red)" stroke-width="2.8" stroke-linecap="round" />
+                                        <!-- Chiusura misura -->
+                                        <line x1="95" y1="40" x2="110" y2="40" stroke="var(--red)" stroke-width="2" />
+                                    </g>
+
+                                    <!-- 2. IL VUOTO INTERMEDIO: linea tratteggiata piatta per oltre 4 minuti (da 110px a 790px) -->
+                                    <line x1="110" y1="40" x2="790" y2="40" stroke="rgba(220,38,38,0.35)"
+                                        stroke-width="2" stroke-dasharray="6 6" />
+
+                                    <!-- 3. SECONDA MISURAZIONE PRESSORIA (Minuto 4 - 800px): ricompare la forma d'onda della pressione -->
+                                    <g>
+                                        <line x1="775" y1="40" x2="790" y2="40" stroke="var(--red)" stroke-width="2" />
+                                        <!-- Battito pressorio 1 al minuto 4 -->
+                                        <path
+                                            d="M790,40 C793,40 797,10 801,6 C805,3 809,17 813,23 C815,25 818,20 821,24 C825,30 831,40 835,40"
+                                            fill="none" stroke="var(--red)" stroke-width="2.8" stroke-linecap="round" />
+                                        <!-- Battito pressorio 2 al minuto 4 -->
+                                        <path
+                                            d="M835,40 C838,40 842,10 846,6 C850,3 854,17 858,23 C860,25 863,20 866,24 C870,30 876,40 880,40"
+                                            fill="none" stroke="var(--red)" stroke-width="2.8" stroke-linecap="round" />
+                                        <line x1="880" y1="40" x2="960" y2="40" stroke="rgba(220,38,38,0.35)"
+                                            stroke-width="2" stroke-dasharray="6 6" />
+                                        <!-- Terzo ciclo a fine finestra (minuto 5) -->
+                                        <path
+                                            d="M960,40 C963,40 967,10 971,6 C975,3 979,17 983,23 C985,25 988,20 991,24 C995,30 998,40 1000,40"
+                                            fill="none" stroke="var(--red)" stroke-width="2.8" stroke-linecap="round" />
+                                    </g>
+                                </svg>
+                            </div>
+
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                <div style="font-size:16px; color:var(--red); font-weight:700;">
+                                    ✕ Discontinuo: compare solo la forma d'onda del gonfiaggio al minuto 0, poi nessun
+                                    segnale per 4 minuti, poi ricompare al minuto 4.
+                                </div>
+                                <span
+                                    style="font-family:var(--font-mono); font-size:15px; color:var(--red); font-weight:800;">66,3%
+                                    di celle vuote</span>
                             </div>
                         </div>
+
                     </div>
+
+                    <!-- 3 Sezioni Inferiori: piene, adiacenti e perfettamente proporzionate per riempire tutta la pagina -->
+                    <div class="reveal"
+                        style="display:grid; grid-template-columns: 1fr 1fr 1.35fr; gap:22px; flex: 0 0 auto;">
+
+                        <div class="stat-item"
+                            style="box-shadow:var(--card-shadow); padding:24px 28px; border-radius:20px; display:flex; flex-direction:column; justify-content:center;">
+                            <div class="val" style="font-size:62px; line-height:1;">500</div>
+                            <div class="lbl" style="font-size:22px; margin-top:8px;">Interventi Reali</div>
+                            <div class="desc" style="font-size:17px; line-height:1.4; margin-top:4px;">Seoul National
+                                University Hospital, casistica chirurgica complessa.</div>
+                        </div>
+
+                        <div class="stat-item"
+                            style="box-shadow:var(--card-shadow); padding:24px 28px; border-radius:20px; display:flex; flex-direction:column; justify-content:center;">
+                            <div class="val" style="font-size:62px; line-height:1;">5,4<small>M</small></div>
+                            <div class="lbl" style="font-size:22px; margin-top:8px;">Secondi Registrati</div>
+                            <div class="desc" style="font-size:17px; line-height:1.4; margin-top:4px;">Circa 1.500 ore
+                                continuative senza simulazioni o dati sintetici.</div>
+                        </div>
+
+                        <!-- Riquadro "La sfida della tesi" valorizzato e perfettamente visibile -->
+                        <div
+                            style="background:#fff; border-radius:20px; border:2px solid var(--blue); padding:24px 30px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:center;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="font-size:22px; font-weight:800; color:var(--blue);">La sfida della
+                                    tesi</span>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;">Obiettivo
+                                    Silver</span>
+                            </div>
+                            <p class="lead-text" style="font-size:20px; line-height:1.4; margin:0;">
+                                I modelli matematici e di Machine Learning richiedono <b>tutti i segnali sincronizzati
+                                    allo stesso secondo</b>. La pipeline Silver risolve questo squilibrio senza
+                                inventare dati falsi.
+                            </p>
+                        </div>
+
+                    </div>
+
                 </div>
             </section>
 
@@ -1375,25 +1522,32 @@
                 <div class="kick reveal"><i class="dot"></i> 02 · Visione d'Insieme</div>
                 <h2 class="slide-title reveal">Il percorso: <em>dal dato grezzo all'allarme</em></h2>
 
-                <div class="canvas" style="justify-content:center;">
-                    <p class="lead-text reveal" style="text-align:center; max-width:1100px; margin: 0 auto 30px;">
-                        Pipeline end-to-end con governance dei dati, archiviazione time series e rilevamento anomalie a due livelli.
-                    </p>
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between;">
+                    <!-- Testo centrato esattamente nell'intervallo tra la linea del titolo e i pallini -->
+                    <div style="flex:1; display:flex; align-items:center; justify-content:center; min-height:120px;">
+                        <p class="lead-text reveal" style="text-align:center; max-width:1150px; margin: 0 auto;">
+                            Cinque passi essenziali: raccogliamo i dati grezzi, li puliamo dai disturbi, li salviamo in
+                            modo
+                            efficiente e rileviamo le anomalie per i medici.
+                        </p>
+                    </div>
 
-                    <div class="timeline-bar reveal">
+                    <div class="timeline-bar reveal" style="margin:0; padding-top:10px; padding-bottom:30px;">
                         <div class="timeline-node dark">
                             <div class="num">1</div>
                             <div class="phase">Bronze</div>
                             <h3>Raccolta</h3>
-                            <p>Scaricamento atomico da VitalDB nel formato nativo compresso.</p>
+                            <p style="font-size:20px; line-height:1.4;">Scaricamento sicuro e congelamento del dato
+                                grezzo.</p>
                             <span class="tag">Parquet</span>
                         </div>
 
                         <div class="timeline-node">
                             <div class="num">2</div>
                             <div class="phase">Silver</div>
-                            <h3>Bonifica</h3>
-                            <p>Isolamento valori impossibili e forward-fill controllato.</p>
+                            <h3>Pulizia</h3>
+                            <p style="font-size:20px; line-height:1.4;">Filtro artefatti e allineamento dei segnali al
+                                secondo.</p>
                             <span class="tag">Pandas</span>
                         </div>
 
@@ -1401,23 +1555,27 @@
                             <div class="num">3</div>
                             <div class="phase">Gold</div>
                             <h3>Archiviazione</h3>
-                            <p>Caricamento ottimizzato su database per serie storiche.</p>
+                            <p style="font-size:20px; line-height:1.4;">Database per serie storiche compresso e
+                                ultra-veloce.</p>
                             <span class="tag">MongoDB 8.0</span>
                         </div>
 
                         <div class="timeline-node red">
                             <div class="num">4</div>
                             <div class="phase" style="color:var(--red);">Analisi</div>
-                            <h3>Rilevamento</h3>
-                            <p>Regole cliniche d'emergenza + Machine Learning multi-segnale.</p>
-                            <span class="tag" style="color:var(--red); border-color:var(--red-line);">scikit-learn · PyTorch</span>
+                            <h3>Allarmi</h3>
+                            <p style="font-size:20px; line-height:1.4;">Regole cliniche d'emergenza + intelligenza
+                                artificiale.</p>
+                            <span class="tag" style="color:var(--red); border-color:var(--red-line);">Scikit ·
+                                PyTorch</span>
                         </div>
 
                         <div class="timeline-node dark">
                             <div class="num">5</div>
                             <div class="phase">Sistema</div>
-                            <h3>Esposizione</h3>
-                            <p>API REST modulari e interfaccia interattiva per il personale medico.</p>
+                            <h3>Interfaccia</h3>
+                            <p style="font-size:20px; line-height:1.4;">Dashboard interattiva e notifiche chiare in
+                                sala.</p>
                             <span class="tag">FastAPI · Docker</span>
                         </div>
                     </div>
@@ -1431,60 +1589,58 @@
                 <div class="kick reveal"><i class="dot"></i> 02 · Architettura Medallion</div>
                 <h2 class="slide-title reveal">Architettura Medallion: <em>progressiva raffinazione</em></h2>
 
-                <div class="canvas">
-                    <div class="medallion-grid reveal">
-                        <div class="med-col dark">
-                            <div class="tier-tag">Livello 1</div>
-                            <h3>Bronze</h3>
-                            <div class="subtitle">Dati grezzi immutabili</div>
-                            <ul>
-                                <li>5 segnali al secondo scaricati dall'API di VitalDB.</li>
-                                <li>Formato Parquet con compressione snappy a colonne.</li>
-                                <li><b>Nessuna modifica</b>: è la fonte di verità storica.</li>
-                            </ul>
-                            <div class="foot-stat">
-                                <div class="big">33,95<small style="font-size:0.4em; color:var(--ink);">MB</small></div>
-                                <span>Spazio su disco</span>
+                <div class="canvas" style="justify-content:center; gap:44px;">
+                    <p class="lead-text reveal" style="text-align:center; max-width:1250px; margin: 0 auto;">
+                        I dati clinici vengono raffinati attraverso <b>tre livelli</b>: si parte
+                        dall'archivio originale grezzo
+                        per arrivare al database compresso ed ottimizzato per le query mediche.
+                    </p>
+
+                    <!-- Flusso Medallion Orizzontale a 3 Fasi Connesse (Stile Roadmap) -->
+                    <div class="timeline-bar reveal"
+                        style="grid-template-columns: repeat(3, 1fr); max-width:1450px; margin: 0 auto; width:100%;">
+
+                        <!-- Nodo Bronze -->
+                        <div class="timeline-node dark">
+                            <div class="num" style="width:72px; height:72px; font-size:28px;">1</div>
+                            <div class="phase" style="font-size:16px;">Livello 1</div>
+                            <h3 style="font-size:38px; margin-bottom:12px;">Bronze</h3>
+                            <p style="font-size:22px; line-height:1.4; max-width:340px; margin-bottom:16px;">
+                                Storico delle informazioni recuperate dagli strumenti di misurazione. È il set di dati
+                                grezzo ed originale.
+                            </p>
+                            <span class="tag" style="font-size:18px; padding:8px 18px;">Parquet · 33,95 MB</span>
+                        </div>
+
+                        <!-- Nodo Silver -->
+                        <div class="timeline-node">
+                            <div class="num" style="width:72px; height:72px; font-size:28px;">2</div>
+                            <div class="phase" style="font-size:16px;">Livello 2</div>
+                            <h3 style="font-size:38px; margin-bottom:12px;">Silver</h3>
+                            <p style="font-size:22px; line-height:1.4; max-width:340px; margin-bottom:16px;">
+                                Vengono tagliati i valori fisiologicamente inverosimili, riempite le celle vuote e
+                                catalogati i reparti ospedalieri.
+                            </p>
+                            <span class="tag" style="font-size:18px; padding:8px 18px;">Pandas · 47,25 MB</span>
+                        </div>
+
+                        <!-- Nodo Gold -->
+                        <div class="timeline-node" style="--blue:#0047FF;">
+                            <div class="num"
+                                style="width:72px; height:72px; font-size:28px; border-color:var(--blue); color:var(--blue); box-shadow:0 0 0 10px var(--bg), 0 8px 24px rgba(0,71,255,0.25);">
+                                3</div>
+                            <div class="phase" style="color:var(--blue); font-weight:800; font-size:16px;">Livello 3
                             </div>
+                            <h3 style="font-size:38px; color:var(--blue); margin-bottom:12px;">Gold</h3>
+                            <p style="font-size:22px; line-height:1.4; max-width:340px; margin-bottom:16px;">
+                                I dati ripuliti vengono organizzati in serie storiche ad alta efficienza. È l'archivio
+                                definitivo per analisi e query veloci.
+                            </p>
+                            <span class="tag"
+                                style="font-size:18px; padding:8px 18px; color:var(--blue); border-color:var(--blue-line); font-weight:700;">MongoDB
+                                8.0 · 7,45 MB (−84%)</span>
                         </div>
 
-                        <div class="med-arrow">
-                            <svg width="32" height="24" viewBox="0 0 32 24" fill="none"><path d="M2 12h24M18 4l8 8-8 8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </div>
-
-                        <div class="med-col">
-                            <div class="tier-tag">Livello 2</div>
-                            <h3>Silver</h3>
-                            <div class="subtitle">Dati bonificati e arricchiti</div>
-                            <ul>
-                                <li><b>Valori fisiologicamente impossibili</b> isolati.</li>
-                                <li>Forward-fill con finestra massima di 5 minuti.</li>
-                                <li>Partizionamento <b>per reparto chirurgico</b>.</li>
-                            </ul>
-                            <div class="foot-stat">
-                                <div class="big" style="color:var(--ink);">47,25<small style="font-size:0.4em; color:var(--ink);">MB</small></div>
-                                <span>+12 colonne flag qualità</span>
-                            </div>
-                        </div>
-
-                        <div class="med-arrow">
-                            <svg width="32" height="24" viewBox="0 0 32 24" fill="none"><path d="M2 12h24M18 4l8 8-8 8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </div>
-
-                        <div class="med-col highlight">
-                            <div class="tier-tag" style="color:var(--blue);">Livello 3</div>
-                            <h3 style="color:var(--blue);">Gold</h3>
-                            <div class="subtitle">Database ad alte prestazioni</div>
-                            <ul>
-                                <li>Collezione <b>Time Series nativa MongoDB 8.0</b>.</li>
-                                <li>Raggruppamento automatico in bucket da 1.000 s.</li>
-                                <li><b>Registry casi</b> validato con JSON Schema rigoroso.</li>
-                            </ul>
-                            <div class="foot-stat">
-                                <div class="big">7,45<small style="font-size:0.4em; color:var(--blue);">MB</small></div>
-                                <span>−84,2% compressione</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -1494,26 +1650,31 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Livello Bronze">
                 <div class="kick reveal"><i class="dot"></i> 02 · Ingestione Bronze</div>
-                <h2 class="slide-title reveal">Livello Bronze: <em>ingestione atomica e tracciata</em></h2>
+                <h2 class="slide-title reveal">Livello Bronze: <em>acquisizione sicura e dati originali</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
                         <div class="story reveal">
                             <p class="lead-text">
-                                Il livello Bronze memorizza i tracciati clinici <b>esattamente come registrati</b> dal monitor, garantendo riproducibilità totale.
+                                Salviamo i dati <b>esattamente come escono dai monitor</b> della sala operatoria, senza
+                                toccare una virgola.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
-                                    <div class="bullet dark"></div>
-                                    <div><b>Scrittura atomica</b>: salvataggio su file temporaneo <span class="mono">.tmp</span> e rinomina finale. Nessun file corrotto in caso di interruzione.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Salvataggio a prova di errore</b>: scarichiamo prima su un file temporaneo e
+                                        lo rinominiamo solo a fine scrittura. Se salta la corrente o la rete, nessun
+                                        file resta a metà.</div>
                                 </div>
                                 <div class="takeaway-item">
-                                    <div class="bullet dark"></div>
-                                    <div><b>Manifest centralizzato</b>: catalogo JSON con hash, timestamp di download ed esito per ciascuno dei 500 interventi.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Registro di controllo</b>: un catalogo tiene traccia di data, ora e impronta
+                                        digitale di ciascuno dei 500 interventi scaricati.</div>
                                 </div>
                                 <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Zero manipolazione</b>: i valori nulli (66,3%) e i disturbi dei sensori vengono congelati senza alterazioni.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Nessuna modifica frettolosa</b>: i buchi di segnale (66,3%) e i disturbi dei
+                                        sensori vengono archiviati intatti per mantenere la verità storica.</div>
                                 </div>
                             </div>
                         </div>
@@ -1522,12 +1683,12 @@
                             <div class="stat-hero">
                                 <div class="stat-val dark">500 / 500</div>
                                 <div class="stat-lbl">Interventi scaricati con successo</div>
-                                <div class="stat-sub">100% di integrità verificata sul manifest</div>
+                                <div class="stat-sub">Tutti i casi verificati e completi al 100%</div>
                             </div>
                             <div class="stat-hero">
                                 <div class="stat-val">33,95<small>MB</small></div>
-                                <div class="stat-lbl">Dimensione complessiva Bronze</div>
-                                <div class="stat-sub">Compressione colonnare nativa Parquet con codec snappy</div>
+                                <div class="stat-lbl">Dimensione totale su disco</div>
+                                <div class="stat-sub">Archiviati in formato Parquet compresso ad alta efficienza</div>
                             </div>
                         </div>
                     </div>
@@ -1539,13 +1700,14 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Livello Silver">
                 <div class="kick reveal"><i class="dot red"></i> 02 · Bonifica Valori Impossibili</div>
-                <h2 class="slide-title reveal">Livello Silver: <em>taglio dei valori impossibili</em></h2>
+                <h2 class="slide-title reveal">Livello Silver: <em>bloccare i numeri assurdi</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
                         <div class="story reveal">
                             <p class="lead-text">
-                                I disturbi elettrici e il distacco dei sensori producono <b class="red">valori fisiologicamente incompatibili con la vita</b>.
+                                Cavi staccati e disturbi elettrici generano <b class="red">valori che un essere umano
+                                    vivente non può avere</b>.
                             </p>
                             <div class="open-table-wrap" style="padding:18px 24px;">
                                 <table class="open-table" style="font-size:18px;">
@@ -1556,24 +1718,42 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr><td>Frequenza cardiaca (HR)</td><td class="r"><b>20 – 250 bpm</b></td></tr>
-                                        <tr><td>Ossigenazione (SpO₂)</td><td class="r"><b>50 – 100 %</b></td></tr>
-                                        <tr><td>Pressione sistolica (SBP)</td><td class="r"><b>40 – 250 mmHg</b></td></tr>
-                                        <tr><td>Pressione diastolica (DBP)</td><td class="r"><b>10 – 180 mmHg</b></td></tr>
-                                        <tr><td>Pressione media (MBP)</td><td class="r"><b>20 – 220 mmHg</b></td></tr>
+                                        <tr>
+                                            <td>Frequenza cardiaca (HR)</td>
+                                            <td class="r"><b>20 – 250 bpm</b></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Ossigenazione (SpO₂)</td>
+                                            <td class="r"><b>50 – 100 %</b></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Pressione sistolica (SBP)</td>
+                                            <td class="r"><b>40 – 250 mmHg</b></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Pressione diastolica (DBP)</td>
+                                            <td class="r"><b>10 – 180 mmHg</b></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Pressione media (MBP)</td>
+                                            <td class="r"><b>20 – 220 mmHg</b></td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div class="callout-box red">
-                                <b>Regola fondamentale</b>: il valore impossibile non viene cancellato, ma etichettato con il flag <span class="mono">*_outlier = true</span> per <b>impedire che venga propagato</b> ai secondi successivi.
+                                <b>Come interveniamo</b>: non cancelliamo il dato assurdo, ma gli mettiamo un cartellino
+                                di avviso (<span class="mono">outlier = true</span>) per <b>evitare che contamini</b> i
+                                secondi successivi.
                             </div>
                         </div>
 
                         <div class="story reveal">
                             <p class="lead-text" style="font-size:24px;">
-                                <b>Esempio pratico</b>: propagazione di un artefatto a 290 mmHg
+                                <b>Esempio pratico</b>: cosa succede se un sensore segna per sbaglio 290 mmHg
                             </p>
-                            <div class="grid-sim" style="background:#fff; padding:24px; border-radius:18px; border:1px solid var(--line);">
+                            <div class="grid-sim"
+                                style="background:#fff; padding:24px; border-radius:18px; border:1px solid var(--line);">
                                 <div></div>
                                 <div class="t-head">0 s</div>
                                 <div class="t-head">60 s</div>
@@ -1609,11 +1789,13 @@
                             <div class="takeaway" style="gap:8px;">
                                 <div class="takeaway-item" style="font-size:18px;">
                                     <div class="bullet" style="background:var(--blue);"></div>
-                                    <div>Valore valido ricopiato in avanti (<span class="mono">ffill</span> lecito).</div>
+                                    <div>L'ultimo valore valido viene tenuto buono per i momenti di pausa tra una misura
+                                        e l'altra.</div>
                                 </div>
                                 <div class="takeaway-item" style="font-size:18px;">
                                     <div class="bullet red"></div>
-                                    <div>Valore artefatto isolato: <b>mai propagato</b> lungo l'intervento.</div>
+                                    <div>Il valore sballato (290) viene isolato all'istante: <b>non si espande mai</b>
+                                        nel resto dell'intervento.</div>
                                 </div>
                             </div>
                         </div>
@@ -1626,43 +1808,54 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Livello Silver">
                 <div class="kick reveal"><i class="dot"></i> 02 · Ricostruzione Temporale</div>
-                <h2 class="slide-title reveal">Livello Silver: <em>ricostruzione e freschezza</em></h2>
+                <h2 class="slide-title reveal">Livello Silver: <em>ricostruire i buchi con buon senso</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split reversed">
                         <div class="stat-showcase reveal">
                             <div class="stat-hero">
                                 <div class="stat-val"><span class="red">66,3%</span> → 26,3%</div>
-                                <div class="stat-lbl">Abbattimento celle vuote</div>
-                                <div class="stat-sub">Le celle rimanenti sono intervalli NIBP fisiologicamente troppo lunghi</div>
+                                <div class="stat-lbl">Abbattimento delle celle vuote</div>
+                                <div class="stat-sub">I vuoti rimasti sono solo le normali pause lunghe tra un
+                                    gonfiaggio e l'altro del bracciale</div>
                             </div>
                             <div class="stat-hero">
                                 <div class="stat-val">2,9<small>%</small></div>
-                                <div class="stat-lbl">Righe scartate in totale</div>
-                                <div class="stat-sub">Esclusivamente le righe iniziali e finali con tutti i segnali assenti</div>
+                                <div class="stat-lbl">Righe davvero inutilizzabili</div>
+                                <div class="stat-sub">Solo i primi e gli ultimi minuti dell'operazione, quando tutti i
+                                    sensori erano ancora staccati</div>
                             </div>
                         </div>
 
                         <div class="story reveal">
                             <p class="lead-text">
-                                Ricostruzione differenziata in base alla <b>dinamica fisiologica</b> di ogni segnale.
+                                Non tutti i segnali sono uguali: <b>trattiamo ogni strumento secondo la sua natura
+                                    clinica</b>.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Segnali veloci (HR, SpO₂)</b>: buchi brevi (≤ 5 s) ricostruiti con <b>interpolazione lineare</b>. Oltre 5 secondi il segnale rimane assente per non inventare dati.</div>
+                                    <div><b>Battito e ossigeno (continui)</b>: se manca qualche secondo (fino a 5 s)
+                                        uniamo i puntini con una linea retta. Oltre i 5 secondi ci fermiamo per non
+                                        inventare dati finti.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Pressione NIBP</b>: forward-fill fino a <b>massimo 5 minuti (300 s)</b>. Oltre tale soglia la stima non è più clinicamente sicura.</div>
+                                    <div><b>Pressione dal bracciale (a scatti)</b>: manteniamo valido l'ultimo valore
+                                        letto fino a un <b>massimo di 5 minuti</b>. Dopo diventa troppo vecchio per
+                                        fidarsi.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
-                                    <div><b>Tracciamento freschezza (<span class="mono">nibp_age_s</span>)</b>: contatore in secondi dall'ultima misura reale. I modelli scartano le pressioni più vecchie di 120 secondi.</div>
+                                    <div><b>Contatore di freschezza (<span class="mono">nibp_age_s</span>)</b>: un
+                                        cronometro conta i secondi dall'ultima misura vera. I modelli scartano le
+                                        pressioni più vecchie di 2 minuti.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
-                                <b>Partizionamento su disco</b>: il dataset Silver viene suddiviso in cartelle per reparto chirurgico (Chirurgia Generale, Toracica, Urologia, ecc.) per query veloci.
+                                <b>Archivio ordinato per reparto</b>: i dati ripuliti sono divisi in cartelle (Chirurgia
+                                Generale, Toracica, Urologia) così i medici e i ricercatori trovano subito quello che
+                                cercano.
                             </div>
                         </div>
                     </div>
@@ -1674,15 +1867,18 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Livello Gold">
                 <div class="kick reveal"><i class="dot"></i> 02 · Livello Gold</div>
-                <h2 class="slide-title reveal">Livello Gold: <em>Time Series nativa MongoDB 8.0</em></h2>
+                <h2 class="slide-title reveal">Livello Gold: <em>database super compatto e velocissimo</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
-                        <div class="open-table-wrap reveal" style="background:var(--ink); border:none; padding:24px 28px;">
-                            <div style="font-family:var(--font-mono); font-size:14px; color:#94A3B8; margin-bottom:12px; text-transform:uppercase;">
+                        <div class="open-table-wrap reveal"
+                            style="background:var(--ink); border:none; padding:24px 28px;">
+                            <div
+                                style="font-family:var(--font-mono); font-size:14px; color:#94A3B8; margin-bottom:12px; text-transform:uppercase;">
                                 Esempio Documento Time Series · 1 secondo
                             </div>
-                            <pre class="code" style="background:transparent; padding:0; font-size:18px; line-height:1.45; color:#E2E8F0;">{
+                            <pre class="code"
+                                style="background:transparent; padding:0; font-size:18px; line-height:1.45; color:#E2E8F0;">{
   <span style="color:#93B4FF">"timestamp"</span>: ISODate(<span style="color:#FCA5A5">"2020-01-01T08:15:30Z"</span>),
   <span style="color:#93B4FF">"metadata"</span>: {
     <span style="color:#93B4FF">"case_id"</span>: 1,
@@ -1692,7 +1888,7 @@
   <span style="color:#93B4FF">"metrics"</span>: {
     <span style="color:#93B4FF">"Solar8000_HR"</span>: 72.0,
     <span style="color:#93B4FF">"Solar8000_PLETH_SPO2"</span>: 98.0
-    <span style="color:#64748B">// NIBP assente in questo secondo: chiave omessa</span>
+    <span style="color:#64748B">// Bracciale fermo in questo secondo: nessun campo salvato</span>
   },
   <span style="color:#93B4FF">"quality_flags"</span>: {
     <span style="color:#93B4FF">"HR_outlier"</span>: false,
@@ -1703,24 +1899,29 @@
 
                         <div class="story reveal">
                             <p class="lead-text">
-                                MongoDB 8.0 gestisce le serie temporali come <b>bucket compressi trasparenti</b> con motore a colonne columnar.
+                                Con MongoDB 8.0 archiviamo milioni di secondi occupando <b>una frazione minuscola dello
+                                    spazio</b>.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Compressione a bucket</b>: fino a 1.000 documenti consecutivi dello stesso paziente raggruppati in una sola pagina su disco.</div>
+                                    <div><b>Raggruppamento intelligente in pacchetti</b>: fino a 1.000 secondi dello
+                                        stesso paziente vengono compressi e salvati insieme in una sola volta.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Campi mancanti a costo zero</b>: se un valore non c'è, la chiave non viene memorizzata. Nessun overhead di zeri o NaN.</div>
+                                    <div><b>Zero sprechi di spazio</b>: se in quel secondo la pressione non è stata
+                                        misurata, semplicemente non occupiamo memoria.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Delta-of-delta timestamps</b>: i secondi a passo fisso si comprimono a circa 1 bit per misurazione.</div>
+                                    <div><b>Date compresse al millimetro</b>: i secondi che scorrono regolari richiedono
+                                        quasi zero spazio su disco grazie alla compressione differenziale.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
-                                <b>Indice composto chiave</b>: indice su <span class="mono">metadata.case_id + timestamp</span> che rende istantanea l'estrazione dell'intero intervento.
+                                <b>Ricerca istantanea</b>: un indice combinato paziente + tempo permette di tirare fuori
+                                ore e ore di intervento in pochi millisecondi.
                             </div>
                         </div>
                     </div>
@@ -1732,14 +1933,14 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Prestazioni">
                 <div class="kick reveal"><i class="dot"></i> 02 · Benchmark Prestazionale</div>
-                <h2 class="slide-title reveal">Benchmark: <em>spazio su disco e velocità di lettura</em></h2>
+                <h2 class="slide-title reveal">I numeri: <em>quanto spazio risparmiamo e quanto andiamo veloci</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
                         <div class="story reveal">
                             <div class="bm-group">
                                 <div style="font-size:22px; font-weight:700; color:var(--ink); margin-bottom:8px;">
-                                    Spazio su disco per i 500 casi clinici
+                                    Spazio occupato per tutti i 500 pazienti
                                 </div>
                                 <div class="bm-row">
                                     <div class="bm-name">Bronze</div>
@@ -1760,15 +1961,15 @@
 
                             <div class="bm-group" style="margin-top:20px;">
                                 <div style="font-size:22px; font-weight:700; color:var(--ink); margin-bottom:8px;">
-                                    Latenza lettura singolo caso (mediana su 15 esecuzioni)
+                                    Tempo per caricare un intero intervento clinico
                                 </div>
                                 <div class="bm-row">
-                                    <div class="bm-name">Parquet</div>
+                                    <div class="bm-name">File Parquet</div>
                                     <div class="bm-bar-track"><i style="--w:100%; --bar-color:var(--ink);"></i></div>
                                     <div class="bm-val">29,02 ms</div>
                                 </div>
                                 <div class="bm-row">
-                                    <div class="bm-name blue">MongoDB</div>
+                                    <div class="bm-name blue">Database Gold</div>
                                     <div class="bm-bar-track"><i style="--w:62.9%; --bar-color:var(--blue);"></i></div>
                                     <div class="bm-val blue">18,26 ms</div>
                                 </div>
@@ -1778,13 +1979,15 @@
                         <div class="stat-showcase reveal">
                             <div class="stat-hero">
                                 <div class="stat-val">−84,2<small>%</small></div>
-                                <div class="stat-lbl">Riduzione occupazione disco</div>
-                                <div class="stat-sub">Da Silver (47,25 MB) a Gold (7,45 MB) grazie ai bucket time series</div>
+                                <div class="stat-lbl">Meno spazio occupato</div>
+                                <div class="stat-sub">Passiamo da oltre 47 MB a meno di 7,5 MB mantenendo ogni singolo
+                                    dettaglio intatto</div>
                             </div>
                             <div class="stat-hero">
                                 <div class="stat-val">1,6<small>×</small></div>
-                                <div class="stat-lbl">Più veloce in estrazione</div>
-                                <div class="stat-sub">18,26 ms con MongoDB contro i 29,02 ms dell'I/O file Parquet su disco</div>
+                                <div class="stat-lbl">Più veloce nelle risposte</div>
+                                <div class="stat-sub">Appena 18 millisecondi per consegnare l'intero tracciato ai
+                                    grafici della dashboard</div>
                             </div>
                         </div>
                     </div>
@@ -1796,67 +1999,76 @@
                  =========================================== -->
             <section class="slide" data-section="02 · Qualità & Governance">
                 <div class="kick reveal"><i class="dot"></i> 02 · Data Governance</div>
-                <h2 class="slide-title reveal">Data Governance: <em>integrità e controllo dei dati</em></h2>
+                <h2 class="slide-title reveal">Regole di controllo: <em>dati affidabili e niente sorprese</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split equal">
                         <div class="story reveal">
                             <p class="lead-text">
-                                Il passaggio alla sala operatoria richiede <b class="blue">regole formali di conformità</b> per prevenire record incompleti o corruzioni silenziose.
+                                In ospedale non possiamo permetterci record incompleti: <b>ogni file deve superare
+                                    controlli severi</b> prima di entrare nel database.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
-                                    <div class="bullet dark"></div>
-                                    <div><b>Catalogo centralizzato (<span class="mono">registry</span>)</b>: ogni intervento registra stato, durata, reparto e timestamp. Ingestione vincolata da <b>JSON Schema nativo</b> MongoDB.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Registro ufficiale (<span class="mono">registry</span>)</b>: ogni intervento
+                                        annota data, durata e reparto. Se un file non rispetta le regole stabilite, il
+                                        database lo rifiuta subito.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Dizionario unico (<span class="mono">TRACK_SPECS</span>)</b>: sorgente unica condivisa tra pipeline di pulizia, controlli database e interfaccia utente.</div>
+                                    <div><b>Unica fonte di verità (<span class="mono">TRACK_SPECS</span>)</b>: un solo
+                                        file di configurazione fissa nomi dei sensori e soglie massime per pulizia,
+                                        database e dashboard.</div>
                                 </div>
                                 <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Audit continuo (<span class="mono">quality_report.json</span>)</b>: tracciamento sistematico di tassi di campionamento, celle mancanti e valori corretti.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Controllo continuo (<span class="mono">quality_report</span>)</b>: un
+                                        verbale automatico registra quante celle mancavano e quanti errori sono stati
+                                        corretti per ogni paziente.</div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="open-table-wrap reveal" style="padding: 24px 28px;">
-                            <div style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
-                                Matrice di Governance e Garanzie del Sistema
+                            <div
+                                style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
+                                Come proteggiamo i dati in ogni fase
                             </div>
                             <table class="open-table" style="font-size:18px;">
                                 <thead>
                                     <tr>
                                         <th>Componente</th>
-                                        <th>Meccanismo di Controllo</th>
-                                        <th class="r">Garanzia Fornita</th>
+                                        <th>Cosa fa per noi</th>
+                                        <th class="r">Cosa garantisce</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <td><b class="mono">registry</b></td>
-                                        <td>JSON Schema Validator</td>
-                                        <td class="r">Rifiuto record orfani</td>
+                                        <td>Schema di verifica automatico</td>
+                                        <td class="r">Nessun paziente fantasma</td>
                                     </tr>
                                     <tr class="hl">
                                         <td><b class="mono">TRACK_SPECS</b></td>
-                                        <td>Single Source of Truth</td>
-                                        <td class="r">Zero drift nelle soglie</td>
+                                        <td>Vocabolario unico condiviso</td>
+                                        <td class="r">Stesse soglie per tutti</td>
                                     </tr>
                                     <tr>
                                         <td><b class="mono">transazioni</b></td>
-                                        <td>Stato <span class="mono">loading → committed</span></td>
-                                        <td class="r">Nessuna lettura parziale</td>
+                                        <td>Stato <span class="mono">caricamento → confermato</span></td>
+                                        <td class="r">Nessun dato a metà</td>
                                     </tr>
                                     <tr>
                                         <td><b class="mono">quality_report</b></td>
-                                        <td>Generazione automatica</td>
-                                        <td class="r">Audit clinico 100% tracciato</td>
+                                        <td>Report automatico per ogni caso</td>
+                                        <td class="r">Tracciabilità al 100%</td>
                                     </tr>
                                 </tbody>
                             </table>
                             <div class="callout-box" style="margin-top:18px; font-size:17px; padding:14px 18px;">
-                                <b>Sicurezza clinica</b>: se il caricamento di un caso fallisce o viene interrotto, il database esclude il paziente dalle analisi mediche finché l'integrità non è ristabilita.
+                                <b>Sicurezza per i medici</b>: se un caricamento si interrompe, il caso viene congelato
+                                e tenuto fuori dalle analisi finché non è completo e verificato.
                             </div>
                         </div>
                     </div>
@@ -1872,143 +2084,212 @@
 
                 <div class="canvas" style="display:flex; flex-direction:column; justify-content:center;">
                     <!-- Griglia 2x2 pulita senza bordi colorati con icone e formule -->
-                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:26px; width:100%;" class="reveal">
-                        
+                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:26px; width:100%;"
+                        class="reveal">
+
                         <!-- Blocco 1: Shock Index (Clinico Rapido) -->
-                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
+                        <div class="story"
+                            style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
                                     <div style="display:flex; align-items:center; gap:14px;">
-                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--red-wash); display:flex; align-items:center; justify-content:center; color:var(--red); flex-shrink:0;">
+                                        <div
+                                            style="width:52px; height:52px; border-radius:14px; background:var(--red-wash); display:flex; align-items:center; justify-content:center; color:var(--red); flex-shrink:0;">
                                             <!-- Icona Cuore / Battito -->
-                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-                                                <path d="M12 5v1.5l1.5 2 2-4 1.5 3.5 1.5-3"/>
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path
+                                                    d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                                                <path d="M12 5v1.5l1.5 2 2-4 1.5 3.5 1.5-3" />
                                             </svg>
                                         </div>
                                         <div>
-                                            <span class="pill sm red-soft" style="font-size:14px; padding:6px 14px;">CLINICO #1 · SALVAVITA</span>
+                                            <span class="pill sm red-soft"
+                                                style="font-size:14px; padding:6px 14px;"><b>CLINICO #1 ·
+                                                    SALVAVITA</b></span>
                                         </div>
                                     </div>
-                                    <span style="font-size:16px; font-weight:700; color:var(--muted); font-family:var(--font-mono);">&lt; 1 sec</span>
+                                    <span
+                                        style="font-size:16px; font-weight:700; color:var(--muted); font-family:var(--font-mono);">&lt;
+                                        1 sec</span>
                                 </div>
-                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Shock Index (SI)</h3>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Shock
+                                    Index (SI)</h3>
                                 <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
-                                    Indice emodinamico di compenso cardiovascolare rapido.
+                                    Rapporto semplice tra battito e pressione per scovare le crisi.
                                 </p>
-                                
-                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
-                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Condizione di Trigger</div>
-                                    <div style="font-size:24px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">HR / SBP &gt; 0,9</div>
+
+                                <div
+                                    style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div
+                                        style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                        Quando scatta l'allarme</div>
+                                    <div
+                                        style="font-size:24px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">
+                                        Battito / Pressione &gt; 0,9</div>
                                 </div>
 
                                 <div style="font-size:18px; color:var(--muted); line-height:1.45;">
-                                    <b style="color:var(--ink);">Target clinico</b>: Riconosce shock ipovolemico, emorragico o settico prima del tracollo pressorio conclamato.
+                                    <b style="color:var(--ink);">A cosa serve</b>: avvisa se il cuore corre troppo per
+                                    compensare un'emorragia interna o un collasso imminente.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Blocco 2: Ipotensione + Ipossia (Clinico Emergenza) -->
-                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
+                        <div class="story"
+                            style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
                                     <div style="display:flex; align-items:center; gap:14px;">
-                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--red-wash); display:flex; align-items:center; justify-content:center; color:var(--red); flex-shrink:0;">
+                                        <div
+                                            style="width:52px; height:52px; border-radius:14px; background:var(--red-wash); display:flex; align-items:center; justify-content:center; color:var(--red); flex-shrink:0;">
                                             <!-- Icona Allarme / Emergenza -->
-                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                                                <line x1="12" y1="9" x2="12" y2="13"/>
-                                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path
+                                                    d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                                                <line x1="12" y1="9" x2="12" y2="13" />
+                                                <line x1="12" y1="17" x2="12.01" y2="17" />
                                             </svg>
                                         </div>
                                         <div>
-                                            <span class="pill sm red-soft" style="font-size:14px; padding:6px 14px;">CLINICO #2 · EMERGENZA</span>
+                                            <span class="pill sm red-soft"
+                                                style="font-size:14px; padding:6px 14px;"><b>CLINICO #2 ·
+                                                    EMERGENZA</b></span>
                                         </div>
                                     </div>
-                                    <span style="font-size:16px; font-weight:700; color:var(--muted); font-family:var(--font-mono);">&lt; 1 sec</span>
+                                    <span
+                                        style="font-size:16px; font-weight:700; color:var(--muted); font-family:var(--font-mono);">&lt;
+                                        1 sec</span>
                                 </div>
-                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Ipotensione + Ipossia</h3>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">
+                                    Pressione + Saturazione basse</h3>
                                 <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
-                                    Allarme congiunto di ipoperfusione e deficit d'ossigeno.
+                                    Doppio allarme: il sangue non circola e i tessuti non respirano.
                                 </p>
-                                
-                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
-                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Condizione di Trigger</div>
-                                    <div style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">MBP &lt; 65 &amp; SpO₂ &lt; 90%</div>
+
+                                <div
+                                    style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div
+                                        style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                        Quando scatta l'allarme</div>
+                                    <div
+                                        style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">
+                                        Media &lt; 65 mmHg &amp; SpO₂ &lt; 90%</div>
                                 </div>
 
                                 <div style="font-size:18px; color:var(--muted); line-height:1.45;">
-                                    <b style="color:var(--ink);">Target clinico</b>: Rischio ischemico acuto d'organo. Esclude falsi allarmi verificando <span class="mono">nibp_age &lt; 120s</span>.
+                                    <b style="color:var(--ink);">A cosa serve</b>: segnala il rischio che gli organi
+                                    vitali vadano in sofferenza. Evita falsi allarmi controllando che la misura sia
+                                    fresca.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Blocco 3: Isolation Forest (ML Multivariato) -->
-                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
+                        <div class="story"
+                            style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
                                     <div style="display:flex; align-items:center; gap:14px;">
-                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0;">
+                                        <div
+                                            style="width:52px; height:52px; border-radius:14px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0;">
                                             <!-- Icona Albero Decisionali / Rete -->
-                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="3" y="3" width="6" height="6" rx="2"/>
-                                                <rect x="15" y="15" width="6" height="6" rx="2"/>
-                                                <rect x="3" y="15" width="6" height="6" rx="2"/>
-                                                <path d="M6 9v3a3 3 0 0 0 3 3h6"/>
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <rect x="3" y="3" width="6" height="6" rx="2" />
+                                                <rect x="15" y="15" width="6" height="6" rx="2" />
+                                                <rect x="3" y="15" width="6" height="6" rx="2" />
+                                                <path d="M6 9v3a3 3 0 0 0 3 3h6" />
                                             </svg>
                                         </div>
                                         <div>
-                                            <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">ML MULTIVARIATO STATICO</span>
+                                            <span class="pill sm blue-soft"
+                                                style="font-size:14px; padding:6px 14px;"><b>ALBERI DI
+                                                    DECISIONE</b></span>
                                         </div>
                                     </div>
-                                    <span style="font-size:16px; font-weight:700; color:var(--blue); font-family:var(--font-mono);">Punto 8D</span>
+                                    <span
+                                        style="font-size:16px; font-weight:700; color:var(--blue); font-family:var(--font-mono);">8
+                                        Segnali</span>
                                 </div>
-                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Isolation Forest</h3>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">
+                                    Isolation Forest</h3>
                                 <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
-                                    Isolamento rapido geometrico nello spazio 8-dimensionale.
+                                    Isola all'istante le combinazioni di valori mai viste prima.
                                 </p>
-                                
-                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
-                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Configurazione Modello</div>
-                                    <div style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">100 alberi · Contam. 5%</div>
+
+                                <div
+                                    style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div
+                                        style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                        Come lavora</div>
+                                    <div
+                                        style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">
+                                        100 alberi · Isola il 5% più anomalo</div>
                                 </div>
 
                                 <div style="font-size:18px; color:var(--muted); line-height:1.45;">
-                                    <b style="color:var(--ink);">Target clinico</b>: Intercetta discordanze atipiche tra parametri (es. FC vs Pressione vs EtCO₂) non catturate da soglie singole.
+                                    <b style="color:var(--ink);">A cosa serve</b>: si accorge se i parametri non
+                                    quadrano tra loro (es. cuore che accelera mentre la pressione cala), anche se presi
+                                    da soli sembrano normali.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Blocco 4: Autoencoder LSTM (Deep Learning) -->
-                        <div class="story" style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
+                        <div class="story"
+                            style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; display:flex; flex-direction:column; justify-content:center; box-shadow:var(--card-shadow-lg);">
                             <div>
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
                                     <div style="display:flex; align-items:center; gap:14px;">
-                                        <div style="width:52px; height:52px; border-radius:14px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0;">
+                                        <div
+                                            style="width:52px; height:52px; border-radius:14px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0;">
                                             <!-- Icona Onde Temporali / Serie temporale -->
-                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M3 12h3l3-8 4 16 3-8h5"/>
-                                                <circle cx="19" cy="12" r="2"/>
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="M3 12h3l3-8 4 16 3-8h5" />
+                                                <circle cx="19" cy="12" r="2" />
                                             </svg>
                                         </div>
                                         <div>
-                                            <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">DEEP LEARNING DINAMICO</span>
+                                            <span class="pill sm blue-soft"
+                                                style="font-size:14px; padding:6px 14px;"><b>RETE NEURALE
+                                                    TEMPORALE</b></span>
                                         </div>
                                     </div>
-                                    <span style="font-size:16px; font-weight:700; color:var(--blue); font-family:var(--font-mono);">Finestra 30s</span>
+                                    <span
+                                        style="font-size:16px; font-weight:700; color:var(--blue); font-family:var(--font-mono);">Finestra
+                                        30s</span>
                                 </div>
-                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">Autoencoder LSTM</h3>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:10px;">
+                                    Autoencoder LSTM</h3>
                                 <p style="font-size:20px; line-height:1.45; color:var(--ink-soft); margin-bottom:18px;">
-                                    Apprendimento della normale dinamica temporale dei segnali.
+                                    Impara l'andamento normale dei tracciati nel tempo.
                                 </p>
-                                
-                                <div style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
-                                    <div style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Metrica di Errore</div>
-                                    <div style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">Worst-ch MSE &gt; P99</div>
+
+                                <div
+                                    style="background:var(--bg-soft); border-radius:14px; padding:16px 20px; margin-bottom:18px;">
+                                    <div
+                                        style="font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                        Come misura il pericolo</div>
+                                    <div
+                                        style="font-size:22px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:4px;">
+                                        Errore sul canale peggiore</div>
                                 </div>
 
                                 <div style="font-size:18px; color:var(--muted); line-height:1.45;">
-                                    <b style="color:var(--ink);">Target clinico</b>: Rileva trend lenti premonitori e instabilità progressive 30-60 secondi prima dell'allarme clinico.
+                                    <b style="color:var(--ink);">A cosa serve</b>: vede i peggioramenti lenti e graduali
+                                    con 30-60 secondi di anticipo rispetto alle soglie di allarme tradizionali.
                                 </div>
                             </div>
                         </div>
@@ -2022,45 +2303,72 @@
                  =========================================== -->
             <section class="slide" data-section="03 · Autoencoder LSTM">
                 <div class="kick reveal"><i class="dot"></i> 03 · Deep Learning Temporale</div>
-                <h2 class="slide-title reveal">Autoencoder LSTM: <em>imparare la normalità per scovare le crisi</em></h2>
+                <h2 class="slide-title reveal">Autoencoder LSTM: <em>imparare la normalità per scovare le crisi</em>
+                </h2>
 
-                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between; gap:26px;">
-                    
+                <div class="canvas"
+                    style="display:flex; flex-direction:column; justify-content:space-between; gap:26px;">
+
                     <!-- Diagramma Funzionamento Intuitivo a 3 Fasi Chiare -->
-                    <div class="reveal" style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:36px 42px; box-shadow:var(--card-shadow-lg);">
-                        <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between;">
+                    <div class="reveal"
+                        style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:36px 42px; box-shadow:var(--card-shadow-lg);">
+                        <div
+                            style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between;">
                             <span>Come ragiona la rete neurale passo dopo passo:</span>
-                            <span class="pill sm blue-soft" style="font-size:15px; padding:6px 16px;">Finestra di 30 secondi · 8 parametri insieme</span>
+                            <span class="pill sm blue-soft" style="font-size:15px; padding:6px 16px;">Finestra di 30
+                                secondi · 8 parametri insieme</span>
                         </div>
 
-                        <div style="display:grid; grid-template-columns: 1fr 40px 1.15fr 40px 1fr; align-items:center; gap:0;">
-                            
+                        <div
+                            style="display:grid; grid-template-columns: 1fr 40px 1.15fr 40px 1fr; align-items:center; gap:0;">
+
                             <!-- Passo 1: Ingresso (Nero/Ink naturale su fondo chiaro) -->
-                            <div style="background:#fff; border:1px solid var(--line); border-radius:20px; padding:28px 24px; text-align:center; box-shadow:var(--card-shadow);">
-                                <div style="display:inline-block; font-size:14px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Fase 1 · Ingresso</div>
-                                <div style="font-size:32px; font-weight:800; color:var(--ink); margin-bottom:8px;">30 Secondi</div>
+                            <div
+                                style="background:#fff; border:1px solid var(--line); border-radius:20px; padding:28px 24px; text-align:center; box-shadow:var(--card-shadow);">
+                                <div
+                                    style="display:inline-block; font-size:14px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
+                                    Fase 1 · Ingresso</div>
+                                <div style="font-size:32px; font-weight:800; color:var(--ink); margin-bottom:8px;">30
+                                    Secondi</div>
                                 <p style="font-size:20px; line-height:1.4; color:var(--ink-soft);">
                                     La rete legge i tracciati (battito, pressione, ossigeno) negli ultimi 30 secondi.
                                 </p>
                             </div>
 
-                            <div style="text-align:center; color:var(--muted);"><svg width="28" height="24" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+                            <div style="text-align:center; color:var(--muted);"><svg width="28" height="24"
+                                    viewBox="0 0 20 16" fill="none">
+                                    <path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5"
+                                        stroke-linecap="round" />
+                                </svg></div>
 
                             <!-- Passo 2: Il Riassunto (Nero pieno solido var(--ink), elemento centrale) -->
-                            <div style="background:var(--ink); border-radius:22px; padding:32px 26px; text-align:center; color:#fff; box-shadow:var(--card-shadow-lg);">
-                                <div style="display:inline-block; font-size:14px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Fase 2 · Compressione</div>
-                                <div style="font-size:32px; font-weight:800; color:#fff; margin-bottom:8px;">Il "Riassunto"</div>
+                            <div
+                                style="background:var(--ink); border-radius:22px; padding:32px 26px; text-align:center; color:#fff; box-shadow:var(--card-shadow-lg);">
+                                <div
+                                    style="display:inline-block; font-size:14px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
+                                    Fase 2 · Compressione</div>
+                                <div style="font-size:32px; font-weight:800; color:#fff; margin-bottom:8px;">Il
+                                    "Riassunto"</div>
                                 <p style="font-size:20px; line-height:1.4; color:#E2E8F0;">
-                                    Comprime tutti i dati in un piccolo pacchetto di <b style="color:#93B4FF;">32 numeri chiave</b>.
+                                    Comprime tutti i dati in un piccolo pacchetto di <b style="color:#93B4FF;">32 numeri
+                                        chiave</b>.
                                 </p>
                             </div>
 
-                            <div style="text-align:center; color:var(--blue);"><svg width="28" height="24" viewBox="0 0 20 16" fill="none"><path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+                            <div style="text-align:center; color:var(--blue);"><svg width="28" height="24"
+                                    viewBox="0 0 20 16" fill="none">
+                                    <path d="M2 8h14M11 3l5 5-5 5" stroke="currentColor" stroke-width="2.5"
+                                        stroke-linecap="round" />
+                                </svg></div>
 
                             <!-- Passo 3: Ricostruisci (Blu solido var(--blue), risultato del modello) -->
-                            <div style="background:var(--blue); border-radius:22px; padding:32px 26px; text-align:center; color:#fff; box-shadow:var(--card-shadow-lg);">
-                                <div style="display:inline-block; font-size:14px; font-weight:800; color:rgba(255,255,255,0.8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Fase 3 · Verifica</div>
-                                <div style="font-size:32px; font-weight:800; color:#fff; margin-bottom:8px;">Ricostruzione</div>
+                            <div
+                                style="background:var(--blue); border-radius:22px; padding:32px 26px; text-align:center; color:#fff; box-shadow:var(--card-shadow-lg);">
+                                <div
+                                    style="display:inline-block; font-size:14px; font-weight:800; color:rgba(255,255,255,0.8); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
+                                    Fase 3 · Verifica</div>
+                                <div style="font-size:32px; font-weight:800; color:#fff; margin-bottom:8px;">
+                                    Ricostruzione</div>
                                 <p style="font-size:20px; line-height:1.4; color:rgba(255,255,255,0.95);">
                                     Dal riassunto prova a ridisegnare il tracciato originale esatto.
                                 </p>
@@ -2071,47 +2379,64 @@
 
                     <!-- 2 Grandi Riquadri Spiegati in Modo Semplice -->
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:26px; flex:1;" class="reveal">
-                        
+
                         <!-- Riquadro 1: Perché trova le anomalie -->
-                        <div style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
+                        <div
+                            style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
                             <div>
                                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                                    <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">IL TRUCCO CLINICO</span>
+                                    <span class="pill sm blue-soft" style="font-size:14px; padding:6px 14px;">IL TRUCCO
+                                        CLINICO</span>
                                 </div>
-                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">Impara a memoria solo la salute</h3>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">
+                                    Impara a memoria solo la salute</h3>
                                 <p style="font-size:21px; line-height:1.5; color:var(--ink-soft);">
-                                    La rete è stata addestrata <b>solamente su pazienti sani e stabili</b>. Sa ricostruire alla perfezione solo ciò che è normale.
+                                    La rete è stata addestrata <b>solamente su pazienti sani e stabili</b>. Sa
+                                    ricostruire alla perfezione solo ciò che è normale.
                                 </p>
                             </div>
-                            <div style="background:var(--red-wash); border-left:5px solid var(--red); border-radius:0 14px 14px 0; padding:18px 22px; margin-top:16px;">
+                            <div
+                                style="background:var(--red-wash); border-left:5px solid var(--red); border-radius:0 14px 14px 0; padding:18px 22px; margin-top:16px;">
                                 <div style="font-size:21px; font-weight:700; color:var(--red);">
                                     Quando il paziente peggiora:
                                 </div>
                                 <div style="font-size:19px; color:var(--ink); margin-top:6px; line-height:1.4;">
-                                    La rete non riconosce quel pattern insolito, sbaglia a ridisegnarlo e l'<b>errore schizza alle stelle</b> dando l'allarme.
+                                    La rete non riconosce quel pattern insolito, sbaglia a ridisegnarlo e l'<b>errore
+                                        schizza alle stelle</b> dando l'allarme.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Riquadro 2: Come fa a essere così veloce -->
-                        <div style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
+                        <div
+                            style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
                             <div>
                                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                                    <span class="pill sm dark-solid" style="font-size:14px; padding:6px 14px;">EFFICIENZA TECNICA</span>
+                                    <span class="pill sm dark-solid"
+                                        style="font-size:14px; padding:6px 14px;">EFFICIENZA TECNICA</span>
                                 </div>
-                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">Leggero e immediato in sala</h3>
+                                <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">
+                                    Leggero e immediato in sala</h3>
                                 <p style="font-size:21px; line-height:1.5; color:var(--ink-soft);">
-                                    Invece di copiare milioni di dati in memoria, la pipeline legge i secondi facendoli scorrere come una lente d'ingrandimento.
+                                    Invece di copiare milioni di dati in memoria, la pipeline legge i secondi facendoli
+                                    scorrere come una lente d'ingrandimento.
                                 </p>
                             </div>
-                            <div style="background:var(--surface); border-radius:14px; padding:20px 24px; margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+                            <div
+                                style="background:var(--surface); border-radius:14px; padding:20px 24px; margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
                                 <div>
-                                    <div style="font-size:14px; font-weight:700; color:var(--muted); text-transform:uppercase;">Memoria RAM utilizzata</div>
-                                    <div style="font-size:32px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:2px;">
-                                        14 MB <span style="font-size:18px; color:var(--muted); font-weight:500;">(anziché 5.000 MB)</span>
+                                    <div
+                                        style="font-size:14px; font-weight:700; color:var(--muted); text-transform:uppercase;">
+                                        Memoria RAM utilizzata</div>
+                                    <div
+                                        style="font-size:32px; font-weight:800; color:var(--ink); font-family:var(--font-mono); margin-top:2px;">
+                                        14 MB <span
+                                            style="font-size:18px; color:var(--muted); font-weight:500;">(anziché 5.000
+                                            MB)</span>
                                     </div>
                                 </div>
-                                <span class="pill sm blue-solid" style="font-size:15px; padding:8px 16px;">−99,7% RAM</span>
+                                <span class="pill sm blue-solid" style="font-size:15px; padding:8px 16px;">−99,7%
+                                    RAM</span>
                             </div>
                         </div>
 
@@ -2128,54 +2453,68 @@
 
                 <div class="canvas">
                     <div class="editorial-split">
-                        
+
                         <!-- Colonna Sinistra: Concetto semplice -->
                         <div class="story reveal">
                             <p class="lead-text" style="font-size:30px; line-height:1.4;">
-                                In sala operatoria basta che crolli <b class="red">anche un solo parametro vitale</b> per rischiare la vita del paziente.
+                                In sala operatoria basta che crolli <b class="red">anche un solo parametro vitale</b>
+                                per rischiare la vita del paziente.
                             </p>
 
-                            <div style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow);">
-                                <div style="font-size:15px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">La nostra regola:</div>
-                                <div style="font-size:34px; font-weight:800; color:var(--red); font-family:var(--font-mono); margin:12px 0;">
+                            <div
+                                style="background:#fff; border-radius:22px; border:1px solid var(--line); padding:32px 36px; box-shadow:var(--card-shadow);">
+                                <div
+                                    style="font-size:15px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                    La nostra regola:</div>
+                                <div
+                                    style="font-size:34px; font-weight:800; color:var(--red); font-family:var(--font-mono); margin:12px 0;">
                                     Allarme = Errore Massimo
                                 </div>
                                 <p style="font-size:21px; color:var(--ink-soft); line-height:1.45;">
-                                    Non facciamo la media. Guardiamo gli 8 segnali uno per uno e <b>prendiamo il peggiore</b>.
+                                    Non facciamo la media. Guardiamo gli 8 segnali uno per uno e <b>prendiamo il
+                                        peggiore</b>.
                                 </p>
                             </div>
 
                             <div class="callout-box red" style="font-size:22px; padding:22px 28px;">
-                                <b>Soglia automatica (P99)</b>: Se il segnale peggiore supera il valore limite stabilito sui pazienti sani, l'allarme suona all'istante.
+                                <b>Soglia automatica (P99)</b>: Se il segnale peggiore supera il valore limite stabilito
+                                sui pazienti sani, l'allarme suona all'istante.
                             </div>
                         </div>
 
                         <!-- Colonna Destra: Esempio pratico a confronto -->
                         <div class="story reveal">
-                            <div style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:34px 38px; box-shadow:var(--card-shadow-lg);">
+                            <div
+                                style="background:#fff; border-radius:24px; border:1px solid var(--line); padding:34px 38px; box-shadow:var(--card-shadow-lg);">
                                 <div style="font-size:22px; font-weight:800; color:var(--ink); margin-bottom:22px;">
                                     Esempio pratico: l'ossigeno crolla al 70%
                                 </div>
 
                                 <!-- Caso 1: La media fallisce -->
-                                <div style="background:var(--bg-soft); border-left:6px solid var(--muted); border-radius:0 16px 16px 0; padding:22px 24px; margin-bottom:20px;">
+                                <div
+                                    style="background:var(--bg-soft); border-left:6px solid var(--muted); border-radius:0 16px 16px 0; padding:22px 24px; margin-bottom:20px;">
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
                                         <b style="font-size:20px; color:var(--ink);">Metodo classico: Fare la Media</b>
-                                        <span class="pill sm red-soft" style="font-size:13px; font-weight:800;">ERRORE GRAVE</span>
+                                        <span class="pill sm red-soft" style="font-size:13px; font-weight:800;">ERRORE
+                                            GRAVE</span>
                                     </div>
                                     <p style="font-size:19px; color:var(--ink-soft); margin-top:10px; line-height:1.4;">
-                                        7 segnali sono perfetti e 1 è disastroso. La media fa sembrare tutto tranquillo. <b>Il monitor resta zitto.</b>
+                                        7 segnali sono perfetti e 1 è disastroso. La media fa sembrare tutto tranquillo.
+                                        <b>Il monitor resta zitto.</b>
                                     </p>
                                 </div>
 
                                 <!-- Caso 2: Il canale peggiore vince -->
-                                <div style="background:var(--blue-wash); border-left:6px solid var(--blue); border-radius:0 16px 16px 0; padding:22px 24px;">
+                                <div
+                                    style="background:var(--blue-wash); border-left:6px solid var(--blue); border-radius:0 16px 16px 0; padding:22px 24px;">
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
                                         <b style="font-size:20px; color:var(--blue);">Nostro metodo: Canale Peggiore</b>
-                                        <span class="pill sm blue-solid" style="font-size:13px; font-weight:800;">ALLARME IMMEDIATO</span>
+                                        <span class="pill sm blue-solid"
+                                            style="font-size:13px; font-weight:800;">ALLARME IMMEDIATO</span>
                                     </div>
                                     <p style="font-size:19px; color:var(--ink); margin-top:10px; line-height:1.4;">
-                                        Isola subito l'ossigeno che sta crollando ed <b>emette l'allarme avvisando i medici</b> su quale organo intervenire.
+                                        Isola subito l'ossigeno che sta crollando ed <b>emette l'allarme avvisando i
+                                            medici</b> su quale organo intervenire.
                                     </p>
                                 </div>
                             </div>
@@ -2190,13 +2529,14 @@
                  =========================================== -->
             <section class="slide" data-section="03 · Risultati ML">
                 <div class="kick reveal"><i class="dot red"></i> 03 · Benchmark Rilevamento</div>
-                <h2 class="slide-title reveal">Valutazione: <em>confronto con le regole cliniche</em></h2>
+                <h2 class="slide-title reveal">I risultati: <em>i modelli a confronto con le regole mediche</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
                         <div class="open-table-wrap reveal">
-                            <div style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
-                                Metriche sui 500 casi clinici (Riferimento: Regole Mediche)
+                            <div
+                                style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
+                                Prestazioni sui 500 casi clinici (Riferimento: Regole Mediche)
                             </div>
                             <table class="open-table">
                                 <thead>
@@ -2210,7 +2550,7 @@
                                 </thead>
                                 <tbody>
                                     <tr style="color:var(--muted);">
-                                        <td>Baseline Casuale</td>
+                                        <td>Tirare a indovinare (Baseline)</td>
                                         <td class="r">—</td>
                                         <td class="r">—</td>
                                         <td class="r">—</td>
@@ -2233,24 +2573,30 @@
                                 </tbody>
                             </table>
                             <div class="callout-box" style="margin-top:20px; font-size:18px;">
-                                <b>Attenzione al paradosso dell'accuratezza</b>: un modello nullo che risponde sempre "tutto normale" avrebbe il <b>95,16% di accuratezza</b> ma non salverebbe nessun paziente.
+                                <b>L'inganno dell'accuratezza</b>: se dicessimo sempre "il paziente sta benissimo" senza
+                                mai controllare, avremmo il <b>95% di accuratezza</b>, ma in sala operatoria sarebbe
+                                fatale.
                             </div>
                         </div>
 
                         <div class="story reveal">
                             <div class="stat-hero">
                                 <div class="stat-val red">4,84<small>%</small></div>
-                                <div class="stat-lbl">Secondi critici secondo le regole</div>
-                                <div class="stat-sub">246.561 secondi in crisi su 5,1 milioni di secondi valutati</div>
+                                <div class="stat-lbl">Secondi critici riconosciuti</div>
+                                <div class="stat-sub">Circa 246.000 secondi di allarme su oltre 5,1 milioni analizzati
+                                </div>
                             </div>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div>Entrambi i modelli <b>battono ampiamente il caso</b>: Isolation Forest supera la baseline di <b>1,75×</b>, l'Autoencoder di <b>1,33×</b>.</div>
+                                    <div>Entrambi i modelli <b>battono nettamente il caso</b>: Isolation Forest è quasi
+                                        <b>2 volte più efficace</b> del caso, l'Autoencoder il 33% in più.
+                                    </div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div>I valori apparentemente bassi sono attesi: i modelli individuano anomalie multidimensionali che le sole 2 soglie cliniche rigide non possono vedere.</div>
+                                    <div>Numeri così bassi non sono un errore: i modelli vedono anomalie complesse e
+                                        silenziose che le semplici soglie fisse non possono intercettare.</div>
                                 </div>
                             </div>
                         </div>
@@ -2263,83 +2609,168 @@
                  =========================================== -->
             <section class="slide" data-section="03 · Analisi Complementare">
                 <div class="kick reveal"><i class="dot"></i> 03 · Concordanza Metodi</div>
-                <h2 class="slide-title reveal">Concordanza: <em>modelli complementari, non concorrenti</em></h2>
+                <h2 class="slide-title reveal">Accordo tra metodi: <em>quattro occhi diversi sullo stesso paziente</em></h2>
 
-                <div class="canvas">
-                    <div class="editorial-split equal">
-                        <div class="open-table-wrap reveal">
-                            <div style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
-                                Matrice di Sovrapposizione Jaccard (relazione/img)
-                            </div>
-                            <table class="matrix-table">
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th>Shock</th>
-                                        <th>Ipotens.</th>
-                                        <th>IF</th>
-                                        <th>LSTM</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <th class="rl">Shock Index</th>
-                                        <td class="full">1,00</td>
-                                        <td>0,02</td>
-                                        <td>0,06</td>
-                                        <td>0,05</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="rl">Ipotensione</th>
-                                        <td>0,02</td>
-                                        <td class="full">1,00</td>
-                                        <td>0,04</td>
-                                        <td>0,04</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="rl">Isolation Forest</th>
-                                        <td>0,06</td>
-                                        <td>0,04</td>
-                                        <td class="full">1,00</td>
-                                        <td class="mid">0,36</td>
-                                    </tr>
-                                    <tr>
-                                        <th class="rl">Autoencoder</th>
-                                        <td>0,05</td>
-                                        <td>0,04</td>
-                                        <td class="mid">0,36</td>
-                                        <td class="full">1,00</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div style="font-size:17px; color:var(--muted); margin-top:14px; line-height:1.35;">
-                                Bassa sovrapposizione tra regole e ML (0,02–0,06): <b style="color:var(--ink);">osservano pattern fisiologici diversi</b>.
-                            </div>
-                        </div>
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between; gap:22px; height:100%; padding-bottom:8px;">
 
-                        <div class="story reveal">
-                            <div class="stat-hero">
-                                <div class="stat-lbl" style="font-size:22px; margin-bottom:6px;">Decisione della Soglia Autoencoder</div>
-                                <p style="font-size:18px; color:var(--ink-soft); margin-bottom:14px;">
-                                    Soglia tarata sul <b>95° percentile dell'errore di ricostruzione</b>:
-                                </p>
-                                <div class="bm-bar-track" style="height:36px; display:flex;">
-                                    <div style="width:95%; background:var(--blue); color:#fff; display:grid; place-items:center; font-size:16px; font-weight:700;">
-                                        95% Sequenze Fisiologiche Normali (errore ≤ 4,79)
+                    <!-- RIGA SUPERIORE: Due grandi schede simmetriche a tutta larghezza -->
+                    <div class="editorial-split equal reveal" style="gap:28px; align-items:stretch;">
+
+                        <!-- Scheda Sinistra: Matrice Jaccard Riprogettata e Chiara -->
+                        <div style="background:#fff; border:1px solid var(--line); border-radius:22px; padding:26px 30px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                                    <div style="font-size:16px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                        Indice di Sovrapposizione Tra Allarmi (Jaccard)
                                     </div>
-                                    <div style="width:5%; background:var(--red);"></div>
+                                    <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;">5,1M SECONDI</span>
                                 </div>
-                                <div style="display:flex; justify-content:space-between; font-size:17px; margin-top:8px;">
-                                    <span style="color:var(--blue); font-weight:600;">Regime Operativo Normale</span>
-                                    <span style="color:var(--red); font-weight:700;">5% Top Anomalie (errore &gt; 4,79)</span>
+                                <table class="matrix-table" style="margin-top:4px;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; font-size:15px; color:var(--muted);">METODO</th>
+                                            <th style="font-size:15px;">Shock</th>
+                                            <th style="font-size:15px;">Ipotens.</th>
+                                            <th style="font-size:15px;">IF (Alberi)</th>
+                                            <th style="font-size:15px;">LSTM (Rete)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <th class="rl" style="font-size:18px;">Shock Index</th>
+                                            <td class="full">1,00</td>
+                                            <td>0,02</td>
+                                            <td>0,06</td>
+                                            <td>0,05</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="rl" style="font-size:18px;">Ipotensione</th>
+                                            <td>0,02</td>
+                                            <td class="full">1,00</td>
+                                            <td>0,04</td>
+                                            <td>0,04</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="rl" style="font-size:18px;">Isolation Forest</th>
+                                            <td>0,06</td>
+                                            <td>0,04</td>
+                                            <td class="full">1,00</td>
+                                            <td class="mid" style="font-weight:800;">0,36</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="rl" style="font-size:18px;">Autoencoder</th>
+                                            <td>0,05</td>
+                                            <td>0,04</td>
+                                            <td class="mid" style="font-weight:800;">0,36</td>
+                                            <td class="full">1,00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:16px; color:var(--muted);">Sovrapposizione regole ↔ ML: <b>2% – 6%</b></span>
+                                <span class="pill sm dark-solid" style="font-size:13px; padding:5px 12px;">Zero Ridondanza</span>
+                            </div>
+                        </div>
+
+                        <!-- Scheda Destra: Curva di Distribuzione Errore & Soglia P95 -->
+                        <div style="background:#fff; border:1px solid var(--line); border-radius:22px; padding:26px 30px; box-shadow:var(--card-shadow); display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                    <div style="font-size:16px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">
+                                        Come Decidiamo la Soglia: Errore di Ricostruzione LSTM
+                                    </div>
+                                    <span class="pill sm red-soft" style="font-size:13px; padding:4px 12px;">SOGLIA P95 = 4,79</span>
+                                </div>
+                                <p style="font-size:18px; color:var(--ink-soft); line-height:1.35; margin-bottom:12px;">
+                                    Misuriamo l'errore della rete su tutte le sequenze stabili. Il 95% ha un errore bassissimo; solo chi supera 4,79 fa scattare l'allarme:
+                                </p>
+
+                                <!-- Grafico SVG: Curva di densità dell'errore (Gaussiana/chi-quadro asimmetrica) -->
+                                <div style="height:110px; background:var(--bg-soft); border-radius:14px; border:1px solid var(--line); padding:8px 16px; position:relative; overflow:hidden;">
+                                    <svg width="100%" height="94" viewBox="0 0 540 94" preserveAspectRatio="none" style="display:block;">
+                                        <defs>
+                                            <linearGradient id="normalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stop-color="rgba(0, 71, 255, 0.18)" />
+                                                <stop offset="100%" stop-color="rgba(0, 71, 255, 0.45)" />
+                                            </linearGradient>
+                                            <linearGradient id="alarmGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stop-color="rgba(220, 38, 38, 0.75)" />
+                                                <stop offset="100%" stop-color="rgba(220, 38, 38, 0.95)" />
+                                            </linearGradient>
+                                        </defs>
+
+                                        <!-- Asse orizzontale di base -->
+                                        <line x1="20" y1="80" x2="520" y2="80" stroke="var(--line-strong)" stroke-width="2" />
+
+                                        <!-- Area 95% Normale (da 20 a 430) -->
+                                        <path d="M 20 80 Q 70 80 110 32 T 180 14 T 270 38 T 360 62 T 430 73 L 430 80 L 20 80 Z" fill="url(#normalGrad)" />
+                                        <path d="M 20 80 Q 70 80 110 32 T 180 14 T 270 38 T 360 62 T 430 73" fill="none" stroke="var(--blue)" stroke-width="2.5" />
+
+                                        <!-- Area 5% Allarme Critico (da 430 a 520) -->
+                                        <path d="M 430 73 Q 460 76 490 78 T 520 80 L 520 80 L 430 80 Z" fill="url(#alarmGrad)" />
+                                        <path d="M 430 73 Q 460 76 490 78 T 520 80" fill="none" stroke="var(--red)" stroke-width="2.5" />
+
+                                        <!-- Linea Verticale Soglia P95 -->
+                                        <line x1="430" y1="8" x2="430" y2="82" stroke="var(--red)" stroke-width="2.5" stroke-dasharray="4 3" />
+                                        
+                                        <!-- Testo etichetta soglia -->
+                                        <text x="435" y="24" fill="var(--red)" font-family="var(--font-mono)" font-size="12" font-weight="800">Soglia P95</text>
+                                        <text x="435" y="38" fill="var(--ink)" font-family="var(--font-mono)" font-size="11" font-weight="700">MSE = 4,79</text>
+                                        
+                                        <!-- Etichetta zona normale -->
+                                        <text x="180" y="44" fill="var(--blue)" font-family="var(--font-sans)" font-size="14" font-weight="800" text-anchor="middle">95% PAZIENTI STABILI</text>
+                                        <text x="180" y="60" fill="var(--ink-soft)" font-family="var(--font-mono)" font-size="11" text-anchor="middle">Errore di ricostruzione fisiologico</text>
+                                    </svg>
                                 </div>
                             </div>
 
-                            <div class="callout-box">
-                                <b>Valore aggiunto per il medico</b>: i modelli non duplicano le regole cliniche (sarebbero inutili), ma intercettano cali lenti progressivi e aritmie ancora sotto soglia di shock.
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:16px;">
+                                <span style="color:var(--blue); font-weight:700;">● Entro la soglia: salute confermata</span>
+                                <span style="color:var(--red); font-weight:700;">● Oltre la soglia: segnale d'allarme</span>
                             </div>
                         </div>
+
                     </div>
+
+                    <!-- RIGA INFERIORE: 3 Riquadri Esplicativi per il Medico che riempiono la slide perfettamente -->
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:22px; width:100%;" class="reveal">
+
+                        <!-- Carta 1: Le Regole Cliniche -->
+                        <div style="background:#fff; border-radius:18px; border:1px solid var(--line); padding:20px 24px; box-shadow:var(--card-shadow);">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                                <div style="width:12px; height:12px; border-radius:50%; background:var(--red);"></div>
+                                <b style="font-size:20px; color:var(--ink);">Regole Mediche (Soglie)</b>
+                            </div>
+                            <p style="font-size:17px; line-height:1.4; color:var(--ink-soft); margin:0;">
+                                Scattano istantaneamente nei <b>tracolli conclamati</b> (pressione crollata, emorragia acuta). Sono il salvavita immediato obbligatorio.
+                            </p>
+                        </div>
+
+                        <!-- Carta 2: L'Intelligenza Artificiale -->
+                        <div style="background:#fff; border-radius:18px; border:1px solid var(--line); padding:20px 24px; box-shadow:var(--card-shadow);">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                                <div style="width:12px; height:12px; border-radius:50%; background:var(--blue);"></div>
+                                <b style="font-size:20px; color:var(--blue);">Intelligenza Artificiale (AI)</b>
+                            </div>
+                            <p style="font-size:17px; line-height:1.4; color:var(--ink-soft); margin:0;">
+                                Trova <b>anomalie sfuggenti e trend lenti</b> (discordanze su 8 parametri insieme) che avvengono prima che i numeri superino i limiti d'allarme.
+                            </p>
+                        </div>
+
+                        <!-- Carta 3: Il Valore per la Sala Operatoria -->
+                        <div style="background:var(--ink); color:#fff; border-radius:18px; padding:20px 24px; box-shadow:var(--card-shadow-lg);">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                                <div style="width:12px; height:12px; border-radius:50%; background:#93B4FF;"></div>
+                                <b style="font-size:20px; color:#fff;">La Sintesi in Corsia</b>
+                            </div>
+                            <p style="font-size:17px; line-height:1.4; color:#CBD5E1; margin:0;">
+                                I due mondi <b>non si pestano i piedi</b> (sovrapposizione &lt; 6%): uniti offrono al chirurgo sia il paracadute d'emergenza che l'avviso precoce.
+                            </p>
+                        </div>
+
+                    </div>
+
                 </div>
             </section>
 
@@ -2348,66 +2779,78 @@
                  =========================================== -->
             <section class="slide" data-section="04 · Architettura Software">
                 <div class="kick reveal"><i class="dot"></i> 04 · Sistema Software</div>
-                <h2 class="slide-title reveal">Struttura del sistema: <em>microservizi containerizzati</em></h2>
+                <h2 class="slide-title reveal">Come è costruito il sistema: <em>tre livelli indipendenti</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split reversed">
                         <div class="open-table-wrap reveal">
-                            <div style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
-                                Endpoint REST API Principali (FastAPI)
+                            <div
+                                style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
+                                I canali di comunicazione principali (API FastAPI)
                             </div>
                             <table class="open-table" style="font-size:18px;">
                                 <thead>
                                     <tr>
-                                        <th>Metodo</th>
-                                        <th>Percorso Endpoint</th>
-                                        <th>Scopo Applicativo</th>
+                                        <th>Tipo</th>
+                                        <th>Indirizzo</th>
+                                        <th>Cosa fa</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td><span class="chip" style="color:var(--blue); border-color:var(--blue-line);">GET</span></td>
+                                        <td><span class="chip"
+                                                style="color:var(--blue); border-color:var(--blue-line);">GET</span>
+                                        </td>
                                         <td><b class="mono">/cases</b></td>
-                                        <td>Elenco catalogo 500 casi in 2 sole query MongoDB</td>
+                                        <td>Restituisce l'elenco dei 500 casi in due sole domande rapide al database
+                                        </td>
                                     </tr>
                                     <tr>
-                                        <td><span class="chip" style="color:var(--blue); border-color:var(--blue-line);">GET</span></td>
+                                        <td><span class="chip"
+                                                style="color:var(--blue); border-color:var(--blue-line);">GET</span>
+                                        </td>
                                         <td><b class="mono">/cases/{id}/series</b></td>
-                                        <td>Serie temporale con campionamento 1s / 5min</td>
+                                        <td>Fornisce i grafici del paziente secondo per secondo o ogni 5 minuti</td>
                                     </tr>
                                     <tr class="hl">
-                                        <td><span class="chip" style="color:var(--red); border-color:var(--red-line);">POST</span></td>
+                                        <td><span class="chip"
+                                                style="color:var(--red); border-color:var(--red-line);">POST</span></td>
                                         <td><b class="mono">/cases/{id}/detect</b></td>
-                                        <td>Calcolo real-time anomalie regole cliniche + ML</td>
+                                        <td>Esegue al volo tutti e 4 i metodi e restituisce gli allarmi</td>
                                     </tr>
                                     <tr>
                                         <td><span class="chip" style="color:var(--ink);">GET</span></td>
                                         <td><b class="mono">/benchmark · /quality</b></td>
-                                        <td>Rapporti automatici su compressione e integrità</td>
+                                        <td>Verifica lo spazio su disco e lo stato di salute dei dati</td>
                                     </tr>
                                 </tbody>
                             </table>
-                            <div style="margin-top:20px; background:var(--ink); color:#fff; padding:14px 20px; border-radius:12px; font-family:var(--font-mono); font-size:18px;">
+                            <div
+                                style="margin-top:20px; background:var(--ink); color:#fff; padding:14px 20px; border-radius:12px; font-family:var(--font-mono); font-size:18px;">
                                 $ docker compose up --build -d
                             </div>
                         </div>
 
                         <div class="story reveal">
                             <p class="lead-text">
-                                Architettura a tre livelli completamente isolata con <b>Docker Compose</b>.
+                                Tutto il progetto si avvia con un solo comando grazie a <b>tre scatole separate
+                                    (container)</b>.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet dark"></div>
-                                    <div><b>Livello Presentazione</b>: dashboard web in HTML5/ES6, grafici reattivi e filtri senza dipendenze npm pesanti.</div>
+                                    <div><b>La schermata grafica</b>: una dashboard web leggera, senza pacchetti inutili
+                                        o pesanti, che si apre istantaneamente su qualsiasi computer o tablet.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Livello Applicativo</b>: server FastAPI con connessioni persistenti a MongoDB, serializzazione BSON efficiente.</div>
+                                    <div><b>Il cervello applicativo</b>: server veloce in Python (FastAPI) che riceve le
+                                        richieste e fa girare i modelli matematici in tempo reale.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Livello Dati</b>: MongoDB 8.0 con storage engine WiredTiger ottimizzato per serie storiche e registry indicizzato.</div>
+                                    <div><b>Il database dedicato</b>: MongoDB 8.0 configurato appositamente per le serie
+                                        temporali cliniche, sempre pronto a rispondere.</div>
                                 </div>
                             </div>
                         </div>
@@ -2416,43 +2859,219 @@
             </section>
 
             <!-- ===========================================
-                 17 — DASHBOARD (SCREENSHOT)
+                 17-A — DASHBOARD: PANORAMICA, ARCHITETTURA & HUD
                  =========================================== -->
             <section class="slide" data-section="04 · Interfaccia Clinica">
-                <div class="kick reveal"><i class="dot"></i> 04 · Interfaccia Utente</div>
-                <h2 class="slide-title reveal">Dashboard clinica: <em>monitoraggio e allarmi</em></h2>
+                <div class="kick reveal"><i class="dot"></i> 04 · Interfaccia Clinica</div>
+                <h2 class="slide-title reveal">La dashboard per il medico: <em>quadro del paziente e allarmi a colpo
+                        d'occhio</em></h2>
 
                 <div class="canvas">
-                    <div class="editorial-split" style="grid-template-columns: 1.35fr 1fr;">
-                        <div style="display:flex; flex-direction:column; gap:16px; height:100%;" class="reveal">
-                            <div style="flex:1; border-radius:18px; overflow:hidden; border:1px solid var(--line); box-shadow:0 8px 24px rgba(10,15,29,0.06);">
-                                <img src="../relazione/img/dashboard_hud_matrix.png" alt="HUD Paziente e Matrice Metodi" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="editorial-split" style="grid-template-columns: 1.25fr 1fr; gap:52px;">
+                        <div class="reveal"
+                            style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+                            <div
+                                style="border-radius:22px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); background:#fff;">
+                                <img src="../relazione/img/dashboard_hud_matrix.png" alt="HUD Paziente e Matrice Metodi"
+                                    style="width:100%; height:auto; display:block; object-fit:contain;">
                             </div>
-                            <div style="flex:1; border-radius:18px; overflow:hidden; border:1px solid var(--line); box-shadow:0 8px 24px rgba(10,15,29,0.06);">
-                                <img src="../relazione/img/dashboard_chart_hr_spo2.png" alt="Grafico serie temporale HR e SpO2" style="width:100%; height:100%; object-fit:cover;">
+                            <div
+                                style="font-size:16px; color:var(--muted); font-family:var(--font-mono); margin-top:14px; text-align:center;">
+                                Schermata reale: Selezione del paziente, numeri vitali in grande e accordo tra i modelli
                             </div>
                         </div>
 
                         <div class="story reveal">
                             <p class="lead-text">
-                                Progettata per permettere al medico di <b>validare visivamente ogni anomalia</b>.
+                                Un'interfaccia <b>pulita e immediata</b> per controllare cosa succede al paziente senza
+                                perdersi in schermate complicate.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>HUD Parametri Vitali</b>: battito, ossigeno e pressioni con badge di stato in tempo reale e intervalli fisiologici.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Matrice di Allerta</b>: conteggio delle anomalie distinte rilevate da ciascun metodo per il paziente attivo.</div>
+                                    <div><b>Scelta del paziente</b>: menu a discesa per trovare al volo uno dei 500
+                                        interventi con età, sesso, reparto e durata dell'operazione.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Grafici Interattivi</b>: evidenziazione visiva immediata delle finestre temporali contrassegnate come critiche.</div>
+                                    <div><b>Pannello parametri vitali</b>: grandi numeri colorati (verde se normale,
+                                        rosso se in allarme) per battito, saturazione e pressione.</div>
                                 </div>
                                 <div class="takeaway-item">
-                                    <div class="bullet dark"></div>
-                                    <div><b>Export Certificato</b>: download diretto dei dati bonificati e delle anomalie in CSV per audit clinico.</div>
+                                    <div class="bullet"></div>
+                                    <div><b>Tabella degli allarmi</b>: mostra chiaramente quanti secondi di allarme ha
+                                        trovato ciascun metodo durante l'intervento.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Zero tempi di attesa</b>: costruita senza componenti pesanti per aprirsi
+                                        all'istante anche su un tablet o un monitor di corsia.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 17-B — DASHBOARD: MONITORAGGIO HR & SPO2
+                 =========================================== -->
+            <section class="slide" data-section="04 · Interfaccia Clinica">
+                <div class="kick reveal"><i class="dot red"></i> 04 · Visualizzazione Tracciati</div>
+                <h2 class="slide-title reveal">I grafici continui: <em>battito cardiaco e ossigeno insieme</em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split" style="grid-template-columns: 1.25fr 1fr; gap:52px;">
+                        <div class="reveal"
+                            style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+                            <div
+                                style="border-radius:22px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); background:#fff;">
+                                <img src="../relazione/img/dashboard_chart_hr_spo2.png"
+                                    alt="Grafico serie temporale HR e SpO2"
+                                    style="width:100%; height:auto; display:block; object-fit:contain;">
+                            </div>
+                            <div
+                                style="font-size:16px; color:var(--muted); font-family:var(--font-mono); margin-top:14px; text-align:center;">
+                                Schermata reale: Battito in blu, saturazione in rosso e zone di pericolo evidenziate
+                            </div>
+                        </div>
+
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Il medico può <b>scorrere ore di operazione con il mouse</b> e individuare all'istante i
+                                momenti critici.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Due curve in un solo sguardo</b>: battito cardiaco (blu) e ossigenazione nel
+                                        sangue (rosso) allineati perfettamente sullo stesso asse temporale.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Zone di crisi evidenziate</b>: i secondi in cui scattano gli allarmi vengono
+                                        colorati con fasce verticali per attirare subito l'attenzione.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Visuale panoramica o al secondo</b>: tasti rapidi per vedere l'intervento
+                                        intero o ingrandire i dettagli secondo per secondo.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Dettaglio al passaggio del mouse</b>: basta toccare un punto della curva per
+                                        leggere i valori esatti e lo stato dei sensori.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 17-C — DASHBOARD: TRACCIATO PRESSORIO NIBP
+                 =========================================== -->
+            <section class="slide" data-section="04 · Interfaccia Clinica">
+                <div class="kick reveal"><i class="dot"></i> 04 · Emodinamica Pressoria</div>
+                <h2 class="slide-title reveal">La pressione arteriosa: <em>misure del bracciale e linea di pericolo</em>
+                </h2>
+
+                <div class="canvas">
+                    <div class="editorial-split" style="grid-template-columns: 1.25fr 1fr; gap:52px;">
+                        <div class="reveal"
+                            style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+                            <div
+                                style="border-radius:22px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); background:#fff;">
+                                <img src="../relazione/img/dashboard_chart_nibp.png"
+                                    alt="Tracciato Pressorio con Soglia MAP < 65"
+                                    style="width:100%; height:auto; display:block; object-fit:contain;">
+                            </div>
+                            <div
+                                style="font-size:16px; color:var(--muted); font-family:var(--font-mono); margin-top:14px; text-align:center;">
+                                Schermata reale: Curva pressoria con linea tratteggiata di pericolo a 65 mmHg
+                            </div>
+                        </div>
+
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Il grafico evidenzia la <b>pressione media</b> e avvisa se l'ultima misura è troppo
+                                vecchia per considerarsi affidabile.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Tutte e tre le pressioni</b>: massima (sistolica), minima (diastolica) e
+                                        media (MAP) tracciate con chiarezza lungo tutto l'intervento.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Linea di sicurezza a 65 mmHg</b>: una riga orizzontale tratteggiata mostra
+                                        se la pressione scende sotto la soglia minima per nutrire gli organi.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Avviso misura vecchia</b>: il sistema segnala chiaramente se sono passati
+                                        più di 2 minuti dall'ultimo gonfiaggio del bracciale.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Scorrimento sincronizzato</b>: ingrandendo la pressione, il grafico di
+                                        battito e ossigeno si sposta esattamente allo stesso secondo.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 17-D — DASHBOARD: REGISTRO ANOMALIE & EXPORT
+                 =========================================== -->
+            <section class="slide" data-section="04 · Interfaccia Clinica">
+                <div class="kick reveal"><i class="dot red"></i> 04 · Registro Eventi & Audit</div>
+                <h2 class="slide-title reveal">Registro degli allarmi: <em>elenco ordinato e scaricamento dati</em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split" style="grid-template-columns: 1.25fr 1fr; gap:52px;">
+                        <div class="reveal"
+                            style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+                            <div
+                                style="border-radius:22px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); background:#fff;">
+                                <img src="../relazione/img/dashboard_anomaly_table.png"
+                                    alt="Registro Anomalie ed Esportazione CSV"
+                                    style="width:100%; height:auto; display:block; object-fit:contain;">
+                            </div>
+                            <div
+                                style="font-size:16px; color:var(--muted); font-family:var(--font-mono); margin-top:14px; text-align:center;">
+                                Schermata reale: Elenco degli eventi critici con filtri di ricerca e pulsante di export
+                            </div>
+                        </div>
+
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Ogni secondo di allarme viene registrato per permettere ai medici di <b>rivedere
+                                    l'intervento a bocce ferme</b>.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Secondo esatto e valori registrati</b>: la tabella riporta l'istante preciso
+                                        in cui è iniziato il problema e i numeri rilevati dai sensori.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Etichetta del metodo scattato</b>: indica chiaramente se l'allarme è dovuto
+                                        allo Shock Index, alla pressione bassa o a un modello di AI.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Filtri immediati</b>: possibilità di isolare solo gli allarmi gravi o solo
+                                        un certo momento dell'operazione.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Esportazione in un click</b>: pulsante per scaricare tutto in formato
+                                        Excel/CSV, utile per la cartella clinica, audit o studi futuri.</div>
                                 </div>
                             </div>
                         </div>
@@ -2465,35 +3084,39 @@
                  =========================================== -->
             <section class="slide" data-section="05 · Risultati">
                 <div class="kick reveal"><i class="dot"></i> 05 · Risultati Chiave</div>
-                <h2 class="slide-title reveal">Sintesi dei risultati: <em>efficienza e affidabilità</em></h2>
+                <h2 class="slide-title reveal">I risultati finali: <em>un sistema leggero, rapido e sicuro</em></h2>
 
                 <div class="canvas" style="justify-content:space-between;">
                     <div class="stat-row cols-4 reveal">
                         <div class="stat-hero">
                             <div class="stat-val">−84,2<small>%</small></div>
-                            <div class="stat-lbl">Compressione Storage</div>
-                            <div class="stat-sub">Da 47,25 MB a 7,45 MB in Gold</div>
+                            <div class="stat-lbl">Meno Spazio su Disco</div>
+                            <div class="stat-sub">Da oltre 47 MB a meno di 7,5 MB nel database Gold</div>
                         </div>
                         <div class="stat-hero">
                             <div class="stat-val">1,6<small>×</small></div>
-                            <div class="stat-lbl">Più Veloce in Query</div>
-                            <div class="stat-sub">18 ms su MongoDB vs 29 ms Parquet</div>
+                            <div class="stat-lbl">Più Veloce a Rispondere</div>
+                            <div class="stat-sub">Appena 18 ms per caricare un intero intervento</div>
                         </div>
                         <div class="stat-hero">
                             <div class="stat-val">4</div>
-                            <div class="stat-lbl">Metodi Combinati</div>
-                            <div class="stat-sub">2 clinici + 2 di intelligenza artificiale</div>
+                            <div class="stat-lbl">Metodi di Controllo</div>
+                            <div class="stat-sub">2 regole mediche immediate + 2 modelli di intelligenza artificiale
+                            </div>
                         </div>
                         <div class="stat-hero">
                             <div class="stat-val dark">38 / 38</div>
-                            <div class="stat-lbl">Test Automatici</div>
-                            <div class="stat-sub">100% test di integrità e pipeline superati</div>
+                            <div class="stat-lbl">Test Superati al 100%</div>
+                            <div class="stat-sub">Ogni passaggio della pipeline è collaudato e verificato</div>
                         </div>
                     </div>
 
-                    <div class="card dark center reveal" style="background:var(--ink); padding:32px 48px; border-radius:24px; text-align:center; box-shadow:0 12px 36px rgba(10,15,29,0.14); border:1px solid rgba(255,255,255,0.08); flex:none; width:100%;">
+                    <div class="card dark center reveal"
+                        style="background:var(--ink); padding:32px 48px; border-radius:24px; text-align:center; box-shadow:0 12px 36px rgba(10,15,29,0.14); border:1px solid rgba(255,255,255,0.08); flex:none; width:100%;">
                         <p style="font-size:32px; font-weight:500; line-height:1.38; color:#CBD5E1; margin:0;">
-                            Le regole mediche costituiscono il <b style="color:#fff;">paracadute deterministico</b> per le emergenze; i modelli di Machine Learning intercettano i <b style="color:#93B4FF;">segnali deboli</b> prima che la crisi si manifesti.
+                            Le regole mediche fanno da <b style="color:#fff;">paracadute immediato</b> per le emergenze
+                            improvvise; l'intelligenza artificiale scova i <b style="color:#93B4FF;">peggioramenti lenti
+                                e silenziosi</b> prima che sia troppo tardi.
                         </p>
                     </div>
                 </div>
@@ -2503,48 +3126,66 @@
                  19 — LIMITI E SVILUPPI FUTURI
                  =========================================== -->
             <section class="slide" data-section="05 · Conclusioni">
-                <div class="kick reveal"><i class="dot"></i> 05 · Conclusioni & Prospettive</div>
-                <h2 class="slide-title reveal">Limiti attuali e <em>sviluppi futuri</em></h2>
+                <div class="kick reveal"><i class="dot"></i> 05 · Conclusioni &amp; Prospettive</div>
+                <h2 class="slide-title reveal">Limiti attuali e <em>prossimi passi del progetto</em></h2>
 
-                <div class="canvas">
-                    <div class="editorial-split equal">
-                        <div class="story reveal" style="background:#fff; padding:36px; border-radius:20px; border:1px solid var(--line); border-top:5px solid var(--red);">
-                            <div class="kick" style="color:var(--red); margin-bottom:6px;"><i class="dot red"></i> Limiti Attuali</div>
-                            <h3 style="font-size:32px; font-weight:800; color:var(--ink); margin-bottom:16px;">Cosa manca alla clinica reale</h3>
-                            <div class="takeaway">
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Mancanza di ground truth certificata</b>: VitalDB non include annotazioni diagnostiche evento per evento.</div>
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:center;">
+                    <div class="editorial-split equal" style="gap:40px; height:auto; min-height:560px;">
+
+                        <!-- Riquadro Limiti: senza bordi colorati, con ombra elegante e testi grandi -->
+                        <div class="story reveal"
+                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:center;">
+                            <div class="kick" style="margin-bottom:12px; font-size:18px;"><i class="dot"></i> Limiti
+                                Attuali</div>
+                            <h3
+                                style="font-size:38px; font-weight:800; color:var(--ink); margin-bottom:24px; line-height:1.2;">
+                                Cosa manca rispetto alla corsia reale</h3>
+                            <div class="takeaway" style="gap:24px;">
+                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
+                                    <div class="bullet"></div>
+                                    <div><b>Nessuna etichetta medica certificata</b>: i dati originali di VitalDB non
+                                        hanno note dei medici che confermino secondo per secondo ogni diagnosi.</div>
                                 </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Pressione discontinua</b>: la NIBP rimane una stima campionata ogni pochi minuti, non continua come l'arteriosa invasiva.</div>
+                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
+                                    <div class="bullet"></div>
+                                    <div><b>Pressione a singhiozzo</b>: il bracciale misura solo ogni qualche minuto,
+                                        non ininterrottamente come una cannula inserita in arteria.</div>
                                 </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Marcatura temporale convenzionale</b>: timeline con inizio fittizio privo di sincronizzazione oraria assoluta.</div>
+                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
+                                    <div class="bullet"></div>
+                                    <div><b>Orari convenzionali</b>: i file partono dal secondo 0 senza memorizzare
+                                        l'orario effettivo dell'orologio della sala operatoria.</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="story reveal" style="background:#fff; padding:36px; border-radius:20px; border:1px solid var(--line); border-top:5px solid var(--blue);">
-                            <div class="kick" style="color:var(--blue); margin-bottom:6px;"><i class="dot"></i> Prospettive Future</div>
-                            <h3 style="font-size:32px; font-weight:800; color:var(--ink); margin-bottom:16px;">Evoluzioni di ricerca</h3>
-                            <div class="takeaway">
-                                <div class="takeaway-item">
+                        <!-- Riquadro Prospettive: senza bordi colorati, con ombra elegante e testi grandi -->
+                        <div class="story reveal"
+                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:center;">
+                            <div class="kick" style="margin-bottom:12px; font-size:18px;"><i class="dot"></i>
+                                Prospettive Future</div>
+                            <h3
+                                style="font-size:38px; font-weight:800; color:var(--ink); margin-bottom:24px; line-height:1.2;">
+                                Come possiamo farlo crescere</h3>
+                            <div class="takeaway" style="gap:24px;">
+                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
                                     <div class="bullet"></div>
-                                    <div><b>Streaming in tempo reale</b>: ingestione continua durante l'intervento con calcolo incrementale dell'errore.</div>
+                                    <div><b>Flusso continuo in diretta</b>: ricevere i dati in streaming secondo per
+                                        secondo durante l'intervento vero e proprio.</div>
                                 </div>
-                                <div class="takeaway-item">
+                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
                                     <div class="bullet"></div>
-                                    <div><b>Integrazione gas respiratori</b>: inclusione di etCO₂ e profondità anestetica (BIS) per correlare ventilazione ed emodinamica.</div>
+                                    <div><b>Includere i gas respiratori</b>: aggiungere anidride carbonica espirata e
+                                        profondità dell'anestesia per un quadro clinico totale.</div>
                                 </div>
-                                <div class="takeaway-item">
+                                <div class="takeaway-item" style="font-size:24px; line-height:1.45;">
                                     <div class="bullet"></div>
-                                    <div><b>Explainable AI (XAI)</b>: evidenziazione visiva del singolo canale responsabile del picco di errore di ricostruzione.</div>
+                                    <div><b>Spiegazioni visive immediate</b>: evidenziare con una freccia quale organo o
+                                        parametro ha provocato l'allarme dell'algoritmo.</div>
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </section>
@@ -2560,7 +3201,8 @@
                     <img src="img/univpm_seal.png" alt="Sigillo dell'Università Politecnica delle Marche">
                     <div>
                         <div class="uni">Università Politecnica delle Marche</div>
-                        <div class="course">Dipartimento di Ingegneria dell'Informazione · New Generation Databases</div>
+                        <div class="course">Dipartimento di Ingegneria dell'Informazione · New Generation Databases
+                        </div>
                     </div>
                 </div>
 
@@ -2593,7 +3235,8 @@
     <div class="edit-hotzone"></div>
     <button class="edit-toggle" id="editToggle" title="Modalità modifica (E)"
         aria-label="Attiva la modalità modifica">✎</button>
-    <div class="edit-hint">Modalità modifica · clicca per modificare il testo · Ctrl+S salva il file · E per uscire</div>
+    <div class="edit-hint">Modalità modifica · clicca per modificare il testo · Ctrl+S salva il file · E per uscire
+    </div>
 
     <script>
         /* ===========================================
