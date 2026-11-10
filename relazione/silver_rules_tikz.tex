@@ -36,8 +36,8 @@
 
     % Regola 1: Outlier
     \node[ruleBox, draw=brandCoral, fill=brandCoral!5] (r1) at (-3.7, 2.5) {
-        \textbf{\color{brandCoralInk}1. Mascheramento Outlier}\\
-        {\scriptsize $x \notin \text{TRACK\_SPECS} \implies \texttt{*\_outlier = True} \land x = \text{NaN}$}
+        \textbf{\color{brandCoralInk}1. Marcatura e Isolamento Outlier}\\
+        {\scriptsize $x \notin \text{TRACK\_SPECS} \implies \texttt{*\_outlier = True}$ (esclusi da ffill)}
     };
 
     % Regola 2: Interpolazione
@@ -70,20 +70,20 @@
     % Schema 2: Silver
     \node[schemaBox, draw=brandPrimary, fill=brandPrimary!6, below=0.9cm of s1] (s2) {
         {\textbf{\color{brandPrimary}Silver Parquet (18 colonne)}}\\[2pt]
-        {\scriptsize 6 vitali + 5 outlier + 5 imputed + \texttt{age} + \texttt{dep}}
+        {\scriptsize 6 base + \texttt{case\_id} + 5 outlier + 5 imputed + \texttt{nibp\_age\_s}}
     };
 
     % Schema 3: Gold
     \node[schemaBox, draw=brandTeal, fill=brandTeal!6, below=0.9cm of s2] (s3) {
         {\textbf{\color{brandTeal}Gold Documento BSON (4 sezioni)}}\\[2pt]
-        {\scriptsize \texttt{timestamp}, \texttt{metadata}, \texttt{metrics}, \texttt{flags} (NaN omessi)}
+        {\scriptsize \texttt{timestamp}, \texttt{metadata}, \texttt{metrics}, \texttt{quality\_flags} (NaN omessi)}
     };
 
     % Frecce verticali di transizione dello schema
     \draw[flowArrow] (s1) -- (s2)
-        node[midway, right=3pt, font=\scriptsize\bfseries\color{brandPrimary}] {+12 flag \& feature};
+        node[midway, right=3pt, font=\scriptsize\bfseries\color{brandPrimary}] {+12 col. (-40 pt null)};
 
     \draw[flowArrow, color=brandTeal] (s2) -- (s3)
-        node[midway, right=3pt, font=\scriptsize\bfseries\color{brandTeal}] {BSON (-40 pt null)};
+        node[midway, right=3pt, font=\scriptsize\bfseries\color{brandTeal}] {BSON (-65\% spazio)};
 
 \end{tikzpicture}
