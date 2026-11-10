@@ -95,15 +95,7 @@ Subito sotto la matrice di consenso trovano posto i due grafici temporali sincro
 La seconda vista della dashboard, gestita dallo script \texttt{dashboard/js/lakehouse.js}, interroga gli endpoint \texttt{/benchmark}, \texttt{/evaluation} e \texttt{/quality} per esporre le metriche ingegneristiche dell'ultimo ciclo di esecuzione della pipeline. I pannelli superiori presentano il confronto sullo spazio occupato dai tre livelli (\textbf{33,95 MB} in bronze, \textbf{44,52 MB} in silver e \textbf{15,60 MB} di dati compressi in gold oltre a \textbf{2,56 MB} di indici B-Tree), dimensionando le barre grafiche rispetto al valore massimo tramite \texttt{Math.max(bronzeMB, silverMB, goldMB)}, insieme al confronto sui tempi di risposta (\textbf{12,02 ms} su MongoDB contro \textbf{26,95 ms} su Parquet). I pannelli inferiori espongono la tabella con le metriche di valutazione dei modelli non supervisionati sui $5.402.386$ campioni e il prospetto sulla qualit\`a della bonifica, che rendiconta le $5.565.384$ righe grezze iniziali, le $162.998$ righe inattive rimosse ($2,93\%$) e il dettaglio di outlier e valori mancanti per ciascun intervento.
 
 \section{Containerizzazione Docker, orchestrazione e test automatici}
-Per assicurare che l'intero ambiente sia riproducibile su qualsiasi sistema operativo senza richiedere l'installazione manuale di MongoDB 8.0 o di librerie scientifiche locali, la piattaforma \`e stata incapsulata in due container gestiti da \texttt{docker-compose.yml}, secondo lo schema architetturale rappresentato nella Figura~\ref{fig:app_architecture}.
-
-\begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=\textwidth]{app_architecture.png}
-    \caption{Architettura complessiva del sistema a tre tier, endpoint REST e distribuzione dei servizi nei container Docker.}
-    \label{fig:app_architecture}
-\end{figure}
-\FloatBarrier
+Per assicurare che l'intero ambiente sia riproducibile su qualsiasi sistema operativo senza richiedere l'installazione manuale di MongoDB 8.0 o di librerie scientifiche locali, la piattaforma \`e stata incapsulata in due container gestiti da \texttt{docker-compose.yml}.
 
 Sulla rete virtuale isolata \texttt{vitaldb\_net} operano il container \texttt{vitaldb\_mongo}, basato sull'immagine ufficiale \texttt{mongo:8.0} avviata con l'opzione \texttt{--replSet rs0} e dotata di una sonda di controllo (\texttt{healthcheck}) che verifica o inizializza automaticamente il replica set tramite \texttt{mongosh}, e il container \texttt{vitaldb\_api}, costruito a partire da \texttt{python:3.12-slim} con tutte le dipendenze di \texttt{requirements.txt} (inclusa la distribuzione CPU di PyTorch). Grazie alla direttiva \texttt{depends\_on} vincolata alla condizione \texttt{service\_healthy}, il servizio FastAPI attende che il motore MongoDB abbia completato l'elezione del nodo primario prima di accettare richieste sulla porta \texttt{8000}.
 

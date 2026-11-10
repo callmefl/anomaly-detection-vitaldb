@@ -1,0 +1,110 @@
+% Diagramma TikZ: Quadro sinottico del motore di rilevamento ibrido a 4 metodi
+% Design pulito, orizzontale e robusto per pdflatex
+\begin{tikzpicture}[
+    font=\sffamily,
+    >=Stealth,
+    linkLine/.style={draw=brandDark, line width=0.9pt},
+    arrowToOut/.style={->, draw=brandTeal, line width=1.1pt}
+]
+
+    % =========================================================================
+    % BLOCCO 1: VETTORE DI INPUT
+    % =========================================================================
+    \draw[fill=brandPrimary!6, draw=brandPrimary, rounded corners=6pt, line width=0.9pt] 
+        (-6.2, -2.8) rectangle (-3.0, 2.8);
+    
+    \node[anchor=north, font=\small\bfseries\color{brandPrimary}] at (-4.6, 2.6) {Dati in Ingresso};
+    \node[anchor=north, font=\scriptsize\bfseries\color{brandDark}] at (-4.6, 2.05) {8 Misure al secondo};
+    
+    \node[anchor=north west, font=\scriptsize\color{brandInkSoft}, text width=2.8cm, align=left] at (-6.0, 1.4) {
+        \textbf{5 Parametri vitali:}\\
+        $\cdot$ Freq. cardiaca (HR)\\
+        $\cdot$ Ossigeno ($\text{SpO}_2$)\\
+        $\cdot$ Sistolica (SBP)\\
+        $\cdot$ Diastolica (DBP)\\
+        $\cdot$ Media (MBP)\\[6pt]
+        \textbf{3 Dinamiche HR:}\\
+        $\cdot$ Media mobile (5s)\\
+        $\cdot$ Variabilit\`a (std)\\
+        $\cdot$ Scatto istantaneo
+    };
+
+    % =========================================================================
+    % BLOCCO 2: I 4 METODI DI CONTROLLO
+    % =========================================================================
+
+    % Metodo 1: Shock Index
+    \draw[fill=white, draw=brandPrimary, rounded corners=5pt, line width=0.9pt] 
+        (-1.9, 1.7) rectangle (3.3, 2.8);
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandPrimary}] at (-1.75, 2.65) {1. Shock Index};
+    \node[anchor=north east, font=\tiny\color{brandMuted}] at (3.15, 2.65) {Regola medica (0s)};
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandDark}] at (-1.75, 2.25) {Cuore accelera e pressione crolla};
+    \node[anchor=north west, font=\tiny\color{brandInkSoft}] at (-1.75, 1.95) {Intercetta subito emorragie o collassi improvvisi.};
+
+    % Metodo 2: Pressione e Ossigeno Bassi
+    \draw[fill=white, draw=brandCoral, rounded corners=5pt, line width=0.9pt] 
+        (-1.9, 0.45) rectangle (3.3, 1.55);
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandCoralInk}] at (-1.75, 1.4) {2. Pressione e Ossigeno Bassi};
+    \node[anchor=north east, font=\tiny\color{brandMuted}] at (3.15, 1.4) {Regola di emergenza};
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandDark}] at (-1.75, 1.0) {Il sangue non circola e i tessuti soffrono};
+    \node[anchor=north west, font=\tiny\color{brandInkSoft}] at (-1.75, 0.7) {Allarme immediato di sofferenza per gli organi.};
+
+    % Metodo 3: Isolation Forest
+    \draw[fill=white, draw=brandPeachInk, rounded corners=5pt, line width=0.9pt] 
+        (-1.9, -0.8) rectangle (3.3, 0.3);
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandPeachInk}] at (-1.75, 0.15) {3. Isolation Forest};
+    \node[anchor=north east, font=\tiny\color{brandMuted}] at (3.15, 0.15) {AI $\cdot$ 100 Alberi};
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandDark}] at (-1.75, -0.25) {Combinazioni anomale mai viste prima};
+    \node[anchor=north west, font=\tiny\color{brandInkSoft}] at (-1.75, -0.55) {Scova parametri discordanti che non quadrano tra loro.};
+
+    % Metodo 4: Autoencoder LSTM
+    \draw[fill=white, draw=brandAzure, rounded corners=5pt, line width=0.9pt] 
+        (-1.9, -2.05) rectangle (3.3, -0.95);
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandAzure}] at (-1.75, -1.1) {4. Autoencoder LSTM};
+    \node[anchor=north east, font=\tiny\color{brandMuted}] at (3.15, -1.1) {Rete Neurale (30s)};
+    \node[anchor=north west, font=\scriptsize\bfseries\color{brandDark}] at (-1.75, -1.5) {Impara la normalit\`a per scovare le crisi};
+    \node[anchor=north west, font=\tiny\color{brandInkSoft}] at (-1.75, -1.8) {Avvisa con 30--60s di anticipo su crisi lente e graduali.};
+
+    % =========================================================================
+    % BLOCCO 3: GIUDIZIO FINALE (ENSEMBLE)
+    % =========================================================================
+    \draw[fill=brandTeal!6, draw=brandTeal, rounded corners=6pt, line width=0.9pt] 
+        (4.4, -2.8) rectangle (7.5, 2.8);
+    
+    \node[anchor=north, font=\small\bfseries\color{brandTeal}] at (5.95, 2.6) {Giudizio Finale};
+    \node[anchor=north, font=\tiny\color{brandMuted}] at (5.95, 2.1) {Valutazione Integrata};
+
+    % Badge livelli di allarme
+    \draw[fill=brandTeal!20, draw=brandTeal!50, rounded corners=3pt] (4.65, 0.85) rectangle (7.25, 1.55);
+    \node[font=\scriptsize\bfseries\color{brandTeal}] at (5.95, 1.2) {Livello 0: Stabile};
+
+    \draw[fill=brandPeach!25, draw=brandPeachInk!50, rounded corners=3pt] (4.65, -0.15) rectangle (7.25, 0.55);
+    \node[font=\scriptsize\bfseries\color{brandPeachInk}] at (5.95, 0.2) {Livello 1: Sospetto};
+
+    \draw[fill=brandCoral!22, draw=brandCoralInk!50, rounded corners=3pt] (4.65, -1.15) rectangle (7.25, -0.45);
+    \node[font=\scriptsize\bfseries\color{brandCoralInk}] at (5.95, -0.8) {Livello 2: Critico};
+
+    \node[anchor=south, font=\tiny\color{brandDark}, text width=2.8cm, align=center] at (5.95, -2.6) {
+        Allarme tempestivo per i medici senza falsi allarmi inutili.
+    };
+
+    % =========================================================================
+    % COLLEGAMENTI E DIRAMAZIONI
+    % =========================================================================
+    % Da input verso i 4 metodi
+    \draw[linkLine] (-3.0, 0) -- (-2.45, 0);
+    \draw[linkLine] (-2.45, 2.25) -- (-1.9, 2.25);
+    \draw[linkLine] (-2.45, 1.0) -- (-1.9, 1.0);
+    \draw[linkLine] (-2.45, -0.25) -- (-1.9, -0.25);
+    \draw[linkLine] (-2.45, -1.5) -- (-1.9, -1.5);
+    \draw[linkLine] (-2.45, -1.5) -- (-2.45, 2.25);
+
+    % Dai 4 metodi verso il giudizio finale
+    \draw[linkLine] (3.3, 2.25) -- (3.85, 2.25);
+    \draw[linkLine] (3.3, 1.0) -- (3.85, 1.0);
+    \draw[linkLine] (3.3, -0.25) -- (3.85, -0.25);
+    \draw[linkLine] (3.3, -1.5) -- (3.85, -1.5);
+    \draw[linkLine] (3.85, -1.5) -- (3.85, 2.25);
+    \draw[arrowToOut] (3.85, 0) -- (4.4, 0);
+
+\end{tikzpicture}
