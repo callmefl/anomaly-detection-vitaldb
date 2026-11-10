@@ -194,7 +194,7 @@ Per non dipendere da un unico approccio, il motore integra **tre livelli complem
 ### 1. Livello 1: regole cliniche acute (deterministiche)
 - **Shock Index ($\text{SI} = \frac{\text{HR}}{\text{SBP}}$)**: intercetta l'instabilità emodinamica o l'inizio di uno shock ipovolemico quando il valore supera la soglia di allerta ($\text{SI} > 0{,}9$).
 - **Ipotensione arteriosa severa**: segnala il rischio di ipoperfusione degli organi vitali quando la pressione media scende sotto la soglia critica ($\text{MAP} < 65\text{ mmHg}$).
-- **Filtro di freschezza della misura (gate temporale)**: poiché la pressione non invasiva viene misurata a intervalli di alcuni minuti e poi propagata, entrambe le regole vengono disattivate quando l'ultima misura disponibile risale a più di due minuti prima (`nibp_age_s > 120`), evitando falsi allarmi su dati obsoleti.
+- **Filtro di freschezza della misura (gate temporale)**: poiché la pressione non invasiva viene misurata a intervalli di alcuni minuti e poi propagata, entrambe le regole vengono disattivate quando l'ultima misura disponibile risale a più di due minuti prima (`nibp_age_s > 120 s`), evitando falsi allarmi su dati obsoleti.
 
 ### 2. Livello 2: Isolation Forest (machine learning multivariato)
 - Il modello isola punti atipici nello spazio delle feature considerando simultaneamente **8 variabili standardizzate**: i 5 parametri vitali, la media mobile della frequenza cardiaca a 30 secondi, la derivata prima della frequenza cardiaca e lo Shock Index.
