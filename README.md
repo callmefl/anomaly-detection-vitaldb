@@ -325,7 +325,7 @@ docker exec vitaldb_api python -m pytest tests/ -v
 
 ### Struttura e copertura dei test:
 - **`tests/test_gold.py` (16 test)**: conversione corretta dei tipi BSON, validazione dei tipi interi per `case_id`, rispetto dello schema preventivo in `validate_records`, sanitizzazione dei nomi dei campi per MongoDB e correttezza del ciclo a due fasi (*loading* $\rightarrow$ *committed*).
-- **`tests/test_detection.py` (9 test)**: calcolo dello Shock Index e dell'ipotensione, funzionamento del filtro di obsolescenza con $\text{nibp\_age\_s} > 120\text{ s}$, isolamento rigoroso delle finestre temporali tra pazienti distinti, presenza del proiettore lineare e assenza di leak temporali nelle imputazioni.
+- **`tests/test_detection.py` (9 test)**: calcolo dello Shock Index e dell'ipotensione, funzionamento del filtro di obsolescenza con `nibp_age_s > 120` s, isolamento rigoroso delle finestre temporali tra pazienti distinti, presenza del proiettore lineare e assenza di leak temporali nelle imputazioni.
 - **`tests/test_etl.py` (4 test)**: corrispondenza dei reparti chirurgici con le partizioni Hive, interpolazione limitata ai buchi inferiori o uguali a 5 secondi e verifica che gli outlier fisiologici non vengano propagati dal forward-fill.
 - **`tests/test_api.py` (4 test)**: test delle rotte REST di FastAPI con `TestClient` (`/health`, `/cases`, `/cases/{id}/series` e `/cases/{id}/detect`).
 - **`tests/test_bronze.py` (3 test)**: ripresa corretta dei download interrotti e gestione degli errori in caso di file non reperibili.
