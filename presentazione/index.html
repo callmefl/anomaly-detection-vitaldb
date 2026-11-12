@@ -2138,106 +2138,94 @@
             </section>
 
             <!-- ===========================================
-                 11 — IL PROBLEMA: PERCHE COSTRUIRE LA GOVERNANCE
+                 11 — IL PROBLEMA & LA COMBO PYTHON + MONGODB
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Il problema: <em>perché le Time Series non si controllano da sole?</em></h2>
+                <h2 class="slide-title reveal">Il problema: <em>perché dividere i compiti tra Python e MongoDB?</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split equal">
                         <div class="story reveal">
                             <p class="lead-text">
-                                Le tabelle Time Series di MongoDB sono velocissime e risparmiano l'84% di spazio, ma
-                                per farlo <b class="red">disattivano i controlli di sicurezza automatici</b> dei
-                                database normali.
+                                Le tabelle Time Series di MongoDB risparmiano l'84% di spazio, ma per andare così veloci
+                                <b class="red">disattivano i controlli automatici</b> dei database normali.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
-                                    <div><b>1. Niente controlli sui campi in ingresso</b>: sulla tabella dei segnali
-                                        (<span class="mono">vital_signals</span>) MongoDB <b>non permette di attivare
-                                            regole automatiche</b> (<span class="mono">$jsonSchema</span>) per bloccare
-                                        dati incompleti o sbagliati.</div>
+                                    <div><b>Cosa NON può fare la Time Series (<span
+                                                class="mono">vital_signals</span>)</b>: non può controllare da sola se
+                                        i campi sono giusti (niente <span class="mono">$jsonSchema</span>) e <b>non può
+                                            annullare un salvataggio rimasto a metà</b> se salta la corrente (<span
+                                            class="mono">Errore 263</span>).</div>
                                 </div>
                                 <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>2. Niente "annulla automatico" se il PC si blocca</b>: le Time Series <b>non
-                                            supportano le transazioni</b> (<span class="mono">Errore 263</span>). Se
-                                        salta la corrente a metà salvataggio, nel database restano dati tagliati a metà.
-                                    </div>
+                                    <div class="bullet"></div>
+                                    <div><b>Perché non usare Spark o Delta Lake?</b> Sono pensati per centinaia di
+                                        server; per i nostri 500 interventi sarebbero stati inutilmente pesanti.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet dark"></div>
-                                    <div><b>3. Niente cluster aziendali pesanti</b>: strumenti già pronti come <i>Spark</i>
-                                        o <i>Delta Lake</i> richiedono grandi server e troppa memoria per soli 500
-                                        interventi.</div>
+                                    <div><b>La soluzione: il lavoro di squadra Python + MongoDB</b>: abbiamo costruito
+                                        noi i controlli dividendo chiaramente i compiti tra <b>Python (il regista)</b>
+                                        e <b>MongoDB (il custode)</b>.</div>
                                 </div>
-                            </div>
-                            <div class="callout-box">
-                                <b>La nostra soluzione</b>: abbiamo costruito noi un <b>sistema di controllo "esterno"</b>
-                                leggero in Python + MongoDB, guidato da una collezione centrale chiamata <b
-                                    class="mono">registry</b>.
                             </div>
                         </div>
 
-                        <div class="open-table-wrap reveal" style="padding: 24px 28px;">
+                        <div class="story reveal" style="gap:18px;">
                             <div
-                                style="font-size:16px; font-weight:800; color:var(--muted); margin-bottom:14px; text-transform:uppercase; letter-spacing:0.04em;">
-                                Cosa manca nativamente &rarr; Come lo abbiamo costruito noi
+                                style="background:#fff; border:1px solid var(--line); border-left:6px solid var(--blue); border-radius:18px; padding:22px 26px; box-shadow:var(--card-shadow);">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:22px; font-weight:800; color:var(--blue);">1. Cosa fa PYTHON
+                                        (Il Regista esterno)</span>
+                                    <span class="mono"
+                                        style="font-size:14px; background:var(--blue-wash); color:var(--blue); padding:4px 10px; border-radius:999px; font-weight:700;">Prima
+                                        &amp; Durante</span>
+                                </div>
+                                <div style="font-size:17.5px; line-height:1.5; color:var(--ink-soft);">
+                                    &bull; <b>Fissa il listino unico (<span class="mono">TRACK_SPECS</span>)</b>: invia a
+                                    MongoDB i limiti umani dei 5 sensori a ogni avvio.<br>
+                                    &bull; <b>Controlla i secondi in RAM (<span
+                                            class="mono">validate_records</span>)</b>: blocca i numeri corrotti prima
+                                    ancora di toccare il DB.<br>
+                                    &bull; <b>Dirige il semaforo</b>: segna quando inizia la copia (<span
+                                        class="mono">loading</span>), quando finisce (<span
+                                        class="mono">committed</span>) e cancella i dati a metà se il PC si spegne.
+                                </div>
                             </div>
-                            <table class="open-table" style="font-size:18px;">
-                                <thead>
-                                    <tr>
-                                        <th>Cosa non fa MongoDB TS</th>
-                                        <th class="r">Cosa abbiamo costruito noi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="hl">
-                                        <td><b style="color:var(--red);">Nessun controllo schemi</b><br><span
-                                                style="font-size:15px; color:var(--muted);">su <span
-                                                    class="mono">vital_signals</span></span></td>
-                                        <td class="r">Collezione <b class="mono">registry</b> con <span
-                                                class="mono">$jsonSchema</span><br>+ filtro Python (<span
-                                                class="mono">validate_records</span>)</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b style="color:var(--red);">Nessuna transazione</b><br><span
-                                                style="font-size:15px; color:var(--muted);">blocco con <span
-                                                    class="mono">Errore 263</span></span></td>
-                                        <td class="r">Semaforo a 2 fasi (<span class="mono">loading &rarr;
-                                                committed</span>)<br>+ pulizia automatica al riavvio</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b style="color:var(--red);">Nessun listino unico</b><br><span
-                                                style="font-size:15px; color:var(--muted);">tra file Parquet e DB</span>
-                                        </td>
-                                        <td class="r">Catalogo <b class="mono">track_metadata</b> (<span
-                                                class="mono">TRACK_SPECS</span>)<br>sincronizzato a ogni avvio (<span
-                                                class="mono">upsert</span>)</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b style="color:var(--red);">Nessun conteggio errori</b><br><span
-                                                style="font-size:15px; color:var(--muted);">sui dati ripuliti</span>
-                                        </td>
-                                        <td class="r">Verbale <b class="mono">quality_report.json</b><br>+ archivio
-                                            storico <span class="mono">quality_history/</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+
+                            <div
+                                style="background:#fff; border:1px solid var(--line); border-left:6px solid var(--ink); border-radius:18px; padding:22px 26px; box-shadow:var(--card-shadow);">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:22px; font-weight:800; color:var(--ink);">2. Cosa fa MONGODB
+                                        (Il Custode dei dati)</span>
+                                    <span class="mono"
+                                        style="font-size:14px; background:var(--surface); color:var(--ink); padding:4px 10px; border-radius:999px; font-weight:700;">Dentro
+                                        il DB</span>
+                                </div>
+                                <div style="font-size:17.5px; line-height:1.5; color:var(--ink-soft);">
+                                    &bull; <b>Comprime i segnali (<span class="mono">vital_signals</span>)</b>: salva i
+                                    secondi in pacchetti riducendo lo spazio dell'84%.<br>
+                                    &bull; <b>Fa da dogana sull'anagrafe (<span class="mono">registry</span>)</b>: grazie
+                                    a <span class="mono">$jsonSchema</span> rifiuta schede paziente incomplete.<br>
+                                    &bull; <b>Calcola le medie al volo</b>: riassume ore di operazione in millisecondi
+                                    per non bloccare i grafici della dashboard.
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- ===========================================
-                 12 — IL REGISTRY: ANAGRAFE E LISTATO JSON
+                 12 — IL REGISTRY & COS'E JSONSCHEMA
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Il cuore del controllo: <em>la collezione <span class="mono"
-                            style="font-size:0.88em;">registry</span></em></h2>
+                <h2 class="slide-title reveal">Il registro <span class="mono" style="font-size:0.88em;">registry</span>
+                    <em>e il filtro <span class="mono" style="font-size:0.88em;">$jsonSchema</span></em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
@@ -2246,15 +2234,15 @@
                             <div>
                                 <div
                                     style="font-family:var(--font-mono); font-size:14px; color:#94A3B8; margin-bottom:12px; text-transform:uppercase;">
-                                    Documento reale nella collezione · registry
+                                    Scheda di un paziente nella collezione · registry
                                 </div>
                                 <pre class="code"
                                     style="background:transparent; padding:0; font-size:17.5px; line-height:1.45; color:#E2E8F0;">{
-  <span style="color:#93B4FF">"case_id"</span>: 1,
-  <span style="color:#93B4FF">"status"</span>: <span style="color:#86EFAC">"committed"</span>, <span style="color:#64748B">// loading | committed | failed</span>
-  <span style="color:#93B4FF">"record_count"</span>: 11542, <span style="color:#64748B">// Secondi totali inseriti</span>
+  <span style="color:#93B4FF">"case_id"</span>: 1,               <span style="color:#64748B">// Obbligatorio (Numero intero)</span>
+  <span style="color:#93B4FF">"status"</span>: <span style="color:#86EFAC">"committed"</span>,     <span style="color:#64748B">// Solo: loading | committed | failed</span>
+  <span style="color:#93B4FF">"record_count"</span>: 11542,     <span style="color:#64748B">// Quanti secondi sono stati salvati</span>
   <span style="color:#93B4FF">"loaded_at"</span>: ISODate(<span style="color:#FCA5A5">"2026-06-15T14:22:10Z"</span>),
-  <span style="color:#93B4FF">"provenance"</span>: {        <span style="color:#64748B">// Carta d'identità della pulizia</span>
+  <span style="color:#93B4FF">"provenance"</span>: {            <span style="color:#64748B">// Ricetta usata per pulire il paziente</span>
     <span style="color:#93B4FF">"run_id"</span>: <span style="color:#FCA5A5">"run_20260615_142000"</span>,
     <span style="color:#93B4FF">"max_gap_seconds"</span>: 5.0,
     <span style="color:#93B4FF">"nibp_staleness_limit_s"</span>: 300.0,
@@ -2263,44 +2251,50 @@
 }</pre>
                             </div>
                             <div
-                                style="background:rgba(255,255,255,0.07); border-left:4px solid var(--blue); border-radius:10px; padding:12px 16px; color:#E2E8F0; font-size:16px; line-height:1.4; margin-top:14px;">
-                                <b style="color:#93B4FF;">Blocco <span class="mono">$jsonSchema</span> attivo</b>: se
-                                manca anche un solo campo o il tipo è sbagliato, MongoDB rifiuta il salvataggio.
+                                style="background:rgba(255,255,255,0.08); border-left:4px solid #86EFAC; border-radius:10px; padding:12px 16px; color:#E2E8F0; font-size:16px; line-height:1.4; margin-top:14px;">
+                                <b style="color:#86EFAC;">Anagrafe centrale</b>: siccome la Time Series non può
+                                controllarsi da sola, ogni paziente deve prima registrarsi qui dentro.
                             </div>
                         </div>
 
                         <div class="story reveal">
-                            <p class="lead-text">
-                                Siccome la tabella Time Series non può controllarsi da sola, <b>ogni paziente deve
-                                    prima essere registrato e approvato nel <span class="mono">registry</span></b>.
-                            </p>
-                            <div class="takeaway">
+                            <div
+                                style="background:var(--blue-wash); border:1px solid var(--blue-line); border-left:6px solid var(--blue); border-radius:16px; padding:18px 22px;">
+                                <div
+                                    style="font-size:14px; font-weight:800; text-transform:uppercase; color:var(--blue); letter-spacing:0.05em; margin-bottom:4px;">
+                                    Spiegazione semplice · Che cos'è <span class="mono">$jsonSchema</span>?
+                                </div>
+                                <div style="font-size:18px; line-height:1.45; color:var(--ink);">
+                                    Di base MongoDB è <b>"senza regole"</b>: accetterebbe anche una scheda paziente
+                                    vuota o senza codice. <b><span class="mono">$jsonSchema</span> è un modulo
+                                        obbligatorio interno a MongoDB</b>: controlla che ci siano tutti i campi e che i
+                                    tipi siano giusti. Se manca qualcosa, <b>MongoDB blocca il salvataggio</b>!
+                                </div>
+                            </div>
+
+                            <div class="takeaway" style="margin-top:4px;">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>È una tabella normale (non Time Series)</b>: qui MongoDB ci permette di
-                                        attivare le regole rigide <span class="mono">$jsonSchema</span> (<span
-                                            class="mono">strict / error</span>) che fanno da dogana all'ingresso.</div>
+                                    <div><b>Perché sul <span class="mono">registry</span> funziona?</b> Perché il <span
+                                            class="mono">registry</span> è una <b>tabella normale</b> (1 riga = 1
+                                        paziente), dove MongoDB permette di attivare <span
+                                            class="mono">$jsonSchema</span> in modalità severa (<span
+                                            class="mono">error</span>).</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Dice chi è pronto (<span class="mono">status</span>)</b>: tiene il semaforo
-                                        di ogni paziente (<span class="mono">loading</span> mentre copia, <span
-                                            class="mono">committed</span> quando è completo, <span
-                                            class="mono">failed</span> se interrotto).</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Salva la "ricetta" di pulizia (<span class="mono">provenance</span>)</b>:
-                                        registra il codice esecuzione (<span class="mono">run_id</span>) e i limiti
-                                        usati (<span class="mono">5s</span>, <span class="mono">300s</span>, <span
-                                            class="mono">1s</span>) per garantire la riproducibilità.</div>
+                                    <div><b>Cosa controlla sul paziente?</b> Che ci siano sempre <span
+                                            class="mono">case_id</span>, il numero di secondi (<span
+                                            class="mono">record_count</span>), il semaforo (<span
+                                            class="mono">status</span>) e le regole di pulizia (<span
+                                            class="mono">provenance</span>).</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet dark"></div>
-                                    <div><b>Affiancato da <span class="mono">track_metadata</span></b>: una seconda
-                                        tabella che salva i limiti umani dei 5 sensori (<span
-                                            class="mono">TRACK_SPECS</span>), riallineata in automatico a ogni avvio.
-                                    </div>
+                                    <div><b>Affiancato dal listino sensori (<span
+                                                class="mono">track_metadata</span>)</b>: una seconda tabella dove Python
+                                        salva a ogni avvio i limiti umani dei 5 sensori (<span
+                                            class="mono">TRACK_SPECS</span>).</div>
                                 </div>
                             </div>
                         </div>
@@ -2309,96 +2303,117 @@
             </section>
 
             <!-- ===========================================
-                 13 — SCHEMA FUNZIONAMENTO: SEMAFORO A DUE FASI
+                 13 — IL SEMAFORO A DUE FASI (VISUALE)
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Come funziona il caricamento: <em>il semaforo a due fasi</em></h2>
+                <h2 class="slide-title reveal">Salvataggio a prova di crash: <em>il semaforo a due fasi</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split equal">
                         <div class="story reveal">
                             <p class="lead-text">
-                                Ecco come <b>Python</b>, il <b><span class="mono">registry</span></b> e la tabella
-                                <b><span class="mono">vital_signals</span></b> lavorano insieme per non lasciare mai un
-                                paziente a metà.
+                                Quando Python copia i 10.000 secondi di un paziente in MongoDB, usa il campo <b
+                                    class="mono">status</b> del <span class="mono">registry</span> proprio come un
+                                <b>vero semaforo stradale</b>.
                             </p>
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Passo 1 · Controllo in memoria (<span
-                                                class="mono">validate_records</span>)</b>: prima di toccare il database,
-                                        Python verifica che tutti i secondi del paziente abbiano numeri validi.</div>
+                                    <div><b>Prima del semaforo (<span class="mono">validate_records</span>)</b>: Python
+                                        controlla in memoria RAM tutti i secondi. Se trova un solo numero corrotto, si
+                                        ferma prima ancora di accendere il semaforo.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Passo 2 · Semaforo Giallo (<span class="mono">status: "loading"</span>)</b>:
-                                        scrive nel <span class="mono">registry</span> che il caricamento è iniziato,
-                                        pulisce vecchi resti (<span class="mono">delete_many</span>) e copia i secondi
-                                        in <span class="mono">vital_signals</span>.</div>
+                                    <div><b>Fase 1 · Luce Gialla (<span class="mono">loading</span>)</b>: Python avvisa
+                                        il <span class="mono">registry</span> che sta iniziando a copiare i dati in
+                                        <span class="mono">vital_signals</span>. Finché c'è il giallo, <b>i medici non
+                                            vedono il paziente</b>.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Passo 3 · Semaforo Verde (<span
-                                                class="mono">status: "committed"</span>)</b>: finito l'ultimo secondo,
-                                        aggiorna il <span class="mono">registry</span>. Solo ora il paziente diventa
-                                        <b>visibile ai medici</b>.</div>
+                                    <div><b>Fase 2 · Luce Verde (<span class="mono">committed</span>)</b>: copiato
+                                        anche l'ultimo secondo, Python mette il verde nel <span
+                                            class="mono">registry</span>. Solo ora il paziente <b>compare sulla
+                                            dashboard</b>.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
-                                    <div><b>Se salta la corrente (<span
-                                                class="mono">recover_incomplete_loads</span>)</b>: al riavvio cerca nel
-                                        <span class="mono">registry</span> chi è rimasto col giallo (<span
-                                            class="mono">loading</span>) e cancella subito i suoi dati a metà.</div>
+                                    <div><b>Emergenza Crash · Luce Rossa (<span class="mono">failed</span>)</b>: se
+                                        salta la corrente mentre era giallo, al riavvio Python (<span
+                                            class="mono">recover_incomplete_loads</span>) <b>cancella subito i dati a
+                                            metà</b>.</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="story reveal"
-                            style="background:#fff; border:1px solid var(--line); border-radius:20px; padding:24px 28px; box-shadow:var(--card-shadow); gap:14px;">
+                        <!-- VERO SEMAFORO GRAFICO -->
+                        <div class="reveal"
+                            style="background:var(--ink); border-radius:26px; padding:26px 30px; box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; gap:16px; border:2px solid #1E293B;">
                             <div
-                                style="font-size:15px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">
-                                Schema del flusso per ogni paziente
+                                style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.12); padding-bottom:12px;">
+                                <span
+                                    style="font-family:var(--font-mono); font-size:14px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.06em;">
+                                    Semaforo del campo · registry.status
+                                </span>
+                                <span
+                                    style="font-size:13px; font-weight:700; color:#E2E8F0; background:rgba(255,255,255,0.1); padding:4px 12px; border-radius:999px;">
+                                    2 Fasi + Crash Recovery
+                                </span>
                             </div>
 
+                            <!-- LUCE GIALLA -->
                             <div
-                                style="background:var(--surface); border-left:5px solid var(--ink); border-radius:12px; padding:14px 18px;">
-                                <div style="font-size:18px; font-weight:800; color:var(--ink);">1. Python &rarr;
-                                    Verifica in memoria (<span class="mono">validate_records</span>)</div>
-                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
-                                    Controlla date, ID paziente e valori numerici prima di aprire il database.
+                                style="display:flex; align-items:center; gap:20px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:18px; padding:16px 20px;">
+                                <div
+                                    style="width:58px; height:58px; min-width:58px; border-radius:50%; background:#F59E0B; box-shadow:0 0 26px rgba(245, 158, 11, 0.85), inset 0 3px 6px rgba(255,255,255,0.45); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:var(--ink);">
+                                    1
+                                </div>
+                                <div>
+                                    <div style="font-size:19px; font-weight:800; color:#FCD34D;">
+                                        FASE 1 · GIALLO (<span class="mono">status: "loading"</span>)
+                                    </div>
+                                    <div style="font-size:16px; line-height:1.4; color:#E2E8F0; margin-top:4px;">
+                                        Python sta copiando i secondi nel database. Il paziente è <b>NASCOSTO</b>: la
+                                        dashboard lo ignora.
+                                    </div>
                                 </div>
                             </div>
 
+                            <!-- LUCE VERDE -->
                             <div
-                                style="background:var(--surface); border-left:5px solid var(--blue); border-radius:12px; padding:14px 18px;">
-                                <div style="font-size:18px; font-weight:800; color:var(--blue);">2. <span
-                                        class="mono">registry</span> = <span class="mono">"loading"</span> &rarr; Copia
-                                    in <span class="mono">vital_signals</span></div>
-                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
-                                    Mentre copia i 10.000 secondi, il paziente ha il semaforo giallo ed è <b>nascosto
-                                        alla dashboard</b>.
+                                style="display:flex; align-items:center; gap:20px; background:rgba(16, 185, 129, 0.14); border:1px solid rgba(16, 185, 129, 0.45); border-radius:18px; padding:16px 20px;">
+                                <div
+                                    style="width:58px; height:58px; min-width:58px; border-radius:50%; background:#10B981; box-shadow:0 0 26px rgba(16, 185, 129, 0.85), inset 0 3px 6px rgba(255,255,255,0.45); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:var(--ink);">
+                                    2
+                                </div>
+                                <div>
+                                    <div style="font-size:19px; font-weight:800; color:#6EE7B7;">
+                                        FASE 2 · VERDE (<span class="mono">status: "committed"</span>)
+                                    </div>
+                                    <div style="font-size:16px; line-height:1.4; color:#E2E8F0; margin-top:4px;">
+                                        Salvataggio completato al 100%. <b>VIA LIBERA</b>: medici e modelli AI ora
+                                        possono leggere il paziente.
+                                    </div>
                                 </div>
                             </div>
 
+                            <!-- LUCE ROSSA -->
                             <div
-                                style="background:var(--blue-wash); border:1px solid var(--blue-line); border-left:5px solid var(--blue); border-radius:12px; padding:14px 18px;">
-                                <div style="font-size:18px; font-weight:800; color:var(--ink);">3. <span
-                                        class="mono">registry</span> = <span class="mono">"committed"</span> &rarr;
-                                    Visibile ai medici</div>
-                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
-                                    Dashboard e modelli AI interrogano il <span class="mono">registry</span> e leggono
-                                    <b>solo chi ha <span class="mono">status: "committed"</span></b>.
+                                style="display:flex; align-items:center; gap:20px; background:rgba(239, 68, 68, 0.13); border:1px solid rgba(239, 68, 68, 0.4); border-radius:18px; padding:16px 20px;">
+                                <div
+                                    style="width:58px; height:58px; min-width:58px; border-radius:50%; background:#EF4444; box-shadow:0 0 26px rgba(239, 68, 68, 0.85), inset 0 3px 6px rgba(255,255,255,0.45); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:#fff;">
+                                    !
                                 </div>
-                            </div>
-
-                            <div
-                                style="background:var(--red-wash); border:1px solid var(--red-line); border-left:5px solid var(--red); border-radius:12px; padding:14px 18px;">
-                                <div style="font-size:18px; font-weight:800; color:var(--red-deep);">Caso Crash &rarr;
-                                    <span class="mono">status: "failed"</span> + Pulizia automatica</div>
-                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
-                                    Se si interrompe a metà, i secondi parziali in <span
-                                        class="mono">vital_signals</span> vengono eliminati subito.
+                                <div>
+                                    <div style="font-size:19px; font-weight:800; color:#FCA5A5;">
+                                        SE SALTA LA CORRENTE · ROSSO (<span class="mono">status: "failed"</span>)
+                                    </div>
+                                    <div style="font-size:16px; line-height:1.4; color:#E2E8F0; margin-top:4px;">
+                                        Blocco improvviso? Python (<span class="mono">recover_incomplete_loads</span>)
+                                        <b>ELIMINA</b> subito i pezzi rimasti a metà.
+                                    </div>
                                 </div>
                             </div>
                         </div>
