@@ -1313,7 +1313,7 @@
 
                 <div class="cover-footer reveal">
                     <span class="badge-main">Contesto Operatorio, Disturbi e Campionamento</span>
-                    <span class="sub-badge">Parte 1 di 5</span>
+                    <span class="sub-badge">Parte 1 di 6</span>
                 </div>
             </section>
 
@@ -1615,7 +1615,7 @@
 
                 <div class="cover-footer reveal">
                     <span class="badge-main">Bronze, Silver, Gold: Ingestione, Bonifica e Storage Time-Series</span>
-                    <span class="sub-badge">Parte 2 di 5</span>
+                    <span class="sub-badge">Parte 2 di 6</span>
                 </div>
             </section>
 
@@ -2103,85 +2103,6 @@
             </section>
 
             <!-- ===========================================
-                 11 — DATA GOVERNANCE
-                 =========================================== -->
-            <section class="slide" data-section="Capitolo 02">
-                <div class="kick reveal"> Capitolo 02 · Pipeline Dati &amp; Medallion</div>
-                <h2 class="slide-title reveal">Regole di controllo: <em>dati affidabili e niente sorprese</em></h2>
-
-                <div class="canvas">
-                    <div class="editorial-split equal">
-                        <div class="story reveal">
-                            <p class="lead-text">
-                                In ospedale non possiamo permetterci record incompleti: <b>ogni file deve superare
-                                    controlli severi</b> prima di entrare nel database.
-                            </p>
-                            <div class="takeaway">
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Registro di controllo (<span class="mono">registry</span>)</b>: controlla automaticamente i dati con regole rigide (<span class="mono">$jsonSchema</span>); rifiuta i file incompleti o con errori.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Caricamento sicuro a due fasi</b>: il paziente è mostrato ai medici solo quando è completo al 100% (<span class="mono">loading &rarr; committed</span>); i dati parziali vengono isolati e ripuliti.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Unica fonte di verità (<span class="mono">TRACK_SPECS</span>)</b>: un solo file fissa le soglie per tutti, aggiornando in automatico il database.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Controllo qualità trasparente</b>: un verbale (<span class="mono">quality_report</span>) tiene il conto esatto di dati reali, corretti e mancanti per ogni paziente.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="open-table-wrap reveal" style="padding: 24px 28px;">
-                            <div
-                                style="font-size:18px; font-weight:700; color:var(--muted); margin-bottom:14px; text-transform:uppercase;">
-                                Come proteggiamo i dati in ogni fase
-                            </div>
-                            <table class="open-table" style="font-size:18px;">
-                                <thead>
-                                    <tr>
-                                        <th>Componente</th>
-                                        <th>Cosa fa per noi</th>
-                                        <th class="r">Cosa garantisce</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><b class="mono">registry</b></td>
-                                        <td>Schema di verifica automatico</td>
-                                        <td class="r">Nessun paziente fantasma</td>
-                                    </tr>
-                                    <tr class="hl">
-                                        <td><b class="mono">TRACK_SPECS</b></td>
-                                        <td>Vocabolario unico condiviso</td>
-                                        <td class="r">Stesse soglie per tutti</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b class="mono">transazioni</b></td>
-                                        <td>Stato <span class="mono">caricamento → confermato</span></td>
-                                        <td class="r">Nessun dato a metà</td>
-                                    </tr>
-                                    <tr>
-                                        <td><b class="mono">quality_report</b></td>
-                                        <td>Report automatico per ogni caso</td>
-                                        <td class="r">Tracciabilità al 100%</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div class="callout-box" style="margin-top:18px; font-size:17px; padding:14px 18px;">
-                                <b>Sicurezza per i medici</b>: se un caricamento si interrompe, il caso viene congelato
-                                e tenuto fuori dalle analisi finché non è completo e verificato.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===========================================
                  INTRO CAPITOLO 03
                  =========================================== -->
             <section class="slide cover" data-section="Capitolo 03">
@@ -2200,6 +2121,373 @@
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; max-width:1450px;">
                     <h1 class="cover-title chapter-title">
                         <span class="num-ch reveal"> Capitolo 03</span>
+                        <span class="reveal">Controllo Qualità</span>
+                        <span class="reveal" style="color:var(--blue);">&amp; Data Governance</span>
+                    </h1>
+                    <p class="lead-text reveal"
+                        style="font-size:32px; line-height:1.45; color:var(--ink-soft); max-width:1300px; margin-top:16px;">
+                        Come ci assicuriamo che nel database entrino solo pazienti completi, senza errori e subito
+                        pronti da consultare per i medici.
+                    </p>
+                </div>
+
+                <div class="cover-footer reveal">
+                    <span class="badge-main">Regole d'ingresso, salvataggio a prova di blocco e apertura istantanea</span>
+                    <span class="sub-badge">Parte 3 di 6</span>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 11 — IL PROBLEMA: PERCHE COSTRUIRE LA GOVERNANCE
+                 =========================================== -->
+            <section class="slide" data-section="Capitolo 03">
+                <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
+                <h2 class="slide-title reveal">Il problema: <em>perché le Time Series non si controllano da sole?</em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split equal">
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Le tabelle Time Series di MongoDB sono velocissime e risparmiano l'84% di spazio, ma
+                                per farlo <b class="red">disattivano i controlli di sicurezza automatici</b> dei
+                                database normali.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet red"></div>
+                                    <div><b>1. Niente controlli sui campi in ingresso</b>: sulla tabella dei segnali
+                                        (<span class="mono">vital_signals</span>) MongoDB <b>non permette di attivare
+                                            regole automatiche</b> (<span class="mono">$jsonSchema</span>) per bloccare
+                                        dati incompleti o sbagliati.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet red"></div>
+                                    <div><b>2. Niente "annulla automatico" se il PC si blocca</b>: le Time Series <b>non
+                                            supportano le transazioni</b> (<span class="mono">Errore 263</span>). Se
+                                        salta la corrente a metà salvataggio, nel database restano dati tagliati a metà.
+                                    </div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet dark"></div>
+                                    <div><b>3. Niente cluster aziendali pesanti</b>: strumenti già pronti come <i>Spark</i>
+                                        o <i>Delta Lake</i> richiedono grandi server e troppa memoria per soli 500
+                                        interventi.</div>
+                                </div>
+                            </div>
+                            <div class="callout-box">
+                                <b>La nostra soluzione</b>: abbiamo costruito noi un <b>sistema di controllo "esterno"</b>
+                                leggero in Python + MongoDB, guidato da una collezione centrale chiamata <b
+                                    class="mono">registry</b>.
+                            </div>
+                        </div>
+
+                        <div class="open-table-wrap reveal" style="padding: 24px 28px;">
+                            <div
+                                style="font-size:16px; font-weight:800; color:var(--muted); margin-bottom:14px; text-transform:uppercase; letter-spacing:0.04em;">
+                                Cosa manca nativamente &rarr; Come lo abbiamo costruito noi
+                            </div>
+                            <table class="open-table" style="font-size:18px;">
+                                <thead>
+                                    <tr>
+                                        <th>Cosa non fa MongoDB TS</th>
+                                        <th class="r">Cosa abbiamo costruito noi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="hl">
+                                        <td><b style="color:var(--red);">Nessun controllo schemi</b><br><span
+                                                style="font-size:15px; color:var(--muted);">su <span
+                                                    class="mono">vital_signals</span></span></td>
+                                        <td class="r">Collezione <b class="mono">registry</b> con <span
+                                                class="mono">$jsonSchema</span><br>+ filtro Python (<span
+                                                class="mono">validate_records</span>)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b style="color:var(--red);">Nessuna transazione</b><br><span
+                                                style="font-size:15px; color:var(--muted);">blocco con <span
+                                                    class="mono">Errore 263</span></span></td>
+                                        <td class="r">Semaforo a 2 fasi (<span class="mono">loading &rarr;
+                                                committed</span>)<br>+ pulizia automatica al riavvio</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b style="color:var(--red);">Nessun listino unico</b><br><span
+                                                style="font-size:15px; color:var(--muted);">tra file Parquet e DB</span>
+                                        </td>
+                                        <td class="r">Catalogo <b class="mono">track_metadata</b> (<span
+                                                class="mono">TRACK_SPECS</span>)<br>sincronizzato a ogni avvio (<span
+                                                class="mono">upsert</span>)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><b style="color:var(--red);">Nessun conteggio errori</b><br><span
+                                                style="font-size:15px; color:var(--muted);">sui dati ripuliti</span>
+                                        </td>
+                                        <td class="r">Verbale <b class="mono">quality_report.json</b><br>+ archivio
+                                            storico <span class="mono">quality_history/</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 12 — IL REGISTRY: ANAGRAFE E LISTATO JSON
+                 =========================================== -->
+            <section class="slide" data-section="Capitolo 03">
+                <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
+                <h2 class="slide-title reveal">Il cuore del controllo: <em>la collezione <span class="mono"
+                            style="font-size:0.88em;">registry</span></em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split">
+                        <div class="open-table-wrap reveal"
+                            style="background:var(--ink); border:none; padding:24px 28px; display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div
+                                    style="font-family:var(--font-mono); font-size:14px; color:#94A3B8; margin-bottom:12px; text-transform:uppercase;">
+                                    Documento reale nella collezione · registry
+                                </div>
+                                <pre class="code"
+                                    style="background:transparent; padding:0; font-size:17.5px; line-height:1.45; color:#E2E8F0;">{
+  <span style="color:#93B4FF">"case_id"</span>: 1,
+  <span style="color:#93B4FF">"status"</span>: <span style="color:#86EFAC">"committed"</span>, <span style="color:#64748B">// loading | committed | failed</span>
+  <span style="color:#93B4FF">"record_count"</span>: 11542, <span style="color:#64748B">// Secondi totali inseriti</span>
+  <span style="color:#93B4FF">"loaded_at"</span>: ISODate(<span style="color:#FCA5A5">"2026-06-15T14:22:10Z"</span>),
+  <span style="color:#93B4FF">"provenance"</span>: {        <span style="color:#64748B">// Carta d'identità della pulizia</span>
+    <span style="color:#93B4FF">"run_id"</span>: <span style="color:#FCA5A5">"run_20260615_142000"</span>,
+    <span style="color:#93B4FF">"max_gap_seconds"</span>: 5.0,
+    <span style="color:#93B4FF">"nibp_staleness_limit_s"</span>: 300.0,
+    <span style="color:#93B4FF">"sampling_interval_s"</span>: 1.0
+  }
+}</pre>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.07); border-left:4px solid var(--blue); border-radius:10px; padding:12px 16px; color:#E2E8F0; font-size:16px; line-height:1.4; margin-top:14px;">
+                                <b style="color:#93B4FF;">Blocco <span class="mono">$jsonSchema</span> attivo</b>: se
+                                manca anche un solo campo o il tipo è sbagliato, MongoDB rifiuta il salvataggio.
+                            </div>
+                        </div>
+
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Siccome la tabella Time Series non può controllarsi da sola, <b>ogni paziente deve
+                                    prima essere registrato e approvato nel <span class="mono">registry</span></b>.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>È una tabella normale (non Time Series)</b>: qui MongoDB ci permette di
+                                        attivare le regole rigide <span class="mono">$jsonSchema</span> (<span
+                                            class="mono">strict / error</span>) che fanno da dogana all'ingresso.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Dice chi è pronto (<span class="mono">status</span>)</b>: tiene il semaforo
+                                        di ogni paziente (<span class="mono">loading</span> mentre copia, <span
+                                            class="mono">committed</span> quando è completo, <span
+                                            class="mono">failed</span> se interrotto).</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Salva la "ricetta" di pulizia (<span class="mono">provenance</span>)</b>:
+                                        registra il codice esecuzione (<span class="mono">run_id</span>) e i limiti
+                                        usati (<span class="mono">5s</span>, <span class="mono">300s</span>, <span
+                                            class="mono">1s</span>) per garantire la riproducibilità.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet dark"></div>
+                                    <div><b>Affiancato da <span class="mono">track_metadata</span></b>: una seconda
+                                        tabella che salva i limiti umani dei 5 sensori (<span
+                                            class="mono">TRACK_SPECS</span>), riallineata in automatico a ogni avvio.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 13 — SCHEMA FUNZIONAMENTO: SEMAFORO A DUE FASI
+                 =========================================== -->
+            <section class="slide" data-section="Capitolo 03">
+                <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
+                <h2 class="slide-title reveal">Come funziona il caricamento: <em>il semaforo a due fasi</em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split equal">
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Ecco come <b>Python</b>, il <b><span class="mono">registry</span></b> e la tabella
+                                <b><span class="mono">vital_signals</span></b> lavorano insieme per non lasciare mai un
+                                paziente a metà.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Passo 1 · Controllo in memoria (<span
+                                                class="mono">validate_records</span>)</b>: prima di toccare il database,
+                                        Python verifica che tutti i secondi del paziente abbiano numeri validi.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Passo 2 · Semaforo Giallo (<span class="mono">status: "loading"</span>)</b>:
+                                        scrive nel <span class="mono">registry</span> che il caricamento è iniziato,
+                                        pulisce vecchi resti (<span class="mono">delete_many</span>) e copia i secondi
+                                        in <span class="mono">vital_signals</span>.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Passo 3 · Semaforo Verde (<span
+                                                class="mono">status: "committed"</span>)</b>: finito l'ultimo secondo,
+                                        aggiorna il <span class="mono">registry</span>. Solo ora il paziente diventa
+                                        <b>visibile ai medici</b>.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet red"></div>
+                                    <div><b>Se salta la corrente (<span
+                                                class="mono">recover_incomplete_loads</span>)</b>: al riavvio cerca nel
+                                        <span class="mono">registry</span> chi è rimasto col giallo (<span
+                                            class="mono">loading</span>) e cancella subito i suoi dati a metà.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="story reveal"
+                            style="background:#fff; border:1px solid var(--line); border-radius:20px; padding:24px 28px; box-shadow:var(--card-shadow); gap:14px;">
+                            <div
+                                style="font-size:15px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">
+                                Schema del flusso per ogni paziente
+                            </div>
+
+                            <div
+                                style="background:var(--surface); border-left:5px solid var(--ink); border-radius:12px; padding:14px 18px;">
+                                <div style="font-size:18px; font-weight:800; color:var(--ink);">1. Python &rarr;
+                                    Verifica in memoria (<span class="mono">validate_records</span>)</div>
+                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
+                                    Controlla date, ID paziente e valori numerici prima di aprire il database.
+                                </div>
+                            </div>
+
+                            <div
+                                style="background:var(--surface); border-left:5px solid var(--blue); border-radius:12px; padding:14px 18px;">
+                                <div style="font-size:18px; font-weight:800; color:var(--blue);">2. <span
+                                        class="mono">registry</span> = <span class="mono">"loading"</span> &rarr; Copia
+                                    in <span class="mono">vital_signals</span></div>
+                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
+                                    Mentre copia i 10.000 secondi, il paziente ha il semaforo giallo ed è <b>nascosto
+                                        alla dashboard</b>.
+                                </div>
+                            </div>
+
+                            <div
+                                style="background:var(--blue-wash); border:1px solid var(--blue-line); border-left:5px solid var(--blue); border-radius:12px; padding:14px 18px;">
+                                <div style="font-size:18px; font-weight:800; color:var(--ink);">3. <span
+                                        class="mono">registry</span> = <span class="mono">"committed"</span> &rarr;
+                                    Visibile ai medici</div>
+                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
+                                    Dashboard e modelli AI interrogano il <span class="mono">registry</span> e leggono
+                                    <b>solo chi ha <span class="mono">status: "committed"</span></b>.
+                                </div>
+                            </div>
+
+                            <div
+                                style="background:var(--red-wash); border:1px solid var(--red-line); border-left:5px solid var(--red); border-radius:12px; padding:14px 18px;">
+                                <div style="font-size:18px; font-weight:800; color:var(--red-deep);">Caso Crash &rarr;
+                                    <span class="mono">status: "failed"</span> + Pulizia automatica</div>
+                                <div style="font-size:16px; color:var(--ink-soft); margin-top:3px;">
+                                    Se si interrompe a metà, i secondi parziali in <span
+                                        class="mono">vital_signals</span> vengono eliminati subito.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 14 — CONTI CHIARI & GRAFICI ISTANTANEI
+                 =========================================== -->
+            <section class="slide" data-section="Capitolo 03">
+                <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
+                <h2 class="slide-title reveal">Trasparenza e velocità: <em>verbale qualità e query istantanee</em></h2>
+
+                <div class="canvas">
+                    <div class="editorial-split reversed">
+                        <div class="stat-showcase reveal">
+                            <div class="stat-hero">
+                                <div class="stat-val"><span class="red">501</span> → 2</div>
+                                <div class="stat-lbl">Richieste per aprire la lista pazienti</div>
+                                <div class="stat-sub">Leggiamo il <span class="mono">registry</span> e raggruppiamo i
+                                    500 interventi in un colpo solo invece di fare 500 domande separate</div>
+                            </div>
+                            <div class="stat-hero">
+                                <div class="stat-val">100<small>%</small></div>
+                                <div class="stat-lbl">Secondi contabilizzati nel Verbale Qualità</div>
+                                <div class="stat-sub">Ogni secondo del paziente è classificato come vero, ricostruito o
+                                    vuoto: non sparisce nulla</div>
+                            </div>
+                        </div>
+
+                        <div class="story reveal">
+                            <p class="lead-text">
+                                Una volta salvati i dati in sicurezza, certifichiamo la qualità di ogni secondo e
+                                <b>rendiamo istantanea l'apertura della dashboard</b>.
+                            </p>
+                            <div class="takeaway">
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Bilancio matematico (<span class="mono">quality_report.json</span>)</b>: per
+                                        ogni paziente la somma di <b>secondi veri</b> (<span
+                                            class="mono">observed</span>) + <b>ricostruiti</b> (<span
+                                            class="mono">imputed</span>) + <b>vuoti</b> (<span
+                                            class="mono">missing</span>) torna sempre al 100%, con storico in <span
+                                            class="mono">quality_history/</span>.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Grafici leggeri (<span class="mono">downsample_case</span>)</b>: un
+                                        intervento di 6 ore ha <b>21.600 secondi</b>! Invece di inviarli tutti al
+                                        browser, MongoDB calcola già sul server la <b>media ogni 30 o 60 secondi</b>
+                                        (<span class="mono">$dateTrunc</span>).</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet red"></div>
+                                    <div><b>Lista pazienti immediata (<span class="mono">GET /cases</span>)</b>: invece
+                                        di fare 500 query separate per leggere età, sesso e reparto di ogni paziente,
+                                        usiamo il <span class="mono">registry</span> + <b>un'unica richiesta
+                                            raggruppata</b> (<span class="mono">$group</span>).</div>
+                                </div>
+                            </div>
+                            <div class="callout-box">
+                                <b>Risultato finale</b>: dati certificati al 100% e schermata medica che si apre in
+                                pochi millisecondi, pronta per il rilevamento delle anomalie.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===========================================
+                 INTRO CAPITOLO 04
+                 =========================================== -->
+            <section class="slide cover" data-section="Capitolo 04">
+                <div class="sphere xl-a"></div>
+                <div class="sphere xl-b"></div>
+
+                <div class="cover-header reveal">
+                    <img src="img/univpm_seal.png" alt="Sigillo dell'Università Politecnica delle Marche">
+                    <div>
+                        <div class="uni">Università Politecnica delle Marche</div>
+                        <div class="course">Dipartimento di Ingegneria dell'Informazione · New Generation Databases
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:center; max-width:1450px;">
+                    <h1 class="cover-title chapter-title">
+                        <span class="num-ch reveal"> Capitolo 04</span>
                         <span class="reveal">Rilevamento Anomalie</span>
                         <span class="reveal" style="color:var(--blue);">&amp; Modelli di Calcolo</span>
                     </h1>
@@ -2213,15 +2501,15 @@
                 <div class="cover-footer reveal">
                     <span class="badge-main">Shock Index, Ipotensione/Ipossia, Isolation Forest e Autoencoder
                         LSTM</span>
-                    <span class="sub-badge">Parte 3 di 5</span>
+                    <span class="sub-badge">Parte 4 di 6</span>
                 </div>
             </section>
 
             <!-- ===========================================
                  12 — QUATTRO METODI (GRIGLIA 2x2)
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 03">
-                <div class="kick reveal"> Capitolo 03 · Rilevamento Anomalie</div>
+            <section class="slide" data-section="Capitolo 04">
+                <div class="kick reveal"> Capitolo 04 · Rilevamento Anomalie</div>
                 <h2 class="slide-title reveal">Architettura di rilevamento: <em>quattro metodi complementari</em></h2>
 
                 <div class="canvas" style="display:flex; flex-direction:column; justify-content:center;">
@@ -2443,8 +2731,8 @@
             <!-- ===========================================
                  13 — AUTOENCODER LSTM: COME FUNZIONA
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 03">
-                <div class="kick reveal"> Capitolo 03 · Rilevamento Anomalie</div>
+            <section class="slide" data-section="Capitolo 04">
+                <div class="kick reveal"> Capitolo 04 · Rilevamento Anomalie</div>
                 <h2 class="slide-title reveal">Autoencoder LSTM: <em>imparare la normalità per scovare le crisi</em>
                 </h2>
 
@@ -2589,8 +2877,8 @@
             <!-- ===========================================
                  13-B — PERCHÉ USIAMO IL CANALE PEGGIORE
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 03">
-                <div class="kick reveal"> Capitolo 03 · Rilevamento Anomalie</div>
+            <section class="slide" data-section="Capitolo 04">
+                <div class="kick reveal"> Capitolo 04 · Rilevamento Anomalie</div>
                 <h2 class="slide-title reveal">Come diamo l'allarme: <em>la regola del canale peggiore</em></h2>
 
                 <div class="canvas">
@@ -2669,8 +2957,8 @@
             <!-- ===========================================
                  14 — VALUTAZIONE
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 03">
-                <div class="kick reveal"> Capitolo 03 · Rilevamento Anomalie</div>
+            <section class="slide" data-section="Capitolo 04">
+                <div class="kick reveal"> Capitolo 04 · Rilevamento Anomalie</div>
                 <h2 class="slide-title reveal">I risultati: <em>i modelli a confronto con le regole mediche</em></h2>
 
                 <div class="canvas">
@@ -2749,8 +3037,8 @@
             <!-- ===========================================
                  15 — CONCORDANZA E SOGLIA
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 03">
-                <div class="kick reveal">Capitolo 03 · Rilevamento Anomalie</div>
+            <section class="slide" data-section="Capitolo 04">
+                <div class="kick reveal">Capitolo 04 · Rilevamento Anomalie</div>
                 <h2 class="slide-title reveal">Accordo tra metodi: <em>quattro occhi diversi sullo stesso paziente</em>
                 </h2>
 
@@ -2947,7 +3235,7 @@
             <!-- ===========================================
                  INTRO CAPITOLO 04
                  =========================================== -->
-            <section class="slide cover" data-section="Capitolo 04">
+            <section class="slide cover" data-section="Capitolo 05">
                 <div class="sphere xl-a"></div>
                 <div class="sphere xl-b"></div>
 
@@ -2962,7 +3250,7 @@
 
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; max-width:1450px;">
                     <h1 class="cover-title chapter-title">
-                        <span class="num-ch reveal"> Capitolo 04</span>
+                        <span class="num-ch reveal"> Capitolo 05</span>
                         <span class="reveal">Sistema Software</span>
                         <span class="reveal" style="color:var(--blue);">&amp; Dashboard Clinica</span>
                     </h1>
@@ -2976,15 +3264,15 @@
                 <div class="cover-footer reveal">
                     <span class="badge-main">Tre Livelli Indipendenti, Visualizzazione Tracciati e Registro
                         Eventi</span>
-                    <span class="sub-badge">Parte 4 di 5</span>
+                    <span class="sub-badge">Parte 5 di 6</span>
                 </div>
             </section>
 
             <!-- ===========================================
                  16 — STRUTTURA DEL SISTEMA
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 04">
-                <div class="kick reveal"> Capitolo 04 · Architettura &amp; Dashboard</div>
+            <section class="slide" data-section="Capitolo 05">
+                <div class="kick reveal"> Capitolo 05 · Architettura &amp; Dashboard</div>
                 <h2 class="slide-title reveal">Come è costruito il sistema: <em>tre livelli indipendenti e
                         coordinati</em></h2>
 
@@ -3137,8 +3425,8 @@
             <!-- ===========================================
                  17-A — DASHBOARD: PANORAMICA, ARCHITETTURA & HUD
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 04">
-                <div class="kick reveal"> Capitolo 04 · Architettura &amp; Dashboard</div>
+            <section class="slide" data-section="Capitolo 05">
+                <div class="kick reveal"> Capitolo 05 · Architettura &amp; Dashboard</div>
                 <h2 class="slide-title reveal">La dashboard per il medico: <em>quadro del paziente e allarmi a colpo
                         d'occhio</em></h2>
 
@@ -3192,8 +3480,8 @@
             <!-- ===========================================
                  17-B — DASHBOARD: MONITORAGGIO HR & SPO2
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 04">
-                <div class="kick reveal"> Capitolo 04 · Architettura &amp; Dashboard</div>
+            <section class="slide" data-section="Capitolo 05">
+                <div class="kick reveal"> Capitolo 05 · Architettura &amp; Dashboard</div>
                 <h2 class="slide-title reveal">I grafici continui: <em>battito cardiaco e ossigeno insieme</em></h2>
 
                 <div class="canvas">
@@ -3247,8 +3535,8 @@
             <!-- ===========================================
                  17-C — DASHBOARD: TRACCIATO PRESSORIO NIBP
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 04">
-                <div class="kick reveal"> Capitolo 04 · Architettura &amp; Dashboard</div>
+            <section class="slide" data-section="Capitolo 05">
+                <div class="kick reveal"> Capitolo 05 · Architettura &amp; Dashboard</div>
                 <h2 class="slide-title reveal">La pressione arteriosa: <em>misure del bracciale e linea di pericolo</em>
                 </h2>
 
@@ -3303,8 +3591,8 @@
             <!-- ===========================================
                  17-D — DASHBOARD: REGISTRO ANOMALIE & EXPORT
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 04">
-                <div class="kick reveal"> Capitolo 04 · Architettura &amp; Dashboard</div>
+            <section class="slide" data-section="Capitolo 05">
+                <div class="kick reveal"> Capitolo 05 · Architettura &amp; Dashboard</div>
                 <h2 class="slide-title reveal">Registro degli allarmi: <em>elenco ordinato e scaricamento dati</em></h2>
 
                 <div class="canvas">
@@ -3358,7 +3646,7 @@
             <!-- ===========================================
                  INTRO CAPITOLO 05
                  =========================================== -->
-            <section class="slide cover" data-section="Capitolo 05">
+            <section class="slide cover" data-section="Capitolo 06">
                 <div class="sphere xl-a"></div>
                 <div class="sphere xl-b"></div>
 
@@ -3373,7 +3661,7 @@
 
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; max-width:1450px;">
                     <h1 class="cover-title chapter-title">
-                        <span class="num-ch reveal"> Capitolo 05</span>
+                        <span class="num-ch reveal"> Capitolo 06</span>
                         <span class="reveal">Risultati di Progetto</span>
                         <span class="reveal" style="color:var(--blue);">&amp; Sviluppi Futuri</span>
                     </h1>
@@ -3386,15 +3674,15 @@
 
                 <div class="cover-footer reveal">
                     <span class="badge-main">Metriche Chiave, Collaudo Unitario, Limiti e Roadmap Evolutiva</span>
-                    <span class="sub-badge">Parte 5 di 5</span>
+                    <span class="sub-badge">Parte 6 di 6</span>
                 </div>
             </section>
 
             <!-- ===========================================
                  18 — RISULTATI
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 05">
-                <div class="kick reveal">Capitolo 05 · Conclusioni &amp; Prospettive</div>
+            <section class="slide" data-section="Capitolo 06">
+                <div class="kick reveal">Capitolo 06 · Conclusioni &amp; Prospettive</div>
                 <h2 class="slide-title reveal">I risultati finali: <em>un sistema leggero, rapido e sicuro</em></h2>
 
                 <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between; gap:20px; height:100%;">
@@ -3485,8 +3773,8 @@
             <!-- ===========================================
                  19 — LIMITI E SVILUPPI FUTURI
                  =========================================== -->
-            <section class="slide" data-section="Capitolo 05">
-                <div class="kick reveal">Capitolo 05 · Conclusioni &amp; Prospettive</div>
+            <section class="slide" data-section="Capitolo 06">
+                <div class="kick reveal">Capitolo 06 · Conclusioni &amp; Prospettive</div>
                 <h2 class="slide-title reveal">Limiti attuali e <em>prossimi passi del progetto</em></h2>
 
                 <div class="canvas" style="display:flex; flex-direction:column; justify-content:center; height:100%;">
