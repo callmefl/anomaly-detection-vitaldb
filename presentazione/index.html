@@ -97,7 +97,7 @@
             overflow: hidden;
             transform-origin: center center;
             background-color: var(--bg);
-            background-image: 
+            background-image:
                 linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
                 linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
             background-size: 60px 60px;
@@ -117,7 +117,7 @@
             opacity: 0;
             pointer-events: none;
             background-color: transparent;
-            background-image: 
+            background-image:
                 linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
                 linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
             background-size: 60px 60px;
@@ -1334,15 +1334,19 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Sensori disturbati</b>: l'elettrobisturi genera picchi finti fino a <b>320 bpm</b>; se il sensore al dito scivola, l'ossigeno si azzera.</div>
+                                    <div><b>Sensori disturbati</b>: l'elettrobisturi genera picchi finti fino a <b>320
+                                            bpm</b>; se il sensore al dito scivola, l'ossigeno si azzera.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Tempi disallineati</b>: battito e ossigeno arrivano ogni secondo; la pressione solo ogni 2–5 minuti (il bracciale deve riposare per non bloccare il sangue).</div>
+                                    <div><b>Tempi disallineati</b>: battito e ossigeno arrivano ogni secondo; la
+                                        pressione solo ogni 2–5 minuti (il bracciale deve riposare per non bloccare il
+                                        sangue).</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Dati nel tempo (Time Series)</b>: l'ordine cronologico è fondamentale; ogni secondo dipende strettamente da quello appena trascorso.</div>
+                                    <div><b>Dati nel tempo (Time Series)</b>: l'ordine cronologico è fondamentale; ogni
+                                        secondo dipende strettamente da quello appena trascorso.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
@@ -1554,14 +1558,17 @@
                             style="box-shadow:var(--card-shadow); padding:24px 28px; border-radius:20px; display:flex; flex-direction:column; justify-content:center;">
                             <div class="val" style="font-size:62px; line-height:1;">500</div>
                             <div class="lbl" style="font-size:22px; margin-top:8px;">Casi Completi Selezionati</div>
-                            <div class="desc" style="font-size:16px; line-height:1.4; margin-top:4px;">Filtrati su 6.300 interventi: solo i casi con <b>tutti e 5 i parametri simultanei</b>.</div>
+                            <div class="desc" style="font-size:16px; line-height:1.4; margin-top:4px;">Filtrati su 6.300
+                                interventi: solo i casi con <b>tutti e 5 i parametri simultanei</b>.</div>
                         </div>
 
                         <div class="stat-item"
                             style="box-shadow:var(--card-shadow); padding:24px 28px; border-radius:20px; display:flex; flex-direction:column; justify-content:center;">
                             <div class="val" style="font-size:62px; line-height:1;">5,4<small>M</small></div>
                             <div class="lbl" style="font-size:22px; margin-top:8px;">Secondi Registrati</div>
-                            <div class="desc" style="font-size:16px; line-height:1.4; margin-top:4px;">Oltre 1.500 ore reali. Finestre LSTM da 30s e 100 alberi con calcolo intensivo su macchina singola.</div>
+                            <div class="desc" style="font-size:16px; line-height:1.4; margin-top:4px;">Oltre 1.500 ore
+                                reali. Finestre LSTM da 30s e 100 alberi con calcolo intensivo su macchina singola.
+                            </div>
                         </div>
 
                         <!-- Riquadro "La sfida della tesi" valorizzato e perfettamente visibile -->
@@ -1575,7 +1582,8 @@
                                     Silver</span>
                             </div>
                             <p class="lead-text" style="font-size:19px; line-height:1.38; margin:0;">
-                                I modelli matematici richiedono <b>tutti i 5 segnali sincronizzati al secondo</b>. 500 casi bilanciano rigore statistico e sostenibilità dei tempi di training.
+                                I modelli matematici richiedono <b>tutti i 5 segnali sincronizzati al secondo</b>. 500
+                                casi bilanciano rigore statistico e sostenibilità dei tempi di training.
                             </p>
                         </div>
 
@@ -1766,23 +1774,31 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Salvataggio sicuro (.tmp)</b>: scarichiamo su un file provvisorio e lo rinominiamo solo alla fine. Se cade la rete, non restano file a metà.</div>
+                                    <div><b>Salvataggio sicuro (.tmp)</b>: scarichiamo su un file provvisorio e lo
+                                        rinominiamo solo alla fine. Se cade la rete, non restano file a metà.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Registro scaricamenti (Manifest)</b>: memorizza chi è già pronto con un codice univoco (<span class="mono">run_id</span>), saltando i file già scaricati.</div>
+                                    <div><b>Registro scaricamenti (Manifest)</b>: memorizza chi è già pronto con un
+                                        codice univoco (<span class="mono">run_id</span>), saltando i file già
+                                        scaricati.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Gestione errori intelligente</b>: stop immediato se manca il reparto dei pazienti; prosegue invece se mancano le analisi del sangue.</div>
+                                    <div><b>Gestione errori intelligente</b>: stop immediato se manca il reparto dei
+                                        pazienti; prosegue invece se mancano le analisi del sangue.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Formato Apache Parquet</b>: binario e colonnare (non testo CSV); salva i dati per colonna con compressione Snappy, preserva i tipi numerici e carica in RAM all'istante.</div>
+                                    <div><b>Formato Apache Parquet</b>: binario e colonnare (non testo CSV); salva i
+                                        dati per colonna con compressione Snappy, preserva i tipi numerici e carica in
+                                        RAM all'istante.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Nessuna modifica frettolosa</b>: i buchi (66,3%) e i disturbi dei sensori restano intatti per preservare la verità storica nel file Parquet originale.</div>
+                                    <div><b>Nessuna modifica frettolosa</b>: i buchi (66,3%) e i disturbi dei sensori
+                                        restano intatti per preservare la verità storica nel file Parquet originale.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1796,7 +1812,8 @@
                             <div class="stat-hero">
                                 <div class="stat-val">33,95<small>MB</small></div>
                                 <div class="stat-lbl">Dimensione totale su disco</div>
-                                <div class="stat-sub">File Parquet colonnari con compressione Snappy (molto più compatti e veloci del CSV)</div>
+                                <div class="stat-sub">File Parquet colonnari con compressione Snappy (molto più compatti
+                                    e veloci del CSV)</div>
                             </div>
                         </div>
                     </div>
@@ -1818,7 +1835,8 @@
                                     vivente non può avere</b>.
                             </p>
                             <div class="open-table-wrap" style="padding:18px 24px;">
-                                <div style="font-size:14px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">
+                                <div
+                                    style="font-size:14px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">
                                     Soglie umane standard (<span class="mono">config.TRACK_SPECS</span>)
                                 </div>
                                 <table class="open-table" style="font-size:18px;">
@@ -1853,7 +1871,9 @@
                                 </table>
                             </div>
                             <div class="callout-box red">
-                                <b>Come interveniamo</b>: non cancelliamo il numero assurdo (es. 290), ma gli mettiamo un cartellino (<span class="mono">outlier = true</span>) e lo <b>nascondiamo durante i riempimenti</b> per evitare che si diffonda nei minuti successivi.
+                                <b>Come interveniamo</b>: non cancelliamo il numero assurdo (es. 290), ma gli mettiamo
+                                un cartellino (<span class="mono">outlier = true</span>) e lo <b>nascondiamo durante i
+                                    riempimenti</b> per evitare che si diffonda nei minuti successivi.
                             </div>
                         </div>
 
@@ -1944,19 +1964,25 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Battito e ossigeno (continui)</b>: se mancano pochi secondi (&le; 5 s) uniamo i punti con una retta. Oltre i 5 secondi ci fermiamo per non inventare dati finti.</div>
+                                    <div><b>Battito e ossigeno (continui)</b>: se mancano pochi secondi (&le; 5 s)
+                                        uniamo i punti con una retta. Oltre i 5 secondi ci fermiamo per non inventare
+                                        dati finti.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Pressione (a scatti)</b>: manteniamo valido l'ultimo valore letto fino a <b>5 minuti</b>, coprendo le normali pause del bracciale.</div>
+                                    <div><b>Pressione (a scatti)</b>: manteniamo valido l'ultimo valore letto fino a
+                                        <b>5 minuti</b>, coprendo le normali pause del bracciale.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
-                                    <div><b>Contatore di freschezza (<span class="mono">nibp_age_s</span>)</b>: un cronometro conta i secondi dall'ultima misura vera; oltre i 2 minuti i modelli scartano la pressione perché troppo vecchia.</div>
+                                    <div><b>Contatore di freschezza (<span class="mono">nibp_age_s</span>)</b>: un
+                                        cronometro conta i secondi dall'ultima misura vera; oltre i 2 minuti i modelli
+                                        scartano la pressione perché troppo vecchia.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet dark"></div>
-                                    <div><b>Archivio ordinato per reparto</b>: i dati ripuliti sono divisi in cartelle per reparto chirurgico (Generale, Toracica, Urologia).</div>
+                                    <div><b>Archivio ordinato per reparto</b>: i dati ripuliti sono divisi in cartelle
+                                        per reparto chirurgico (Generale, Toracica, Urologia).</div>
                                 </div>
                             </div>
                             <div class="callout-box">
@@ -2012,19 +2038,25 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Pacchetti compressi (Bucket)</b>: raggruppa fino a 1.000 secondi dello stesso paziente, evitando di riscrivere da capo i dati anagrafici a ogni secondo.</div>
+                                    <div><b>Pacchetti compressi (Bucket)</b>: raggruppa fino a 1.000 secondi dello
+                                        stesso paziente, evitando di riscrivere da capo i dati anagrafici a ogni
+                                        secondo.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Zero sprechi per i dati vuoti</b>: se la pressione non c'è, in MongoDB non salviamo una cella vuota ma semplicemente non scriviamo il campo (0 byte sprecati).</div>
+                                    <div><b>Zero sprechi per i dati vuoti</b>: se la pressione non c'è, in MongoDB non
+                                        salviamo una cella vuota ma semplicemente non scriviamo il campo (0 byte
+                                        sprecati).</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Date compresse al millimetro</b>: i secondi che scorrono regolari (+1 s) non occupano quasi spazio grazie alla compressione differenziale.</div>
+                                    <div><b>Date compresse al millimetro</b>: i secondi che scorrono regolari (+1 s) non
+                                        occupano quasi spazio grazie alla compressione differenziale.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Ricerca istantanea</b>: un indice combinato paziente + tempo trova ore di operazione in appena 18 millisecondi.</div>
+                                    <div><b>Ricerca istantanea</b>: un indice combinato paziente + tempo trova ore di
+                                        operazione in appena 18 millisecondi.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
@@ -2132,7 +2164,8 @@
                 </div>
 
                 <div class="cover-footer reveal">
-                    <span class="badge-main">Regole d'ingresso, salvataggio a prova di blocco e apertura istantanea</span>
+                    <span class="badge-main">Regole d'ingresso, salvataggio a prova di blocco e apertura
+                        istantanea</span>
                     <span class="sub-badge">Parte 3 di 6</span>
                 </div>
             </section>
@@ -2142,79 +2175,84 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Il problema: <em>perché dividere i compiti tra Python e MongoDB?</em></h2>
+                <h2 class="slide-title reveal">Il problema: <em>perché dividere i compiti tra Python e MongoDB?</em>
+                </h2>
 
-                <div class="canvas">
-                    <div class="editorial-split equal">
-                        <div class="story reveal">
-                            <p class="lead-text">
-                                Le tabelle Time Series di MongoDB risparmiano l'84% di spazio, ma per andare così veloci
-                                <b class="red">disattivano i controlli automatici</b> dei database normali.
+                <div class="canvas" style="display:flex; flex-direction:column; gap:20px; justify-content:space-between;">
+                    <div class="reveal" style="display:flex; align-items:stretch; gap:20px;">
+                        <div class="open-table-wrap" style="flex:1; padding:28px 32px;">
+                            <div style="font-size:17px; font-weight:800; color:#dc2626; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">
+                                &#9888; Problema
+                            </div>
+                            <p style="margin:0; font-size:21px; line-height:1.45; color:var(--ink-soft);">
+                                Le collezioni Time Series di MongoDB riducono l'occupazione su disco dell'84%, ma per
+                                garantire elevate prestazioni di scrittura <b class="red">disabilitano i meccanismi di
+                                    controllo nativi</b> delle collezioni standard.
                             </p>
-                            <div class="takeaway">
+                        </div>
+
+                        <div style="display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:800; color:var(--blue); padding:0 4px;">
+                            &rarr;
+                        </div>
+
+                        <div class="open-table-wrap" style="flex:1; padding:28px 32px;">
+                            <div style="font-size:17px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">
+                                &#10003; Soluzione
+                            </div>
+                            <p style="margin:0; font-size:21px; line-height:1.45; color:var(--ink-soft);">
+                                Separiamo i ruoli: <b>Python</b> valida i dati in RAM prima della scrittura, mentre
+                                <b>MongoDB</b> applica <span class="mono">$jsonSchema</span> sul <span
+                                    class="mono">registry</span> <span style="color:var(--blue); font-weight:700;">(slide
+                                    succ. &rarr;)</span> e comprime i segnali nella Time Series.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="takeaway reveal" style="display:grid; grid-template-columns:1fr 1fr; gap:16px 32px;">
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
                                     <div><b>Cosa NON può fare la Time Series (<span
                                                 class="mono">vital_signals</span>)</b>: non può controllare da sola se
                                         i campi sono giusti (niente <span class="mono">$jsonSchema</span>) e <b>non può
-                                            annullare un salvataggio rimasto a metà</b> se salta la corrente (<span
-                                            class="mono">Errore 263</span>).</div>
+                                            annullare un salvataggio rimasto a metà</b> a seguito di un disservizio
+                                        (<span class="mono">Errore 263</span>).</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet red"></div>
+                                    <div><b>Perché niente <span class="mono">$jsonSchema</span> sulle Time Series?</b>
+                                        Anziché salvare ogni secondo come un documento separato, MongoDB impacchetta
+                                        centinaia di rilevazioni in <i>bucket colonnari compressi</i> (−84% spazio) per
+                                        scrivere alla massima velocità, rinunciando così al controllo <span
+                                            class="mono">$jsonSchema</span> sul singolo documento.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Perché non usare Spark o Delta Lake?</b> Sono pensati per centinaia di
-                                        server; per i nostri 500 interventi sarebbero stati inutilmente pesanti.</div>
+                                    <div><b>Niente cluster pesanti</b>: per 500 interventi usare sistemi come
+                                        <i>Spark</i> o <i>Delta Lake</i> sarebbe eccessivo; abbiamo diviso i controlli
+                                        tra <b>Python (fuori dal DB)</b> e <b>MongoDB (dentro il DB)</b>.
+                                    </div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Un solo listino (<span class="mono">TRACK_SPECS</span>)</b>: Python invia i
+                                        limiti dei 5 sensori nella collezione <span class="mono">track_metadata</span> a
+                                        ogni avvio (<span class="mono">upsert</span>), così tutti leggono le stesse
+                                        soglie.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet dark"></div>
-                                    <div><b>La soluzione: il lavoro di squadra Python + MongoDB</b>: abbiamo costruito
-                                        noi i controlli dividendo chiaramente i compiti tra <b>Python (il regista)</b>
-                                        e <b>MongoDB (il custode)</b>.</div>
+                                    <div><b>Verbale qualità (<span class="mono">quality_report.json</span>)</b>: per
+                                        ogni
+                                        paziente contiamo al 100% quanti secondi sono veri (<span
+                                            class="mono">observed</span>), ricostruiti (<span
+                                            class="mono">imputed</span>) o vuoti (<span class="mono">missing</span>),
+                                        con storico in <span class="mono">quality_history/</span>.</div>
                                 </div>
-                            </div>
-                        </div>
+                    </div>
 
-                        <div class="story reveal" style="gap:18px;">
-                            <div
-                                style="background:#fff; border:1px solid var(--line); border-left:6px solid var(--blue); border-radius:18px; padding:22px 26px; box-shadow:var(--card-shadow);">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                    <span style="font-size:22px; font-weight:800; color:var(--blue);">1. Cosa fa PYTHON
-                                        (Il Regista esterno)</span>
-                                    <span class="mono"
-                                        style="font-size:14px; background:var(--blue-wash); color:var(--blue); padding:4px 10px; border-radius:999px; font-weight:700;">Prima
-                                        &amp; Durante</span>
-                                </div>
-                                <div style="font-size:17.5px; line-height:1.5; color:var(--ink-soft);">
-                                    &bull; <b>Fissa il listino unico (<span class="mono">TRACK_SPECS</span>)</b>: invia a
-                                    MongoDB i limiti umani dei 5 sensori a ogni avvio.<br>
-                                    &bull; <b>Controlla i secondi in RAM (<span
-                                            class="mono">validate_records</span>)</b>: blocca i numeri corrotti prima
-                                    ancora di toccare il DB.<br>
-                                    &bull; <b>Dirige il semaforo</b>: segna quando inizia la copia (<span
-                                        class="mono">loading</span>), quando finisce (<span
-                                        class="mono">committed</span>) e cancella i dati a metà se il PC si spegne.
-                                </div>
-                            </div>
-
-                            <div
-                                style="background:#fff; border:1px solid var(--line); border-left:6px solid var(--ink); border-radius:18px; padding:22px 26px; box-shadow:var(--card-shadow);">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                    <span style="font-size:22px; font-weight:800; color:var(--ink);">2. Cosa fa MONGODB
-                                        (Il Custode dei dati)</span>
-                                    <span class="mono"
-                                        style="font-size:14px; background:var(--surface); color:var(--ink); padding:4px 10px; border-radius:999px; font-weight:700;">Dentro
-                                        il DB</span>
-                                </div>
-                                <div style="font-size:17.5px; line-height:1.5; color:var(--ink-soft);">
-                                    &bull; <b>Comprime i segnali (<span class="mono">vital_signals</span>)</b>: salva i
-                                    secondi in pacchetti riducendo lo spazio dell'84%.<br>
-                                    &bull; <b>Fa da dogana sull'anagrafe (<span class="mono">registry</span>)</b>: grazie
-                                    a <span class="mono">$jsonSchema</span> rifiuta schede paziente incomplete.<br>
-                                    &bull; <b>Calcola le medie al volo</b>: riassume ore di operazione in millisecondi
-                                    per non bloccare i grafici della dashboard.
-                                </div>
-                            </div>
-                        </div>
+                    <div class="callout-box reveal" style="font-size:17px; padding:14px 20px; margin:0;">
+                        <b>In sintesi</b>: Python prepara, controlla in memoria e guida il salvataggio; MongoDB
+                        custodisce l'anagrafe, comprime i segnali e risponde alla dashboard in millisecondi.
                     </div>
                 </div>
             </section>
@@ -2225,19 +2263,43 @@
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
                 <h2 class="slide-title reveal">Il registro <span class="mono" style="font-size:0.88em;">registry</span>
-                    <em>e il filtro <span class="mono" style="font-size:0.88em;">$jsonSchema</span></em></h2>
+                    <em>e il filtro <span class="mono" style="font-size:0.88em;">$jsonSchema</span></em>
+                </h2>
 
                 <div class="canvas">
+                    <div class="reveal"
+                        style="background:#fff; border:1px solid var(--border, #e2e8f0); border-radius:12px; padding:16px 26px; margin-bottom:10px; display:flex; align-items:center; gap:24px; box-shadow:0 10px 28px rgba(15,23,42,0.09);">
+                        <span class="mono"
+                            style="background:#f1f5f9; color:var(--blue); font-weight:700; font-size:19px; padding:8px 16px; border-radius:8px; white-space:nowrap;">Cos'è
+                            $jsonSchema?</span>
+                        <span style="font-size:20px; line-height:1.4; color:var(--ink-soft);">
+                            È il <b>meccanismo di validazione nativo di MongoDB</b>: definisce uno schema formale di
+                            campi obbligatori, tipi di dato e vincoli ammessi, respingendo automaticamente qualsiasi
+                            documento non conforme prima dell'inserimento.
+                        </span>
+                    </div>
+
+                    <div class="reveal"
+                        style="background:#fff; border:1px solid var(--border, #e2e8f0); border-radius:12px; padding:16px 26px; margin-bottom:14px; display:flex; align-items:center; gap:24px; box-shadow:0 10px 28px rgba(15,23,42,0.09);">
+                        <span class="mono"
+                            style="background:#f1f5f9; color:var(--ink); font-weight:700; font-size:19px; padding:8px 16px; border-radius:8px; white-space:nowrap;">Cos'è
+                            registry?</span>
+                        <span style="font-size:20px; line-height:1.4; color:var(--ink-soft);">
+                            È la <b>collezione standard di controllo</b> (1 documento = 1 intervento): funge da anagrafe
+                            centrale dei pazienti, tracciando stato del caricamento, numero di secondi salvati e
+                            parametri di pulizia.
+                        </span>
+                    </div>
+
                     <div class="editorial-split">
                         <div class="open-table-wrap reveal"
-                            style="background:var(--ink); border:none; padding:24px 28px; display:flex; flex-direction:column; justify-content:space-between;">
-                            <div>
-                                <div
-                                    style="font-family:var(--font-mono); font-size:14px; color:#94A3B8; margin-bottom:12px; text-transform:uppercase;">
-                                    Scheda di un paziente nella collezione · registry
-                                </div>
-                                <pre class="code"
-                                    style="background:transparent; padding:0; font-size:17.5px; line-height:1.45; color:#E2E8F0;">{
+                            style="background:var(--ink); border:none; padding:24px 28px;">
+                            <div
+                                style="font-family:var(--font-mono); font-size:14px; color:#94A3B8; margin-bottom:12px; text-transform:uppercase;">
+                                Scheda di un paziente nella collezione · registry
+                            </div>
+                            <pre class="code"
+                                style="background:transparent; padding:0; font-size:18px; line-height:1.5; color:#E2E8F0;">{
   <span style="color:#93B4FF">"case_id"</span>: 1,               <span style="color:#64748B">// Obbligatorio (Numero intero)</span>
   <span style="color:#93B4FF">"status"</span>: <span style="color:#86EFAC">"committed"</span>,     <span style="color:#64748B">// Solo: loading | committed | failed</span>
   <span style="color:#93B4FF">"record_count"</span>: 11542,     <span style="color:#64748B">// Quanti secondi sono stati salvati</span>
@@ -2249,170 +2311,38 @@
     <span style="color:#93B4FF">"sampling_interval_s"</span>: 1.0
   }
 }</pre>
-                            </div>
-                            <div
-                                style="background:rgba(255,255,255,0.08); border-left:4px solid #86EFAC; border-radius:10px; padding:12px 16px; color:#E2E8F0; font-size:16px; line-height:1.4; margin-top:14px;">
-                                <b style="color:#86EFAC;">Anagrafe centrale</b>: siccome la Time Series non può
-                                controllarsi da sola, ogni paziente deve prima registrarsi qui dentro.
-                            </div>
                         </div>
 
                         <div class="story reveal">
-                            <div
-                                style="background:var(--blue-wash); border:1px solid var(--blue-line); border-left:6px solid var(--blue); border-radius:16px; padding:18px 22px;">
-                                <div
-                                    style="font-size:14px; font-weight:800; text-transform:uppercase; color:var(--blue); letter-spacing:0.05em; margin-bottom:4px;">
-                                    Spiegazione semplice · Che cos'è <span class="mono">$jsonSchema</span>?
-                                </div>
-                                <div style="font-size:18px; line-height:1.45; color:var(--ink);">
-                                    Di base MongoDB è <b>"senza regole"</b>: accetterebbe anche una scheda paziente
-                                    vuota o senza codice. <b><span class="mono">$jsonSchema</span> è un modulo
-                                        obbligatorio interno a MongoDB</b>: controlla che ci siano tutti i campi e che i
-                                    tipi siano giusti. Se manca qualcosa, <b>MongoDB blocca il salvataggio</b>!
-                                </div>
-                            </div>
-
-                            <div class="takeaway" style="margin-top:4px;">
+                            <p class="lead-text">
+                                Siccome la tabella Time Series non si controlla da sola, <b>ogni paziente deve prima
+                                    registrarsi nella collezione <span class="mono">registry</span></b>.
+                            </p>
+                            <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Perché sul <span class="mono">registry</span> funziona?</b> Perché il <span
-                                            class="mono">registry</span> è una <b>tabella normale</b> (1 riga = 1
-                                        paziente), dove MongoDB permette di attivare <span
-                                            class="mono">$jsonSchema</span> in modalità severa (<span
-                                            class="mono">error</span>).</div>
+                                    <div><b>Perché sul <span class="mono">registry</span> funziona?</b> Perché è una
+                                        <b>tabella normale</b> (1 riga = 1 paziente), dove MongoDB permette di attivare
+                                        <span class="mono">$jsonSchema</span> in modalità severa (<span
+                                            class="mono">strict / error</span>).
+                                    </div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Cosa controlla sul paziente?</b> Che ci siano sempre <span
-                                            class="mono">case_id</span>, il numero di secondi (<span
-                                            class="mono">record_count</span>), il semaforo (<span
-                                            class="mono">status</span>) e le regole di pulizia (<span
-                                            class="mono">provenance</span>).</div>
+                                    <div><b>Conserva la ricetta (<span class="mono">provenance</span>)</b>: salva il
+                                        codice <span class="mono">run_id</span> e le soglie usate per pulire (<span
+                                            class="mono">5s</span>, <span class="mono">300s</span>, <span
+                                            class="mono">1s</span>).</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet dark"></div>
-                                    <div><b>Affiancato dal listino sensori (<span
-                                                class="mono">track_metadata</span>)</b>: una seconda tabella dove Python
-                                        salva a ogni avvio i limiti umani dei 5 sensori (<span
-                                            class="mono">TRACK_SPECS</span>).</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===========================================
-                 13 — IL SEMAFORO A DUE FASI (VISUALE)
-                 =========================================== -->
-            <section class="slide" data-section="Capitolo 03">
-                <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Salvataggio a prova di crash: <em>il semaforo a due fasi</em></h2>
-
-                <div class="canvas">
-                    <div class="editorial-split equal">
-                        <div class="story reveal">
-                            <p class="lead-text">
-                                Quando Python copia i 10.000 secondi di un paziente in MongoDB, usa il campo <b
-                                    class="mono">status</b> del <span class="mono">registry</span> proprio come un
-                                <b>vero semaforo stradale</b>.
-                            </p>
-                            <div class="takeaway">
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Prima del semaforo (<span class="mono">validate_records</span>)</b>: Python
-                                        controlla in memoria RAM tutti i secondi. Se trova un solo numero corrotto, si
-                                        ferma prima ancora di accendere il semaforo.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Fase 1 · Luce Gialla (<span class="mono">loading</span>)</b>: Python avvisa
-                                        il <span class="mono">registry</span> che sta iniziando a copiare i dati in
-                                        <span class="mono">vital_signals</span>. Finché c'è il giallo, <b>i medici non
-                                            vedono il paziente</b>.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Fase 2 · Luce Verde (<span class="mono">committed</span>)</b>: copiato
-                                        anche l'ultimo secondo, Python mette il verde nel <span
-                                            class="mono">registry</span>. Solo ora il paziente <b>compare sulla
-                                            dashboard</b>.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Emergenza Crash · Luce Rossa (<span class="mono">failed</span>)</b>: se
-                                        salta la corrente mentre era giallo, al riavvio Python (<span
-                                            class="mono">recover_incomplete_loads</span>) <b>cancella subito i dati a
-                                            metà</b>.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- VERO SEMAFORO GRAFICO -->
-                        <div class="reveal"
-                            style="background:var(--ink); border-radius:26px; padding:26px 30px; box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; gap:16px; border:2px solid #1E293B;">
-                            <div
-                                style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.12); padding-bottom:12px;">
-                                <span
-                                    style="font-family:var(--font-mono); font-size:14px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.06em;">
-                                    Semaforo del campo · registry.status
-                                </span>
-                                <span
-                                    style="font-size:13px; font-weight:700; color:#E2E8F0; background:rgba(255,255,255,0.1); padding:4px 12px; border-radius:999px;">
-                                    2 Fasi + Crash Recovery
-                                </span>
-                            </div>
-
-                            <!-- LUCE GIALLA -->
-                            <div
-                                style="display:flex; align-items:center; gap:20px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:18px; padding:16px 20px;">
-                                <div
-                                    style="width:58px; height:58px; min-width:58px; border-radius:50%; background:#F59E0B; box-shadow:0 0 26px rgba(245, 158, 11, 0.85), inset 0 3px 6px rgba(255,255,255,0.45); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:var(--ink);">
-                                    1
-                                </div>
-                                <div>
-                                    <div style="font-size:19px; font-weight:800; color:#FCD34D;">
-                                        FASE 1 · GIALLO (<span class="mono">status: "loading"</span>)
-                                    </div>
-                                    <div style="font-size:16px; line-height:1.4; color:#E2E8F0; margin-top:4px;">
-                                        Python sta copiando i secondi nel database. Il paziente è <b>NASCOSTO</b>: la
-                                        dashboard lo ignora.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- LUCE VERDE -->
-                            <div
-                                style="display:flex; align-items:center; gap:20px; background:rgba(16, 185, 129, 0.14); border:1px solid rgba(16, 185, 129, 0.45); border-radius:18px; padding:16px 20px;">
-                                <div
-                                    style="width:58px; height:58px; min-width:58px; border-radius:50%; background:#10B981; box-shadow:0 0 26px rgba(16, 185, 129, 0.85), inset 0 3px 6px rgba(255,255,255,0.45); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:var(--ink);">
-                                    2
-                                </div>
-                                <div>
-                                    <div style="font-size:19px; font-weight:800; color:#6EE7B7;">
-                                        FASE 2 · VERDE (<span class="mono">status: "committed"</span>)
-                                    </div>
-                                    <div style="font-size:16px; line-height:1.4; color:#E2E8F0; margin-top:4px;">
-                                        Salvataggio completato al 100%. <b>VIA LIBERA</b>: medici e modelli AI ora
-                                        possono leggere il paziente.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- LUCE ROSSA -->
-                            <div
-                                style="display:flex; align-items:center; gap:20px; background:rgba(239, 68, 68, 0.13); border:1px solid rgba(239, 68, 68, 0.4); border-radius:18px; padding:16px 20px;">
-                                <div
-                                    style="width:58px; height:58px; min-width:58px; border-radius:50%; background:#EF4444; box-shadow:0 0 26px rgba(239, 68, 68, 0.85), inset 0 3px 6px rgba(255,255,255,0.45); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; color:#fff;">
-                                    !
-                                </div>
-                                <div>
-                                    <div style="font-size:19px; font-weight:800; color:#FCA5A5;">
-                                        SE SALTA LA CORRENTE · ROSSO (<span class="mono">status: "failed"</span>)
-                                    </div>
-                                    <div style="font-size:16px; line-height:1.4; color:#E2E8F0; margin-top:4px;">
-                                        Blocco improvviso? Python (<span class="mono">recover_incomplete_loads</span>)
-                                        <b>ELIMINA</b> subito i pezzi rimasti a metà.
+                                    <div><b>Velocizza la dashboard (<span class="mono">GET /cases</span>)</b>: leggendo
+                                        il <span class="mono">registry</span> + un'unica query (<span
+                                            class="mono">$group</span>), carichiamo la lista dei 500 pazienti con
+                                        <b>sole
+                                            2 richieste invece di 501</b>, e riassumiamo i 21.600 secondi dei grafici
+                                        con
+                                        <span class="mono">$dateTrunc</span>.
                                     </div>
                                 </div>
                             </div>
@@ -2422,63 +2352,64 @@
             </section>
 
             <!-- ===========================================
-                 14 — CONTI CHIARI & GRAFICI ISTANTANEI
+                 13 — PIPELINE SALVATAGGIO A DUE FASI (STILE ROADMAP)
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Trasparenza e velocità: <em>verbale qualità e query istantanee</em></h2>
+                <h2 class="slide-title reveal">Salvataggio a due fasi: <em>nessun paziente resta a metà</em></h2>
 
-                <div class="canvas">
-                    <div class="editorial-split reversed">
-                        <div class="stat-showcase reveal">
-                            <div class="stat-hero">
-                                <div class="stat-val"><span class="red">501</span> → 2</div>
-                                <div class="stat-lbl">Richieste per aprire la lista pazienti</div>
-                                <div class="stat-sub">Leggiamo il <span class="mono">registry</span> e raggruppiamo i
-                                    500 interventi in un colpo solo invece di fare 500 domande separate</div>
-                            </div>
-                            <div class="stat-hero">
-                                <div class="stat-val">100<small>%</small></div>
-                                <div class="stat-lbl">Secondi contabilizzati nel Verbale Qualità</div>
-                                <div class="stat-sub">Ogni secondo del paziente è classificato come vero, ricostruito o
-                                    vuoto: non sparisce nulla</div>
-                            </div>
+                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between;">
+                    <div style="flex:1; display:flex; align-items:center; justify-content:center; min-height:110px;">
+                        <p class="lead-text reveal" style="text-align:center; max-width:1250px; margin: 0 auto;">
+                            Per evitare dati tagliati a metà a seguito di un guasto (<span class="mono">Errore
+                                263</span>
+                            sulle Time Series), Python aggiorna il campo <b class="mono">status</b> del <span
+                                class="mono">registry</span> attraverso <b>quattro passaggi</b>.
+                        </p>
+                    </div>
+
+                    <div class="timeline-bar reveal"
+                        style="grid-template-columns: repeat(4, 1fr); margin:0; padding-top:10px; padding-bottom:30px;">
+                        <div class="timeline-node dark">
+                            <div class="num">1</div>
+                            <div class="phase">Pre-controllo</div>
+                            <h3>Verifica RAM</h3>
+                            <p style="font-size:20px; line-height:1.4;">Python controlla in memoria che tutti i secondi
+                                del paziente siano validi prima di toccare il DB.</p>
+                            <span class="tag">validate_records</span>
                         </div>
 
-                        <div class="story reveal">
-                            <p class="lead-text">
-                                Una volta salvati i dati in sicurezza, certifichiamo la qualità di ogni secondo e
-                                <b>rendiamo istantanea l'apertura della dashboard</b>.
-                            </p>
-                            <div class="takeaway">
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Bilancio matematico (<span class="mono">quality_report.json</span>)</b>: per
-                                        ogni paziente la somma di <b>secondi veri</b> (<span
-                                            class="mono">observed</span>) + <b>ricostruiti</b> (<span
-                                            class="mono">imputed</span>) + <b>vuoti</b> (<span
-                                            class="mono">missing</span>) torna sempre al 100%, con storico in <span
-                                            class="mono">quality_history/</span>.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Grafici leggeri (<span class="mono">downsample_case</span>)</b>: un
-                                        intervento di 6 ore ha <b>21.600 secondi</b>! Invece di inviarli tutti al
-                                        browser, MongoDB calcola già sul server la <b>media ogni 30 o 60 secondi</b>
-                                        (<span class="mono">$dateTrunc</span>).</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Lista pazienti immediata (<span class="mono">GET /cases</span>)</b>: invece
-                                        di fare 500 query separate per leggere età, sesso e reparto di ogni paziente,
-                                        usiamo il <span class="mono">registry</span> + <b>un'unica richiesta
-                                            raggruppata</b> (<span class="mono">$group</span>).</div>
-                                </div>
-                            </div>
-                            <div class="callout-box">
-                                <b>Risultato finale</b>: dati certificati al 100% e schermata medica che si apre in
-                                pochi millisecondi, pronta per il rilevamento delle anomalie.
-                            </div>
+                        <div class="timeline-node">
+                            <div class="num">2</div>
+                            <div class="phase">Fase 1 · In corso</div>
+                            <h3>Loading</h3>
+                            <p style="font-size:20px; line-height:1.4;">Segna il paziente "in copia" nel <span
+                                    class="mono">registry</span>: mentre scrive i secondi resta <b>nascosto ai
+                                    medici</b>.</p>
+                            <span class="tag">status: "loading"</span>
+                        </div>
+
+                        <div class="timeline-node" style="--blue:#0047FF;">
+                            <div class="num"
+                                style="border-color:var(--blue); color:var(--blue); box-shadow:0 0 0 10px var(--bg), 0 8px 24px rgba(0,71,255,0.25);">
+                                3</div>
+                            <div class="phase" style="color:var(--blue); font-weight:800;">Fase 2 · Conferma</div>
+                            <h3 style="color:var(--blue);">Committed</h3>
+                            <p style="font-size:20px; line-height:1.4;">Copiato anche l'ultimo secondo, il paziente è
+                                completo al 100% e diventa <b>visibile sulla dashboard</b>.</p>
+                            <span class="tag"
+                                style="color:var(--blue); border-color:var(--blue-line); font-weight:700;">status:
+                                "committed"</span>
+                        </div>
+
+                        <div class="timeline-node red">
+                            <div class="num">4</div>
+                            <div class="phase" style="color:var(--red);">Guasto</div>
+                            <h3>Pulizia Crash</h3>
+                            <p style="font-size:20px; line-height:1.4;">Se il PC si spegne a metà, al riavvio cerca chi
+                                è rimasto in <span class="mono">loading</span> e <b>cancella i pezzi a metà</b>.</p>
+                            <span class="tag"
+                                style="color:var(--red); border-color:var(--red-line);">recover_incomplete_loads</span>
                         </div>
                     </div>
                 </div>
@@ -3700,7 +3631,8 @@
                 <div class="kick reveal">Capitolo 06 · Conclusioni &amp; Prospettive</div>
                 <h2 class="slide-title reveal">I risultati finali: <em>un sistema leggero, rapido e sicuro</em></h2>
 
-                <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between; gap:20px; height:100%;">
+                <div class="canvas"
+                    style="display:flex; flex-direction:column; justify-content:space-between; gap:20px; height:100%;">
                     <!-- Riga 1: I 4 Grandi Indicatori Quantitativi -->
                     <div class="stat-row cols-4 reveal">
                         <div class="stat-hero">
@@ -3716,7 +3648,8 @@
                         <div class="stat-hero">
                             <div class="stat-val">4</div>
                             <div class="stat-lbl">Metodi di Controllo</div>
-                            <div class="stat-sub">2 regole mediche immediate + 2 modelli di intelligenza artificiale</div>
+                            <div class="stat-sub">2 regole mediche immediate + 2 modelli di intelligenza artificiale
+                            </div>
                         </div>
                         <div class="stat-hero">
                             <div class="stat-val dark">38 / 38</div>
@@ -3726,51 +3659,72 @@
                     </div>
 
                     <!-- Riga 2: Dettaglio Prestazioni & Copertura Sperimentale (spiegato semplice) -->
-                    <div class="reveal" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:24px; flex:1 1 0; min-height:0;">
-                        <div style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
+                    <div class="reveal"
+                        style="display:grid; grid-template-columns: repeat(3, 1fr); gap:24px; flex:1 1 0; min-height:0;">
+                        <div
+                            style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
                             <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                                <div style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <div
+                                    style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path
+                                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                        </path>
                                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                                     </svg>
                                 </div>
-                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>PROVATO SU DATI VERI</b></span>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>PROVATO SU
+                                        DATI VERI</b></span>
                             </div>
-                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">500 Operazioni · 5,4M di Secondi</div>
+                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">500
+                                Operazioni · 5,4M di Secondi</div>
                             <p style="font-size:18px; line-height:1.45; color:var(--ink-soft); margin:0;">
-                                Più di 1.500 ore di interventi chirurgici veri processati dall'inizio alla fine senza perdere neanche un dato.
+                                Più di 1.500 ore di interventi chirurgici veri processati dall'inizio alla fine senza
+                                perdere neanche un dato.
                             </p>
                         </div>
 
-                        <div style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
+                        <div
+                            style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
                             <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                                <div style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <div
+                                    style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                                     </svg>
                                 </div>
-                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>ALLARME IN ANTICIPO</b></span>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>ALLARME IN
+                                        ANTICIPO</b></span>
                             </div>
-                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">Avvisa 30–60 Secondi Prima</div>
+                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">Avvisa
+                                30–60 Secondi Prima</div>
                             <p style="font-size:18px; line-height:1.45; color:var(--ink-soft); margin:0;">
-                                La rete neurale si accorge che il paziente sta peggiorando prima ancora che scattino i vecchi allarmi fissi.
+                                La rete neurale si accorge che il paziente sta peggiorando prima ancora che scattino i
+                                vecchi allarmi fissi.
                             </p>
                         </div>
 
-                        <div style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
+                        <div
+                            style="background:#fff; border-radius:20px; border:1px solid var(--line); box-shadow:var(--card-shadow); padding:26px 30px; display:flex; flex-direction:column; justify-content:center;">
                             <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                                <div style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
-                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <div
+                                    style="width:40px; height:40px; border-radius:10px; background:var(--blue-wash); display:flex; align-items:center; justify-content:center; color:var(--blue);">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                                     </svg>
                                 </div>
-                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>ZERO CRASH</b></span>
+                                <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;"><b>ZERO
+                                        CRASH</b></span>
                             </div>
-                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">Funziona Sempre e Non Si Blocca</div>
+                            <div style="font-size:24px; font-weight:800; color:var(--ink); margin-bottom:8px;">Funziona
+                                Sempre e Non Si Blocca</div>
                             <p style="font-size:18px; line-height:1.45; color:var(--ink-soft); margin:0;">
-                                Pulizia automatica dei dati, controlli rigorosi e salvataggio sicuro che non lascia mai file a metà.
+                                Pulizia automatica dei dati, controlli rigorosi e salvataggio sicuro che non lascia mai
+                                file a metà.
                             </p>
                         </div>
                     </div>
@@ -3779,7 +3733,9 @@
                     <div class="card dark center reveal"
                         style="background:var(--ink); padding:26px 44px; border-radius:22px; text-align:center; box-shadow:0 12px 36px rgba(10,15,29,0.14); border:1px solid rgba(255,255,255,0.08); flex:none; width:100%;">
                         <p style="font-size:28px; font-weight:500; line-height:1.36; color:#CBD5E1; margin:0;">
-                            Le regole mediche fanno da <b style="color:#fff;">paracadute immediato</b> per le emergenze improvvise; l'intelligenza artificiale scova i <b style="color:#93B4FF;">peggioramenti lenti e silenziosi</b> prima che sia troppo tardi.
+                            Le regole mediche fanno da <b style="color:#fff;">paracadute immediato</b> per le emergenze
+                            improvvise; l'intelligenza artificiale scova i <b style="color:#93B4FF;">peggioramenti lenti
+                                e silenziosi</b> prima che sia troppo tardi.
                         </p>
                     </div>
                 </div>
@@ -3806,20 +3762,24 @@
                                 <div class="takeaway" style="gap:26px;">
                                     <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
                                         <div class="bullet"></div>
-                                        <div><b>Niente etichette dei medici</b>: nei file di VitalDB non ci sono note scritte dai dottori per confermare le crisi secondo per secondo.</div>
+                                        <div><b>Niente etichette dei medici</b>: nei file di VitalDB non ci sono note
+                                            scritte dai dottori per confermare le crisi secondo per secondo.</div>
                                     </div>
                                     <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
                                         <div class="bullet"></div>
-                                        <div><b>Pressione a singhiozzo</b>: il bracciale misura solo ogni qualche minuto, lasciando dei buchi vuoti tra una lettura e l'altra.</div>
+                                        <div><b>Pressione a singhiozzo</b>: il bracciale misura solo ogni qualche
+                                            minuto, lasciando dei buchi vuoti tra una lettura e l'altra.</div>
                                     </div>
                                     <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
                                         <div class="bullet"></div>
-                                        <div><b>Orari convenzionali</b>: le registrazioni partono da zero e non indicano l'ora reale dell'orologio della sala operatoria.</div>
+                                        <div><b>Orari convenzionali</b>: le registrazioni partono da zero e non indicano
+                                            l'ora reale dell'orologio della sala operatoria.</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--muted); font-family:var(--font-mono);">
+                            <div
+                                style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--muted); font-family:var(--font-mono);">
                                 Limiti legati ai dati storici di partenza
                             </div>
                         </div>
@@ -3835,20 +3795,24 @@
                                 <div class="takeaway" style="gap:26px;">
                                     <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
                                         <div class="bullet"></div>
-                                        <div><b>Dati in diretta streaming</b>: passare dal caricamento a blocchi a un flusso continuo che analizza i parametri in tempo reale.</div>
+                                        <div><b>Dati in diretta streaming</b>: passare dal caricamento a blocchi a un
+                                            flusso continuo che analizza i parametri in tempo reale.</div>
                                     </div>
                                     <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
                                         <div class="bullet"></div>
-                                        <div><b>Aggiungere altri segnali</b>: includere anidride carbonica espirata, profondità del sonno e ventilazione dei polmoni.</div>
+                                        <div><b>Aggiungere altri segnali</b>: includere anidride carbonica espirata,
+                                            profondità del sonno e ventilazione dei polmoni.</div>
                                     </div>
                                     <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
                                         <div class="bullet"></div>
-                                        <div><b>Spiegazioni chiare a schermo</b>: mostrare con colori ed evidenziazioni quale parametro ha fatto scattare l'allarme.</div>
+                                        <div><b>Spiegazioni chiare a schermo</b>: mostrare con colori ed evidenziazioni
+                                            quale parametro ha fatto scattare l'allarme.</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--blue); font-family:var(--font-mono); font-weight:700;">
+                            <div
+                                style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--blue); font-family:var(--font-mono); font-weight:700;">
                                 Prossimi passi per l'uso clinico
                             </div>
                         </div>
