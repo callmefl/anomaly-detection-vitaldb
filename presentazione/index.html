@@ -1334,13 +1334,15 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Sensori disturbati</b>: l'elettrobisturi causa picchi fittizi fino a <b>320
-                                            bpm</b>; lo scivolamento del sensore azzera l'ossigeno.</div>
+                                    <div><b>Sensori disturbati</b>: l'elettrobisturi genera picchi finti fino a <b>320 bpm</b>; se il sensore al dito scivola, l'ossigeno si azzera.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Campionamento asincrono</b>: frequenza cardiaca al secondo, pressione
-                                        arteriosa ogni 2–5 minuti.</div>
+                                    <div><b>Tempi disallineati</b>: battito e ossigeno arrivano ogni secondo; la pressione solo ogni 2–5 minuti (il bracciale deve riposare per non bloccare il sangue).</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Dati nel tempo (Time Series)</b>: l'ordine cronologico è fondamentale; ogni secondo dipende strettamente da quello appena trascorso.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
@@ -1551,17 +1553,15 @@
                         <div class="stat-item"
                             style="box-shadow:var(--card-shadow); padding:24px 28px; border-radius:20px; display:flex; flex-direction:column; justify-content:center;">
                             <div class="val" style="font-size:62px; line-height:1;">500</div>
-                            <div class="lbl" style="font-size:22px; margin-top:8px;">Interventi Reali</div>
-                            <div class="desc" style="font-size:17px; line-height:1.4; margin-top:4px;">Seoul National
-                                University Hospital, casistica chirurgica complessa.</div>
+                            <div class="lbl" style="font-size:22px; margin-top:8px;">Casi Completi Selezionati</div>
+                            <div class="desc" style="font-size:16px; line-height:1.4; margin-top:4px;">Filtrati su 6.300 interventi: solo i casi con <b>tutti e 5 i parametri simultanei</b>.</div>
                         </div>
 
                         <div class="stat-item"
                             style="box-shadow:var(--card-shadow); padding:24px 28px; border-radius:20px; display:flex; flex-direction:column; justify-content:center;">
                             <div class="val" style="font-size:62px; line-height:1;">5,4<small>M</small></div>
                             <div class="lbl" style="font-size:22px; margin-top:8px;">Secondi Registrati</div>
-                            <div class="desc" style="font-size:17px; line-height:1.4; margin-top:4px;">Circa 1.500 ore
-                                continuative senza simulazioni o dati sintetici.</div>
+                            <div class="desc" style="font-size:16px; line-height:1.4; margin-top:4px;">Oltre 1.500 ore reali. Finestre LSTM da 30s e 100 alberi con calcolo intensivo su macchina singola.</div>
                         </div>
 
                         <!-- Riquadro "La sfida della tesi" valorizzato e perfettamente visibile -->
@@ -1574,10 +1574,8 @@
                                 <span class="pill sm blue-soft" style="font-size:13px; padding:4px 12px;">Obiettivo
                                     Silver</span>
                             </div>
-                            <p class="lead-text" style="font-size:20px; line-height:1.4; margin:0;">
-                                I modelli matematici e di Machine Learning richiedono <b>tutti i segnali sincronizzati
-                                    allo stesso secondo</b>. La pipeline Silver risolve questo squilibrio senza
-                                inventare dati falsi.
+                            <p class="lead-text" style="font-size:19px; line-height:1.38; margin:0;">
+                                I modelli matematici richiedono <b>tutti i 5 segnali sincronizzati al secondo</b>. 500 casi bilanciano rigore statistico e sostenibilità dei tempi di training.
                             </p>
                         </div>
 
@@ -1768,19 +1766,19 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Salvataggio a prova di errore</b>: scarichiamo prima su un file temporaneo e
-                                        lo rinominiamo solo a fine scrittura. Se salta la corrente o la rete, nessun
-                                        file resta a metà.</div>
+                                    <div><b>Salvataggio sicuro (.tmp)</b>: scarichiamo su un file provvisorio e lo rinominiamo solo alla fine. Se cade la rete, non restano file a metà.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Registro di controllo</b>: un catalogo tiene traccia di data, ora e impronta
-                                        digitale di ciascuno dei 500 interventi scaricati.</div>
+                                    <div><b>Registro scaricamenti (Manifest)</b>: memorizza chi è già pronto con un codice univoco (<span class="mono">run_id</span>), saltando i file già scaricati.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Nessuna modifica frettolosa</b>: i buchi di segnale (66,3%) e i disturbi dei
-                                        sensori vengono archiviati intatti per mantenere la verità storica.</div>
+                                    <div><b>Gestione errori intelligente</b>: stop immediato se manca il reparto dei pazienti; prosegue invece se mancano le analisi del sangue.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Nessuna modifica frettolosa</b>: i buchi (66,3%) e i disturbi dei sensori restano intatti per preservare la verità storica in Parquet compresso.</div>
                                 </div>
                             </div>
                         </div>
@@ -1816,6 +1814,9 @@
                                     vivente non può avere</b>.
                             </p>
                             <div class="open-table-wrap" style="padding:18px 24px;">
+                                <div style="font-size:14px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">
+                                    Soglie umane standard (<span class="mono">config.TRACK_SPECS</span>)
+                                </div>
                                 <table class="open-table" style="font-size:18px;">
                                     <thead>
                                         <tr>
@@ -1848,9 +1849,7 @@
                                 </table>
                             </div>
                             <div class="callout-box red">
-                                <b>Come interveniamo</b>: non cancelliamo il dato assurdo, ma gli mettiamo un cartellino
-                                di avviso (<span class="mono">outlier = true</span>) per <b>evitare che contamini</b> i
-                                secondi successivi.
+                                <b>Come interveniamo</b>: non cancelliamo il numero assurdo (es. 290), ma gli mettiamo un cartellino (<span class="mono">outlier = true</span>) e lo <b>nascondiamo durante i riempimenti</b> per evitare che si diffonda nei minuti successivi.
                             </div>
                         </div>
 
@@ -1941,21 +1940,19 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Battito e ossigeno (continui)</b>: se manca qualche secondo (fino a 5 s)
-                                        uniamo i puntini con una linea retta. Oltre i 5 secondi ci fermiamo per non
-                                        inventare dati finti.</div>
+                                    <div><b>Battito e ossigeno (continui)</b>: se mancano pochi secondi (&le; 5 s) uniamo i punti con una retta. Oltre i 5 secondi ci fermiamo per non inventare dati finti.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Pressione dal bracciale (a scatti)</b>: manteniamo valido l'ultimo valore
-                                        letto fino a un <b>massimo di 5 minuti</b>. Dopo diventa troppo vecchio per
-                                        fidarsi.</div>
+                                    <div><b>Pressione (a scatti)</b>: manteniamo valido l'ultimo valore letto fino a <b>5 minuti</b>, coprendo le normali pause del bracciale.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
-                                    <div><b>Contatore di freschezza (<span class="mono">nibp_age_s</span>)</b>: un
-                                        cronometro conta i secondi dall'ultima misura vera. I modelli scartano le
-                                        pressioni più vecchie di 2 minuti.</div>
+                                    <div><b>Contatore di freschezza (<span class="mono">nibp_age_s</span>)</b>: un cronometro conta i secondi dall'ultima misura vera; oltre i 2 minuti i modelli scartano la pressione perché troppo vecchia.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet dark"></div>
+                                    <div><b>Archivio ordinato per reparto</b>: i dati ripuliti sono divisi in cartelle per reparto chirurgico (Generale, Toracica, Urologia).</div>
                                 </div>
                             </div>
                             <div class="callout-box">
@@ -2011,18 +2008,19 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Raggruppamento intelligente in pacchetti</b>: fino a 1.000 secondi dello
-                                        stesso paziente vengono compressi e salvati insieme in una sola volta.</div>
+                                    <div><b>Pacchetti compressi (Bucket)</b>: raggruppa fino a 1.000 secondi dello stesso paziente, evitando di riscrivere da capo i dati anagrafici a ogni secondo.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Zero sprechi di spazio</b>: se in quel secondo la pressione non è stata
-                                        misurata, semplicemente non occupiamo memoria.</div>
+                                    <div><b>Zero sprechi per i dati vuoti</b>: se la pressione non c'è, in MongoDB non salviamo una cella vuota ma semplicemente non scriviamo il campo (0 byte sprecati).</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Date compresse al millimetro</b>: i secondi che scorrono regolari richiedono
-                                        quasi zero spazio su disco grazie alla compressione differenziale.</div>
+                                    <div><b>Date compresse al millimetro</b>: i secondi che scorrono regolari (+1 s) non occupano quasi spazio grazie alla compressione differenziale.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Ricerca istantanea</b>: un indice combinato paziente + tempo trova ore di operazione in appena 18 millisecondi.</div>
                                 </div>
                             </div>
                             <div class="callout-box">
@@ -2117,21 +2115,19 @@
                             <div class="takeaway">
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Registro ufficiale (<span class="mono">registry</span>)</b>: ogni intervento
-                                        annota data, durata e reparto. Se un file non rispetta le regole stabilite, il
-                                        database lo rifiuta subito.</div>
+                                    <div><b>Registro di controllo (<span class="mono">registry</span>)</b>: controlla automaticamente i dati con regole rigide (<span class="mono">$jsonSchema</span>); rifiuta i file incompleti o con errori.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Unica fonte di verità (<span class="mono">TRACK_SPECS</span>)</b>: un solo
-                                        file di configurazione fissa nomi dei sensori e soglie massime per pulizia,
-                                        database e dashboard.</div>
+                                    <div><b>Caricamento sicuro a due fasi</b>: il paziente è mostrato ai medici solo quando è completo al 100% (<span class="mono">loading &rarr; committed</span>); i dati parziali vengono isolati e ripuliti.</div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
-                                    <div><b>Controllo continuo (<span class="mono">quality_report</span>)</b>: un
-                                        verbale automatico registra quante celle mancavano e quanti errori sono stati
-                                        corretti per ogni paziente.</div>
+                                    <div><b>Unica fonte di verità (<span class="mono">TRACK_SPECS</span>)</b>: un solo file fissa le soglie per tutti, aggiornando in automatico il database.</div>
+                                </div>
+                                <div class="takeaway-item">
+                                    <div class="bullet"></div>
+                                    <div><b>Controllo qualità trasparente</b>: un verbale (<span class="mono">quality_report</span>) tiene il conto esatto di dati reali, corretti e mancanti per ogni paziente.</div>
                                 </div>
                             </div>
                         </div>
