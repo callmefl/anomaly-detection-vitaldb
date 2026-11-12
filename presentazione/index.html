@@ -1322,7 +1322,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 01">
                 <div class="kick reveal"> Capitolo 01 · Contesto Clinico &amp; Dati</div>
-                <h2 class="slide-title reveal">Sala operatoria: <em>tanti dati, poca qualità</em></h2>
+                <h2 class="slide-title reveal">Contesto clinico: <em>volume elevato, bassa qualità del dato grezzo</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
@@ -1378,7 +1378,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 01">
                 <div class="kick reveal"> Capitolo 01 · Contesto Clinico &amp; Dati</div>
-                <h2 class="slide-title reveal">VitalDB: <em>la sorgente dei dati e il problema del campionamento</em>
+                <h2 class="slide-title reveal">Dataset VitalDB: <em>sorgente clinica e asincronia di campionamento</em>
                 </h2>
 
                 <div class="canvas"
@@ -1632,7 +1632,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 02">
                 <div class="kick reveal"> Capitolo 02 · Pipeline Dati &amp; Medallion</div>
-                <h2 class="slide-title reveal">Il percorso: <em>dal dato grezzo all'allarme</em></h2>
+                <h2 class="slide-title reveal">Flusso operativo: <em>dal dato grezzo alla segnalazione clinica</em></h2>
 
                 <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between;">
                     <!-- Testo centrato esattamente nell'intervallo tra la linea del titolo e i pallini -->
@@ -1825,7 +1825,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 02">
                 <div class="kick reveal"> Capitolo 02 · Pipeline Dati &amp; Medallion</div>
-                <h2 class="slide-title reveal">Livello Silver: <em>bloccare i numeri assurdi</em></h2>
+                <h2 class="slide-title reveal">Livello Silver: <em>rilevamento dei valori fisiologicamente anomali</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
@@ -1937,7 +1937,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 02">
                 <div class="kick reveal"> Capitolo 02 · Pipeline Dati &amp; Medallion</div>
-                <h2 class="slide-title reveal">Livello Silver: <em>ricostruire i buchi con buon senso</em></h2>
+                <h2 class="slide-title reveal">Livello Silver: <em>gestione dei dati mancanti per tipologia di segnale</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split reversed">
@@ -1971,7 +1971,8 @@
                                 <div class="takeaway-item">
                                     <div class="bullet"></div>
                                     <div><b>Pressione (a scatti)</b>: manteniamo valido l'ultimo valore letto fino a
-                                        <b>5 minuti</b>, coprendo le normali pause del bracciale.</div>
+                                        <b>5 minuti</b>, coprendo le normali pause del bracciale.
+                                    </div>
                                 </div>
                                 <div class="takeaway-item">
                                     <div class="bullet red"></div>
@@ -2000,7 +2001,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 02">
                 <div class="kick reveal"> Capitolo 02 · Pipeline Dati &amp; Medallion</div>
-                <h2 class="slide-title reveal">Livello Gold: <em>database super compatto e velocissimo</em></h2>
+                <h2 class="slide-title reveal">Livello Gold: <em>archiviazione Time Series ad alta efficienza</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
@@ -2073,7 +2074,7 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 02">
                 <div class="kick reveal"> Capitolo 02 · Pipeline Dati &amp; Medallion</div>
-                <h2 class="slide-title reveal">I numeri: <em>quanto spazio risparmiamo e quanto andiamo veloci</em></h2>
+                <h2 class="slide-title reveal">Valutazione prestazionale: <em>riduzione dello spazio e latenza delle query</em></h2>
 
                 <div class="canvas">
                     <div class="editorial-split">
@@ -2175,79 +2176,86 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Il problema: <em>perché dividere i compiti tra Python e MongoDB?</em>
+                <h2 class="slide-title reveal">Architettura ibrida: <em>separazione dei controlli tra Python e
+                        MongoDB</em>
                 </h2>
 
-                <div class="canvas" style="display:flex; flex-direction:column; gap:20px; justify-content:space-between;">
-                    <div class="reveal" style="display:flex; align-items:stretch; gap:20px;">
-                        <div class="open-table-wrap" style="flex:1; padding:28px 32px;">
-                            <div style="font-size:17px; font-weight:800; color:#dc2626; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">
-                                &#9888; Problema
+                <div class="canvas"
+                    style="display:flex; flex-direction:column; gap:20px; justify-content:space-between;">
+                    <div class="reveal" style="display:flex; align-items:center; gap:20px;">
+                        <div style="flex:1.15; display:flex; flex-direction:column; gap:20px;">
+                            <div class="open-table-wrap" style="padding:24px 28px;">
+                                <div
+                                    style="font-size:17px; font-weight:800; color:#dc2626; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
+                                    &#9888; Problema 1 · Niente $jsonSchema
+                                </div>
+                                <p style="margin:0; font-size:22px; line-height:1.42; color:var(--ink-soft);">
+                                    Le Time Series impacchettano i secondi in <i>bucket colonnari</i> (−84% spazio),
+                                    rinunciando alla validazione BSON sul singolo documento.
+                                </p>
                             </div>
-                            <p style="margin:0; font-size:21px; line-height:1.45; color:var(--ink-soft);">
-                                Le collezioni Time Series di MongoDB riducono l'occupazione su disco dell'84%, ma per
-                                garantire elevate prestazioni di scrittura <b class="red">disabilitano i meccanismi di
-                                    controllo nativi</b> delle collezioni standard.
+
+                            <div class="open-table-wrap" style="padding:24px 28px;">
+                                <div
+                                    style="font-size:17px; font-weight:800; color:#dc2626; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
+                                    &#9888; Problema 2 · Niente transazioni (Errore 263)
+                                </div>
+                                <p style="margin:0; font-size:22px; line-height:1.42; color:var(--ink-soft);">
+                                    Se salta la corrente mentre salviamo i 10.000 secondi di un paziente, MongoDB non
+                                    esegue il rollback e <b>lascia il paziente caricato a metà</b>.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            style="display:flex; flex-direction:column; justify-content:center; align-items:center; gap:60px; font-size:40px; font-weight:800; color:var(--blue); padding:0 4px;">
+                            <span>&#8600;</span>
+                            <span>&#8599;</span>
+                        </div>
+
+                        <div class="open-table-wrap" style="flex:1.15; padding:32px 36px; align-self:center;">
+                            <div
+                                style="font-size:18px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:14px;">
+                                &#10003; Soluzione · Controlli esterni + Stato su registry
+                            </div>
+                            <p style="margin:0 0 14px; font-size:23px; line-height:1.42; color:var(--ink-soft);">
+                                <b>1. Contro l'assenza di <span class="mono">$jsonSchema</span>:</b> <b>Python</b>
+                                valida ogni secondo in RAM prima della scrittura, mentre <b>MongoDB</b> applica <span
+                                    class="mono">$jsonSchema</span> sulla collezione <span class="mono">registry</span>
+                                <span style="color:var(--blue); font-weight:700;">(slide succ. &rarr;)</span>.
                             </p>
-                        </div>
-
-                        <div style="display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:800; color:var(--blue); padding:0 4px;">
-                            &rarr;
-                        </div>
-
-                        <div class="open-table-wrap" style="flex:1; padding:28px 32px;">
-                            <div style="font-size:17px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">
-                                &#10003; Soluzione
-                            </div>
-                            <p style="margin:0; font-size:21px; line-height:1.45; color:var(--ink-soft);">
-                                Separiamo i ruoli: <b>Python</b> valida i dati in RAM prima della scrittura, mentre
-                                <b>MongoDB</b> applica <span class="mono">$jsonSchema</span> sul <span
-                                    class="mono">registry</span> <span style="color:var(--blue); font-weight:700;">(slide
-                                    succ. &rarr;)</span> e comprime i segnali nella Time Series.
+                            <p style="margin:0; font-size:23px; line-height:1.42; color:var(--ink-soft);">
+                                <b>2. Contro l'assenza di transazioni:</b> salviamo in <b>2 fasi</b> (<span
+                                    class="mono">loading &rarr; committed</span>), rendendo visibili i pazienti solo a
+                                scrittura completata.
                             </p>
                         </div>
                     </div>
 
                     <div class="takeaway reveal" style="display:grid; grid-template-columns:1fr 1fr; gap:16px 32px;">
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Cosa NON può fare la Time Series (<span
-                                                class="mono">vital_signals</span>)</b>: non può controllare da sola se
-                                        i campi sono giusti (niente <span class="mono">$jsonSchema</span>) e <b>non può
-                                            annullare un salvataggio rimasto a metà</b> a seguito di un disservizio
-                                        (<span class="mono">Errore 263</span>).</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet red"></div>
-                                    <div><b>Perché niente <span class="mono">$jsonSchema</span> sulle Time Series?</b>
-                                        Anziché salvare ogni secondo come un documento separato, MongoDB impacchetta
-                                        centinaia di rilevazioni in <i>bucket colonnari compressi</i> (−84% spazio) per
-                                        scrivere alla massima velocità, rinunciando così al controllo <span
-                                            class="mono">$jsonSchema</span> sul singolo documento.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Niente cluster pesanti</b>: per 500 interventi usare sistemi come
-                                        <i>Spark</i> o <i>Delta Lake</i> sarebbe eccessivo; abbiamo diviso i controlli
-                                        tra <b>Python (fuori dal DB)</b> e <b>MongoDB (dentro il DB)</b>.
-                                    </div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet"></div>
-                                    <div><b>Un solo listino (<span class="mono">TRACK_SPECS</span>)</b>: Python invia i
-                                        limiti dei 5 sensori nella collezione <span class="mono">track_metadata</span> a
-                                        ogni avvio (<span class="mono">upsert</span>), così tutti leggono le stesse
-                                        soglie.</div>
-                                </div>
-                                <div class="takeaway-item">
-                                    <div class="bullet dark"></div>
-                                    <div><b>Verbale qualità (<span class="mono">quality_report.json</span>)</b>: per
-                                        ogni
-                                        paziente contiamo al 100% quanti secondi sono veri (<span
-                                            class="mono">observed</span>), ricostruiti (<span
-                                            class="mono">imputed</span>) o vuoti (<span class="mono">missing</span>),
-                                        con storico in <span class="mono">quality_history/</span>.</div>
-                                </div>
+                        <div class="takeaway-item">
+                            <div class="bullet"></div>
+                            <div><b>Niente cluster pesanti</b>: per 500 interventi usare sistemi come
+                                <i>Spark</i> o <i>Delta Lake</i> sarebbe eccessivo; abbiamo diviso i controlli
+                                tra <b>Python (fuori dal DB)</b> e <b>MongoDB (dentro il DB)</b>.
+                            </div>
+                        </div>
+                        <div class="takeaway-item">
+                            <div class="bullet"></div>
+                            <div><b>Un solo listino (<span class="mono">TRACK_SPECS</span>)</b>: Python invia i
+                                limiti dei 5 sensori nella collezione <span class="mono">track_metadata</span> a
+                                ogni avvio (<span class="mono">upsert</span>), così tutti leggono le stesse
+                                soglie.</div>
+                        </div>
+                        <div class="takeaway-item">
+                            <div class="bullet dark"></div>
+                            <div><b>Verbale qualità (<span class="mono">quality_report.json</span>)</b>: per
+                                ogni
+                                paziente contiamo al 100% quanti secondi sono veri (<span class="mono">observed</span>),
+                                ricostruiti (<span class="mono">imputed</span>) o vuoti (<span
+                                    class="mono">missing</span>),
+                                con storico in <span class="mono">quality_history/</span>.</div>
+                        </div>
                     </div>
 
                     <div class="callout-box reveal" style="font-size:17px; padding:14px 20px; margin:0;">
@@ -2262,8 +2270,9 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Il registro <span class="mono" style="font-size:0.88em;">registry</span>
-                    <em>e il filtro <span class="mono" style="font-size:0.88em;">$jsonSchema</span></em>
+                <h2 class="slide-title reveal">La collezione <span class="mono"
+                        style="font-size:0.88em;">registry</span>
+                    <em>e la validazione <span class="mono" style="font-size:0.88em;">$jsonSchema</span></em>
                 </h2>
 
                 <div class="canvas">
@@ -2273,7 +2282,8 @@
                             style="background:#f1f5f9; color:var(--blue); font-weight:700; font-size:20px; padding:8px 16px; border-radius:8px; white-space:nowrap;">Cos'è
                             $jsonSchema?</span>
                         <span style="font-size:21px; line-height:1.42; color:var(--ink-soft);">
-                            È il <b>meccanismo di validazione nativo di MongoDB</b>: a differenza dei database flessibili
+                            È il <b>meccanismo di validazione nativo di MongoDB</b>: a differenza dei database
+                            flessibili
                             senza vincoli, definisce uno schema formale di campi obbligatori, tipi di dato e valori
                             ammessi (in modalità <span class="mono">strict / error</span>), respingendo automaticamente
                             qualsiasi documento incompleto o errato prima del salvataggio.
@@ -2286,10 +2296,10 @@
                             style="background:#f1f5f9; color:var(--ink); font-weight:700; font-size:20px; padding:8px 16px; border-radius:8px; white-space:nowrap;">Cos'è
                             registry?</span>
                         <span style="font-size:21px; line-height:1.42; color:var(--ink-soft);">
-                            È una <b>collezione standard di supporto</b> (1 documento = 1 intervento) in cui è possibile
-                            attivare <span class="mono">$jsonSchema</span>: funge da anagrafe centrale dei pazienti,
-                            registrando lo stato del caricamento, il conteggio dei secondi salvati e i parametri clinici
-                            applicati.
+                            È una <b>collezione standard progettata ad hoc</b> (dove 1 documento equivale ad 1
+                            intervento) su cui viene attivato <span class="mono">$jsonSchema</span>: funge da registro
+                            centrale dei pazienti, tracciando stato del caricamento, conteggio dei secondi salvati e
+                            parametri clinici applicati.
                         </span>
                     </div>
 
@@ -2326,7 +2336,8 @@
                                     <div class="bullet"></div>
                                     <div><b>Tracciabilità completa (<span class="mono">provenance</span>)</b>: ogni
                                         scheda conserva la configurazione esatta applicata in fase di pulizia —
-                                        l'identificativo dell'esecuzione (<span class="mono">run_id</span>), l'intervallo
+                                        l'identificativo dell'esecuzione (<span class="mono">run_id</span>),
+                                        l'intervallo
                                         mancante massimo ricostruito (<span class="mono">5s</span>), la validità
                                         temporale della pressione (<span class="mono">300s</span>) e il passo di
                                         campionamento (<span class="mono">1s</span>).</div>
@@ -2353,7 +2364,8 @@
                  =========================================== -->
             <section class="slide" data-section="Capitolo 03">
                 <div class="kick reveal"> Capitolo 03 · Controllo Qualità &amp; Data Governance</div>
-                <h2 class="slide-title reveal">Salvataggio a due fasi: <em>nessun paziente resta a metà</em></h2>
+                <h2 class="slide-title reveal">Protocollo di scrittura a due fasi: <em>garanzia di integrità dei
+                        dati</em></h2>
 
                 <div class="canvas" style="display:flex; flex-direction:column; justify-content:space-between;">
                     <div style="flex:1; display:flex; align-items:center; justify-content:center;">
@@ -2371,7 +2383,8 @@
                             <div class="phase">Pre-controllo</div>
                             <h3>Verifica in RAM</h3>
                             <p style="font-size:20px; line-height:1.4;">Python verifica in memoria che tutte le
-                                rilevazioni del paziente siano conformi prima di accedere al database.</p>
+                                rilevazioni siano conformi; se non lo sono, <b>le scarta prima di accedere al
+                                    database</b>.</p>
                             <span class="tag">validate_records</span>
                         </div>
 
