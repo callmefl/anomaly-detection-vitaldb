@@ -3100,11 +3100,11 @@
 
                                     <!-- Grafico di confronto chiaro a due riquadri affiancati con sfondo bianco (uguale stile slide 3) -->
                                     <div
-                                        style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:6px;">
+                                        style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:6px; align-items:stretch;">
 
                                         <!-- Riquadro 1: Il 95% Normale -->
                                         <div
-                                            style="background:#fff; border-radius:14px; border:2px solid var(--blue); padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; height:150px;">
+                                            style="background:#fff; border-radius:14px; border:2px solid var(--blue); padding:14px 16px; display:flex; flex-direction:column; justify-content:space-between; min-height:182px;">
                                             <div>
                                                 <span class="pill sm blue-soft"
                                                     style="font-size:12px; padding:3px 10px; font-weight:800;">IL 95%
@@ -3114,7 +3114,7 @@
                                                     Errore &le; 4,79
                                                 </div>
                                             </div>
-                                            <p style="font-size:16px; line-height:1.3; color:var(--ink); margin:0;">
+                                            <p style="font-size:15.5px; line-height:1.32; color:var(--ink); margin:8px 0 0 0;">
                                                 I parametri sono <b>stabili e prevedibili</b>. La rete li ridisegna
                                                 facilmente: <b>nessun disturbo per i medici.</b>
                                             </p>
@@ -3122,7 +3122,7 @@
 
                                         <!-- Riquadro 2: Il 5% Anomalo -->
                                         <div
-                                            style="background:#fff; border-radius:14px; border:2px solid var(--red); padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; height:150px;">
+                                            style="background:#fff; border-radius:14px; border:2px solid var(--red); padding:14px 16px; display:flex; flex-direction:column; justify-content:space-between; min-height:182px;">
                                             <div>
                                                 <span class="pill sm red-soft"
                                                     style="font-size:12px; padding:3px 10px; font-weight:800;">IL 5% PIÙ
@@ -3132,9 +3132,10 @@
                                                     Errore &gt; 4,79
                                                 </div>
                                             </div>
-                                            <p style="font-size:16px; line-height:1.3; color:var(--ink); margin:0;">
-                                                Qualcosa nei segnali non quadra e la rete sbaglia a ridisegnare:
-                                                <b>suona l'allarme preventivo.</b>
+                                            <p style="font-size:15.5px; line-height:1.32; color:var(--ink); margin:8px 0 0 0;">
+                                                La rete sbaglia a ridisegnare e <b>suona l'allarme</b>. Non scegliamo
+                                                4,79 a mano: mettiamo in fila tutti gli errori e tagliamo al <b>95°
+                                                    percentile</b> (solo sul 5% peggiore).
                                             </p>
                                         </div>
 
