@@ -2804,8 +2804,9 @@
                                 <h3 style="font-size:28px; font-weight:800; color:var(--ink); margin-bottom:12px;">
                                     Leggero e immediato in sala</h3>
                                 <p style="font-size:21px; line-height:1.5; color:var(--ink-soft);">
-                                    Invece di copiare milioni di dati in memoria, la pipeline legge i secondi facendoli
-                                    scorrere come una lente d'ingrandimento.
+                                    Duplicare le finestre scorrevoli da 30s su tutti i 5,4 milioni di secondi
+                                    occuperebbe ~5 GB: con viste virtuali senza copie si allena su <b>15.000 finestre
+                                        (14 MB)</b> e valuta tutto il resto a blocchi.
                                 </p>
                             </div>
                             <div
@@ -2857,8 +2858,10 @@
                                     Allarme = Errore Massimo
                                 </div>
                                 <p style="font-size:21px; color:var(--ink-soft); line-height:1.45;">
-                                    Non facciamo la media. Guardiamo gli 8 segnali uno per uno e <b>prendiamo il
-                                        peggiore</b>.
+                                    Non facciamo la media: i tratti piatti della pressione e i canali sani hanno errore
+                                    quasi zero e coprirebbero eventuali anomalie su cuore o ossigeno. Valutiamo i 30
+                                    secondi segnale per segnale e <b>prendiamo il peggiore</b>: basta un parametro fuori
+                                    norma per alzare subito l'allarme.
                                 </p>
                             </div>
 
@@ -2958,7 +2961,13 @@
                                     </tr>
                                 </tbody>
                             </table>
-                            <div class="callout-box" style="margin-top:20px; font-size:18px;">
+                            <div class="callout-box dark" style="margin-top:18px; font-size:17.5px; line-height:1.4; padding:15px 22px;">
+                                <b>Perché valori ~0,10 sono attesi</b>: senza diagnosi cliniche etichettate, il
+                                confronto avviene contro <b>2 regole fisse</b> (che tacciono se la pressione è &gt; 2 min
+                                e ignorano variabilità o sequenze). Un punteggio ~1,0 significherebbe copiare due
+                                soglie rigide anziché scoprire anomalie nuove.
+                            </div>
+                            <div class="callout-box" style="margin-top:14px; font-size:17.5px; line-height:1.4; padding:15px 22px;">
                                 <b>L'inganno dell'accuratezza</b>: se dicessimo sempre "il paziente sta benissimo" senza
                                 mai controllare, avremmo il <b>95% di accuratezza</b>, ma in sala operatoria sarebbe
                                 fatale.
@@ -3763,67 +3772,83 @@
 
                         <!-- Riquadro Limiti: altezza 100% identica, padding simmetrico ed equilibrato -->
                         <div class="story reveal"
-                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;">
+                            style="background:#fff; padding:38px 44px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;">
                             <div>
-                                <div class="kick" style="margin-bottom:12px; font-size:18px;">Limiti Attuali</div>
+                                <div class="kick" style="margin-bottom:10px; font-size:18px;">Limiti Attuali</div>
                                 <h3
-                                    style="font-size:36px; font-weight:800; color:var(--ink); margin-bottom:28px; line-height:1.2;">
+                                    style="font-size:34px; font-weight:800; color:var(--ink); margin-bottom:22px; line-height:1.2;">
                                     Cosa manca rispetto alla sala vera</h3>
-                                <div class="takeaway" style="gap:26px;">
-                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                <div class="takeaway" style="gap:20px;">
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
                                         <div class="bullet"></div>
-                                        <div><b>Niente etichette dei medici</b>: nei file di VitalDB non ci sono note
-                                            scritte dai dottori per confermare le crisi secondo per secondo.</div>
+                                        <div><b>Data Lakehouse artificiale, non nativo</b>: i vincoli di MongoDB 8.0
+                                            sulle serie temporali (niente transazioni né schemi nativi) hanno imposto di
+                                            emulare un lakehouse in Python anziché costruirne uno reale.</div>
                                     </div>
-                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
                                         <div class="bullet"></div>
-                                        <div><b>Pressione a singhiozzo</b>: il bracciale misura solo ogni qualche
-                                            minuto, lasciando dei buchi vuoti tra una lettura e l'altra.</div>
+                                        <div><b>Dati su dataset offline, non dal vivo</b>: simuliamo l'analisi a
+                                            posteriori su un dataset archiviato; dove sono in gioco vite umane,
+                                            lavorare in streaming in tempo reale è tutta un'altra storia.</div>
                                     </div>
-                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
                                         <div class="bullet"></div>
-                                        <div><b>Orari convenzionali</b>: le registrazioni partono da zero e non indicano
-                                            l'ora reale dell'orologio della sala operatoria.</div>
+                                        <div><b>Niente etichette dei medici</b>: nei file di VitalDB mancano note
+                                            cliniche secondo per secondo per validare gli allarmi come verità
+                                            assoluta.</div>
+                                    </div>
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
+                                        <div class="bullet"></div>
+                                        <div><b>Pressione a singhiozzo e orari fittizi</b>: il bracciale lascia buchi
+                                            tra una misura e l'altra e le tracce partono da una data convenzionale.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <div
-                                style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--muted); font-family:var(--font-mono);">
-                                Limiti legati ai dati storici di partenza
+                                style="padding-top:18px; border-top:1px solid var(--line); font-size:17px; color:var(--muted); font-family:var(--font-mono);">
+                                Limiti architetturali, di processo e dei dati di partenza
                             </div>
                         </div>
 
                         <!-- Riquadro Prospettive: altezza 100% identica, padding simmetrico ed equilibrato -->
                         <div class="story reveal"
-                            style="background:#fff; padding:44px 48px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;">
+                            style="background:#fff; padding:38px 44px; border-radius:24px; border:1px solid var(--line); box-shadow:var(--card-shadow-lg); display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;">
                             <div>
-                                <div class="kick" style="margin-bottom:12px; font-size:18px;">Prospettive Future</div>
+                                <div class="kick" style="margin-bottom:10px; font-size:18px;">Prospettive Future</div>
                                 <h3
-                                    style="font-size:36px; font-weight:800; color:var(--ink); margin-bottom:28px; line-height:1.2;">
+                                    style="font-size:34px; font-weight:800; color:var(--ink); margin-bottom:22px; line-height:1.2;">
                                     Come farlo crescere</h3>
-                                <div class="takeaway" style="gap:26px;">
-                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                <div class="takeaway" style="gap:20px;">
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
                                         <div class="bullet"></div>
-                                        <div><b>Dati in diretta streaming</b>: passare dal caricamento a blocchi a un
-                                            flusso continuo che analizza i parametri in tempo reale.</div>
+                                        <div><b>Streaming reale con Kafka e Spark</b>: integrare <b>Apache Kafka</b>
+                                            per raccogliere i flussi continui dai monitor e <b>Spark Streaming</b> per
+                                            pulizia e manipolazione dei dati in tempo reale.</div>
                                     </div>
-                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
                                         <div class="bullet"></div>
-                                        <div><b>Aggiungere altri segnali</b>: includere anidride carbonica espirata,
-                                            profondità del sonno e ventilazione dei polmoni.</div>
+                                        <div><b>Verso un Lakehouse nativo &amp; AI pronta</b>: adottare motori
+                                            transazionali come Delta Lake o Iceberg su Spark e salvare i modelli già
+                                            addestrati per inferenza immediata.</div>
                                     </div>
-                                    <div class="takeaway-item" style="font-size:23px; line-height:1.45;">
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
                                         <div class="bullet"></div>
-                                        <div><b>Spiegazioni chiare a schermo</b>: mostrare con colori ed evidenziazioni
-                                            quale parametro ha fatto scattare l'allarme.</div>
+                                        <div><b>Aggiungere altri segnali</b>: includere anidride carbonica espirata
+                                            (EtCO₂), profondità dell'anestesia e pressione arteriosa invasiva.</div>
+                                    </div>
+                                    <div class="takeaway-item" style="font-size:21px; line-height:1.42;">
+                                        <div class="bullet"></div>
+                                        <div><b>Spiegazioni chiare a schermo</b>: evidenziare visivamente quale
+                                            parametro tra gli 8 ha fatto scattare l'allarme dell'AI.</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div
-                                style="padding-top:20px; border-top:1px solid var(--line); font-size:17px; color:var(--blue); font-family:var(--font-mono); font-weight:700;">
-                                Prossimi passi per l'uso clinico
+                                style="padding-top:18px; border-top:1px solid var(--line); font-size:17px; color:var(--blue); font-family:var(--font-mono); font-weight:700;">
+                                Prossimi passi per l'uso clinico in tempo reale
                             </div>
                         </div>
 
